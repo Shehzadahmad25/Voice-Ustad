@@ -561,8 +561,11 @@ async function send(){
       appendError('Rate limit reached', rateLimitMsg, rateLimitRetryMs);
       return;
     }
-    await sleep(500);
-    resp = BANK[ri%BANK.length]; ri++;
+    if(timedOut) return;
+    clearTimeout(sendTimeout);
+    hideTyping(); busy=false; setSpin(false); updateSendBtn();
+    appendError('AI error', (e as any)?.message || 'AI provider unavailable');
+    return;
   }
 
   if(timedOut) return;
@@ -570,7 +573,8 @@ async function send(){
   hideTyping(); busy=false; setSpin(false); updateSendBtn();
 
   if(!resp || !resp.text || !Array.isArray(resp.points)){
-    resp = BANK[ri%BANK.length]; ri++;
+    appendError('AI error', 'Invalid AI response');
+    return;
   }
   appendAI(resp, ts(), true);
 }
@@ -1023,7 +1027,8 @@ function speakUrdu(text: string){
   utter.lang='ur-PK';
   const voices = window.speechSynthesis.getVoices();
   const urVoice = voices.find(v => (v.lang || '').toLowerCase().includes('ur'));
-  if (urVoice) utter.voice = urVoice;
+  if (!urVoice) return false;
+  utter.voice = urVoice;
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utter);
   return true;
