@@ -81,8 +81,7 @@ const audioPlayers: any = {};
 const audioUrls: any = {};
 const ttsLoading: any = {};
 const ttsReady: any = {};
-const ttsPrefetching: any = {};
-const ttsPrefetchPromises: any = {};
+const audioErrors: any = {};
 let userScrolled=false;
 let lastQuestion='';
 let sendTimeout: number | null = null;
@@ -543,10 +542,14 @@ async function send(){
       throw new Error(String(errData?.error || 'API request failed'));
     }
     const data = await apiRes.json();
-    if (data?.meta?.source === 'fallback') {
-      showToast('Offline', 'AI provider unavailable - showing offline answer');
+    if (data?.ok === false) {
+      throw new Error(String(data?.error || 'API request failed'));
     }
     resp = data?.answer ?? null;
+    if (resp) {
+      if (data?.audioBase64) resp.audioBase64 = data.audioBase64;
+      if (data?.audioError) resp.audioError = data.audioError;
+    }
   } catch (e) {
     if (rateLimitMsg) {
       if(timedOut) return;
@@ -620,6 +623,25 @@ function appendAI(r, time, save=true){
   const computedDur = Math.round(wordCount / 2.8); // ~2.8 Urdu words/sec
   const actualDur = Math.max(dur, computedDur);
   const mm=Math.floor(actualDur/60), ss=String(actualDur%60).padStart(2,'0');
+
+  if (r?.audioBase64) {
+    try {
+      const bin = atob(r.audioBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
+      if (audioUrls[id]) {
+        try { URL.revokeObjectURL(audioUrls[id]); } catch(e){}
+      }
+      audioUrls[id] = URL.createObjectURL(blob);
+      ttsReady[id] = true;
+    } catch (e) {
+      audioErrors[id] = 'Audio decode failed';
+    }
+  }
+  if (r?.audioError) {
+    audioErrors[id] = String(r.audioError);
+  }
 
   const formulaHtml = (r.formula??'') ? `
     <div class="ai-formula" lang="en">
@@ -792,42 +814,13 @@ function appendError(
 }
 
 async function prefetchUrduAudio(id){
+  if(!audioUrls[id]) return;
+  ttsReady[id]=true;
   const btn=document.getElementById('btn_'+id);
-  if(!btn) return;
-  if(audioUrls[id]) return;
-  if(ttsPrefetching[id] && ttsPrefetchPromises[id]) return ttsPrefetchPromises[id];
-
-  const ttsText = decodeURIComponent(btn.dataset.tts || '');
-  const ttsUrText = decodeURIComponent(btn.dataset.ttsUr || '');
-  if(!ttsText && !ttsUrText) return;
-
-  ttsPrefetching[id]=true;
-  ttsPrefetchPromises[id] = (async () => {
-  try{
-    const res = await fetch('/api/chat2', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify(ttsUrText ? { mode:'tts', urduText: ttsUrText } : { mode:'tts', text: ttsText }),
-    });
-    if(!res.ok) return;
-    const blob = await res.blob();
-    if(!blob || blob.size===0) return;
-
-    if(audioUrls[id]){
-      try { URL.revokeObjectURL(audioUrls[id]); } catch(e){}
-    }
-    audioUrls[id]=URL.createObjectURL(blob);
-    ttsReady[id]=true;
+  if(btn){
     btn.setAttribute('data-tts-ready','1');
     btn.setAttribute('title','Urdu audio ready');
-  } catch(e){
-    ttsReady[id]=false;
-  } finally {
-    ttsPrefetching[id]=false;
-    ttsPrefetchPromises[id]=null;
   }
-  })();
-  return ttsPrefetchPromises[id];
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -917,10 +910,6 @@ async function togglePlay(id){
   setLoading(true);
   btn.setAttribute('disabled','true');
 
-  if (!audioUrls[id] && ttsPrefetchPromises[id]) {
-    try { await ttsPrefetchPromises[id]; } catch(e){}
-  }
-
   btn.classList.add('playing');
   btn.setAttribute('aria-pressed','true');
   btn.setAttribute('aria-label','Stop Urdu audio');
@@ -935,24 +924,8 @@ async function togglePlay(id){
     }
 
     if(!audioUrls[id]){
-      const res = await fetch('/api/chat2', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ttsUrText ? { mode:'tts', urduText: ttsUrText } : { mode:'tts', text: ttsText }),
-      });
-
-      if(!res.ok){
-        let msg='Urdu TTS is unavailable right now';
-        try {
-          const err = await res.json();
-          if(err?.error) msg = String(err.error);
-        } catch {}
-        throw new Error(msg);
-      }
-
-      const blob = await res.blob();
-      if(!blob || blob.size===0) throw new Error('Empty audio response');
-      audioUrls[id]=URL.createObjectURL(blob);
+      const errMsg = audioErrors[id] || 'Urdu audio is unavailable right now';
+      throw new Error(errMsg);
     }
     const audio = new Audio(audioUrls[id]);
     audioPlayers[id]=audio;
@@ -1013,7 +986,6 @@ function stopPlay(id){
   }
   // Keep the generated audio blob URL cached for replaying the same response.
   ttsReady[id]=Boolean(audioUrls[id]);
-  ttsPrefetching[id]=false;
   ttsLoading[id]=false;
   const btn=document.getElementById('btn_'+id);
   if(!btn) return;
