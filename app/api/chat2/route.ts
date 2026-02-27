@@ -21,13 +21,6 @@ type ChatAnswer = {
   };
 };
 
-type ChatResponse = {
-  ok: boolean;
-  answer: ChatAnswer;
-  audioBase64: string | null;
-  audioError?: string;
-};
-
 const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 12000);
 const MAX_MESSAGE_CHARS = Number(process.env.CHAT_MAX_MESSAGE_CHARS || 400);
 const MAX_TTS_CHARS = Number(process.env.TTS_MAX_TEXT_CHARS || 1200);
@@ -65,11 +58,25 @@ function normalizeAnswer(data: any): ChatAnswer {
   };
 }
 
+function buildRecentContext(history: any): string {
+  if (!Array.isArray(history)) return '';
+  const recent = history
+    .filter((m) => m && (m.type === 'user' || m.type === 'ai'))
+    .slice(-6)
+    .map((m) => {
+      if (m.type === 'user') return `User: ${String(m.text || '').trim()}`;
+      const aiText = m.response?.text ? String(m.response.text).trim() : '';
+      const aiPoints = Array.isArray(m.response?.points) ? m.response.points.slice(0, 2).join(' | ') : '';
+      const combined = [aiText, aiPoints].filter(Boolean).join(' | ');
+      return combined ? `Assistant: ${combined}` : '';
+    })
+    .filter(Boolean);
+  return recent.join('\n');
+}
+
 async function callOpenAIChat(message: string, chapter: string, recentContext: string): Promise<ChatAnswer> {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not set');
-  }
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
 
   const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
   const prompt = [
@@ -97,7 +104,7 @@ async function callOpenAIChat(message: string, chapter: string, recentContext: s
     '- points: 3-5 short exam-relevant bullets (concept explanation + key points)',
     '- formula/flabel: only if needed (otherwise empty)',
     '- tip: one short HTML exam tip (e.g. <strong>Exam Tip:</strong> ...)',
-    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Islamabad teacher tone; Urdu-dominant with light English science terms (atom, proton, electron, nucleus, energy level). End with a clear Urdu explanation of the MCQ answer.',
+    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Pakistani teacher tone; Urdu-dominant with light English science terms (atom, proton, electron, nucleus, energy level). End with a clear Urdu explanation of the MCQ answer.',
     '- mcq: include ONE related MCQ with {question, options: [A,B,C,D], correct}',
     '',
     'FOLLOW-UP MODE OUTPUT:',
@@ -165,7 +172,7 @@ async function callOpenAIChat(message: string, chapter: string, recentContext: s
   return normalizeAnswer(parsed);
 }
 
-async function callOpenAIUrduText(inputText: string): Promise<string> {
+async function callOpenAIUrduSummary(inputText: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
 
@@ -184,13 +191,13 @@ async function callOpenAIUrduText(inputText: string): Promise<string> {
       signal: controller.signal,
       body: JSON.stringify({
         model,
-        temperature: 0.2,
+        temperature: 0.3,
         max_completion_tokens: 220,
         messages: [
           {
             role: 'system',
             content:
-              'Convert the user text into clear, natural Pakistani Urdu for spoken audio in a male classroom teacher style with an Islamabad tone. Mix Urdu with light, natural English (e.g. concept, formula, example, point, exam, important) but keep Urdu dominant. Sound like a calm, friendly ustad explaining on a whiteboard. Short sentences, natural spoken flow, no robotic phrasing. Return plain Urdu text only. No markdown, no labels.',
+              'Write a short Urdu summary (30–80 words) in proper Urdu script. Student-friendly, clear, no Roman Urdu, no English paragraphs. Use light English science terms like atom, proton, electron, nucleus, energy level, formula, example as a Pakistani teacher would.',
           },
           { role: 'user', content: inputText },
         ],
@@ -198,7 +205,7 @@ async function callOpenAIUrduText(inputText: string): Promise<string> {
     });
   } catch (err) {
     if ((err as Error)?.name === 'AbortError') {
-      throw new Error(`OpenAI translation timed out after ${OPENAI_TIMEOUT_MS}ms`);
+      throw new Error(`OpenAI Urdu summary timed out after ${OPENAI_TIMEOUT_MS}ms`);
     }
     throw err;
   } finally {
@@ -207,12 +214,12 @@ async function callOpenAIUrduText(inputText: string): Promise<string> {
 
   if (!res.ok) {
     const errText = (await res.text()).slice(0, 500);
-    throw new Error(`OpenAI translation error ${res.status}: ${errText}`);
+    throw new Error(`OpenAI Urdu summary error ${res.status}: ${errText}`);
   }
 
   const json = await res.json();
   const content = String(json?.choices?.[0]?.message?.content ?? '').trim();
-  if (!content) throw new Error('Empty Urdu translation');
+  if (!content) throw new Error('Empty Urdu summary');
   return content;
 }
 
@@ -259,29 +266,39 @@ async function callOpenAIUrduSpeech(inputText: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-function buildRecentContext(history: any): string {
-  if (!Array.isArray(history)) return '';
-  const recent = history
-    .filter((m) => m && (m.type === 'user' || m.type === 'ai'))
-    .slice(-6)
-    .map((m) => {
-      if (m.type === 'user') return `User: ${String(m.text || '').trim()}`;
-      const aiText = m.response?.text ? String(m.response.text).trim() : '';
-      const aiPoints = Array.isArray(m.response?.points) ? m.response.points.slice(0, 2).join(' | ') : '';
-      const combined = [aiText, aiPoints].filter(Boolean).join(' | ');
-      return combined ? `Assistant: ${combined}` : '';
-    })
-    .filter(Boolean);
-  return recent.join('\n');
-}
-
 function bufferToBase64(buffer: ArrayBuffer) {
   return Buffer.from(buffer).toString('base64');
 }
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Has key?', Boolean(process.env.OPENAI_API_KEY));
     const body = await request.json();
+    const mode = String(body?.mode ?? 'chat').trim().toLowerCase();
+
+    if (mode === 'audio') {
+      const urduSummary = String(body?.urduSummary ?? '').trim();
+      if (!urduSummary) {
+        return NextResponse.json({ ok: false, error: 'urduSummary is required.' }, { status: 400 });
+      }
+      if (urduSummary.length > MAX_TTS_CHARS) {
+        return NextResponse.json(
+          { ok: false, error: `TTS text too long. Max ${MAX_TTS_CHARS} characters.` },
+          { status: 400 },
+        );
+      }
+      try {
+        const audioBuffer = await callOpenAIUrduSpeech(urduSummary);
+        const audioBase64 = bufferToBase64(audioBuffer);
+        return NextResponse.json({ ok: true, audioBase64 }, { status: 200 });
+      } catch (err) {
+        return NextResponse.json(
+          { ok: false, error: err instanceof Error ? err.message : 'TTS generation failed' },
+          { status: 500 },
+        );
+      }
+    }
+
     const message = String(body?.message ?? '').trim();
     const chapter = String(body?.chapter ?? '').trim();
     const recentContext = buildRecentContext(body?.history);
@@ -299,35 +316,52 @@ export async function POST(request: NextRequest) {
     const answer = { ...(await callOpenAIChat(message, chapter, recentContext)) };
     Object.assign(answer, inferBoardRef(message, chapter));
 
+    let urduSummary: string | null = null;
     let audioBase64: string | null = null;
-    let audioError: string | undefined = undefined;
+    let audioError: string | null = null;
+
     try {
-      const ttsSourceText = answer.urduTtsText
-        ? answer.urduTtsText
-        : await callOpenAIUrduText(
-            [answer.text, ...(answer.points || [])].map((v) => String(v || '').trim()).filter(Boolean).join('. ')
-          );
+      const summarySource = [
+        answer.text,
+        ...(answer.points || []),
+        answer.formula ? `Formula: ${answer.formula}` : '',
+      ]
+        .map((v) => String(v || '').trim())
+        .filter(Boolean)
+        .join('. ');
 
-      if (ttsSourceText.length > MAX_TTS_CHARS) {
-        throw new Error(`TTS text too long. Max ${MAX_TTS_CHARS} characters.`);
-      }
-
-      const audioBuffer = await callOpenAIUrduSpeech(ttsSourceText);
-      audioBase64 = bufferToBase64(audioBuffer);
+      urduSummary = await callOpenAIUrduSummary(summarySource);
+      console.log('Urdu summary length:', urduSummary?.length || 0);
     } catch (err) {
-      // Audio failure should not break the text response.
-      audioError = err instanceof Error ? err.message : 'TTS generation failed';
+      urduSummary = null;
       audioBase64 = null;
+      audioError = err instanceof Error ? err.message : 'Urdu summary generation failed';
     }
 
-    const responseBody: ChatResponse = {
-      ok: true,
-      answer,
-      audioBase64,
-      ...(audioError ? { audioError } : {}),
-    };
+    if (urduSummary) {
+      try {
+        if (urduSummary.length > MAX_TTS_CHARS) {
+          throw new Error(`TTS text too long. Max ${MAX_TTS_CHARS} characters.`);
+        }
+        const audioBuffer = await callOpenAIUrduSpeech(urduSummary);
+        audioBase64 = bufferToBase64(audioBuffer);
+      } catch (err) {
+        audioBase64 = null;
+        audioError = err instanceof Error ? err.message : 'TTS generation failed';
+      }
+    }
 
-    return NextResponse.json(responseBody, { status: 200 });
+    return NextResponse.json(
+      {
+        ok: true,
+        answer,
+        answerEnglish: answer.text,
+        urduSummary,
+        audioBase64,
+        audioError,
+      },
+      { status: 200 },
+    );
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: err instanceof Error ? err.message : 'Server error' },

@@ -82,6 +82,7 @@ const audioUrls: any = {};
 const ttsLoading: any = {};
 const ttsReady: any = {};
 const audioErrors: any = {};
+const urduSummaries: any = {};
 let userScrolled=false;
 let lastQuestion='';
 let sendTimeout: number | null = null;
@@ -173,6 +174,7 @@ function initApp(){
   w.copyAnswer = copyAnswer;
   w.feedback = feedback;
   w.togglePlay = togglePlay;
+  w.retryAudio = retryAudio;
   w.toggleMic = toggleMic;
   w.selCh = selCh;
   w.openPrevChat = openPrevChat;
@@ -547,6 +549,7 @@ async function send(){
     }
     resp = data?.answer ?? null;
     if (resp) {
+      if (data?.urduSummary) resp.urduSummary = data.urduSummary;
       if (data?.audioBase64) resp.audioBase64 = data.audioBase64;
       if (data?.audioError) resp.audioError = data.audioError;
     }
@@ -624,20 +627,12 @@ function appendAI(r, time, save=true){
   const actualDur = Math.max(dur, computedDur);
   const mm=Math.floor(actualDur/60), ss=String(actualDur%60).padStart(2,'0');
 
+  const urduSummary = String(r?.urduSummary || '').trim();
+  urduSummaries[id] = urduSummary;
+
   if (r?.audioBase64) {
-    try {
-      const bin = atob(r.audioBase64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'audio/mpeg' });
-      if (audioUrls[id]) {
-        try { URL.revokeObjectURL(audioUrls[id]); } catch(e){}
-      }
-      audioUrls[id] = URL.createObjectURL(blob);
-      ttsReady[id] = true;
-    } catch (e) {
-      audioErrors[id] = 'Audio decode failed';
-    }
+    audioUrls[id] = `data:audio/mpeg;base64,${r.audioBase64}`;
+    ttsReady[id] = true;
   }
   if (r?.audioError) {
     audioErrors[id] = String(r.audioError);
@@ -718,6 +713,7 @@ function appendAI(r, time, save=true){
                 Preparing Urdu audio...
               </div>
             </div>
+            <span class="vc-badge" aria-label="AI voice badge">AI Voice</span>
             <div class="vc-wave" id="wv_${id}" aria-hidden="true">
               <span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
@@ -726,6 +722,9 @@ function appendAI(r, time, save=true){
             <button class="vc-play" id="btn_${id}" data-dur="${actualDur}" data-tts="${ttsText}" data-tts-ur="${ttsUrText}" aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay('${id}')">
               <svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 9L5 21V3z"/></svg>
               <svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            </button>
+            <button class="vc-retry" id="retry_${id}" type="button" aria-label="Retry Urdu voice" onclick="retryAudio('${id}')">
+              Voice unavailable — Retry
             </button>
           </div>
           <div class="vc-progress" id="prog_${id}" role="progressbar" aria-valuemin="0" aria-valuemax="${actualDur}" aria-valuenow="0">
@@ -763,6 +762,8 @@ function appendAI(r, time, save=true){
 
   getInner().appendChild(w); scrollDn();
   prefetchUrduAudio(id);
+  const retryBtn = document.getElementById('retry_'+id) as HTMLButtonElement | null;
+  if (retryBtn) retryBtn.style.display = audioUrls[id] ? 'none' : 'inline-flex';
   if(save){
     chatHistory.push({type:'ai',response:r,time});
     saveHistory(activeChIdx, chatHistory);
@@ -901,7 +902,8 @@ async function togglePlay(id){
 
   const ttsText = decodeURIComponent(btn.dataset.tts || '');
   const ttsUrText = decodeURIComponent(btn.dataset.ttsUr || '');
-  if(!ttsText && !ttsUrText){
+  const hasAudioText = Boolean(urduSummaries[id] || ttsText || ttsUrText);
+  if(!hasAudioText){
     showToast('Audio', 'No text available for Urdu audio');
     return;
   }
@@ -924,7 +926,12 @@ async function togglePlay(id){
     }
 
     if(!audioUrls[id]){
-      const errMsg = audioErrors[id] || 'Urdu audio is unavailable right now';
+      const summary = String(urduSummaries[id] || '').trim();
+      if (summary && speakUrdu(summary)) {
+        setLoading(false);
+        return;
+      }
+      const errMsg = audioErrors[id] || 'Voice unavailable — Retry';
       throw new Error(errMsg);
     }
     const audio = new Audio(audioUrls[id]);
@@ -1008,6 +1015,56 @@ function stopPlay(id){
   progbar.style.width='0%';
   const m=Math.floor(dur/60), s=String(dur%60).padStart(2,'0');
   tm.textContent=`${m}:${s}`;
+}
+
+function speakUrdu(text: string){
+  if (!text || !window.speechSynthesis) return false;
+  const utter=new SpeechSynthesisUtterance(text);
+  utter.lang='ur-PK';
+  const voices = window.speechSynthesis.getVoices();
+  const urVoice = voices.find(v => (v.lang || '').toLowerCase().includes('ur'));
+  if (urVoice) utter.voice = urVoice;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+  return true;
+}
+
+async function retryAudio(id){
+  const summary = String(urduSummaries[id] || '').trim();
+  if(!summary){
+    showToast('Audio', 'Urdu summary unavailable');
+    return;
+  }
+  const btn=document.getElementById('btn_'+id);
+  const card = btn?.closest('.voice-card');
+  const sub = card?.querySelector('.vc-sub');
+  if (card) card.classList.add('loading');
+  if (sub) {
+    if (!sub.dataset.default) sub.dataset.default = sub.textContent || '';
+    sub.textContent = 'Preparing Urdu audio...';
+  }
+  try{
+    const res = await fetch('/api/chat2', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ mode:'audio', urduSummary: summary }),
+    });
+    const data = await res.json();
+    if(!res.ok || data?.ok === false){
+      throw new Error(String(data?.error || 'TTS generation failed'));
+    }
+    if(!data?.audioBase64) throw new Error('Empty audio response');
+    audioUrls[id] = `data:audio/mpeg;base64,${data.audioBase64}`;
+    ttsReady[id] = true;
+    const retryBtn = document.getElementById('retry_'+id) as HTMLButtonElement | null;
+    if (retryBtn) retryBtn.style.display = 'none';
+    showToast('Audio', 'Urdu voice ready');
+  } catch(e){
+    showToast('Audio', (e as any)?.message || 'Urdu TTS failed');
+  } finally {
+    if (card) card.classList.remove('loading');
+    if (sub && sub.dataset?.default) sub.textContent = sub.dataset.default;
+  }
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

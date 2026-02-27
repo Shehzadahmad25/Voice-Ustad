@@ -578,6 +578,26 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 /* FIX: sub-label uses em-dash separator instead of awkward Â· */
 .vc-label { font-size:.77rem; font-weight:700; color:var(--t1); }
 .vc-sub   { font-size:.67rem; color:var(--t3); margin-top:1px; }
+.vc-badge{
+  font-size: .6rem;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(59,130,246,.12);
+  color: var(--brand);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.vc-badge{
+  font-size: .6rem;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(59,130,246,.12);
+  color: var(--brand);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
 .vc-loading {
   display: none; align-items: center; gap: 6px;
   font-size: .67rem; color: var(--t3);
@@ -658,6 +678,32 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .ico-stop { display:none; }
 .vc-play.playing .ico-play { display:none; }
 .vc-play.playing .ico-stop { display:block; }
+.vc-retry{
+  font-size: .62rem;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--t2);
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vc-retry:hover{ border-color: var(--brand-mid); color: var(--t1); }
+.vc-retry{
+  font-size: .62rem;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--t2);
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vc-retry:hover{ border-color: var(--brand-mid); color: var(--t1); }
 
 /* Exam tip */
 .ai-tip {
