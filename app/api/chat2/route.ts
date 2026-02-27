@@ -12,6 +12,11 @@ type ChatAnswer = {
   refPageNo?: string;
   refLabel?: string;
   urduTtsText?: string;
+  mcq?: {
+    question: string;
+    options: string[];
+    correct: string;
+  };
 };
 
 const FALLBACK_ANSWER: ChatAnswer = {
@@ -119,6 +124,15 @@ function normalizeAnswer(data: any): ChatAnswer {
     refPageNo: typeof data?.refPageNo === 'string' ? data.refPageNo : '',
     refLabel: typeof data?.refLabel === 'string' ? data.refLabel : 'Board Reference',
     urduTtsText: typeof data?.urduTtsText === 'string' ? data.urduTtsText : '',
+    mcq: data?.mcq && typeof data.mcq === 'object'
+      ? {
+          question: String(data.mcq.question || '').trim(),
+          options: Array.isArray(data.mcq.options)
+            ? data.mcq.options.map((o: any) => String(o || '').trim()).filter(Boolean).slice(0, 4)
+            : [],
+          correct: String(data.mcq.correct || '').trim(),
+        }
+      : undefined,
   };
 }
 
@@ -135,7 +149,7 @@ async function callOpenAI(message: string, chapter: string): Promise<ChatAnswer>
     'If a question is outside Atomic Structure, respond with:',
     '"This topic is not included in the current lesson."',
     '',
-    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip, urduTtsText.',
+    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip, urduTtsText, mcq.',
     'Rules:',
     '- Stay strictly on the user’s asked topic/question within Atomic Structure',
     '- If the user asks a follow-up (e.g. "more", "explain", "difference", "formula"), continue the SAME topic using recent context',
@@ -150,12 +164,12 @@ async function callOpenAI(message: string, chapter: string): Promise<ChatAnswer>
     '3) MCQ / short question / difference / marks-based -> EXAM MODE',
     '',
     'FULL TEACHING MODE OUTPUT:',
-    '- text: 1-2 sentence definition (define first)',
-    '- points: explanation steps + one short example if useful',
-    '- If a formula is relevant: include formula/flabel and a short numeric step inside points',
-    '- End with one related MCQ in the LAST point in this exact format: "MCQ: ... A) ... B) ... C) ... D) ... Correct: __."',
+    '- text: 1-2 sentence definition',
+    '- points: 3-5 short exam-relevant bullets (concept explanation + key points)',
+    '- formula/flabel: only if needed (otherwise empty)',
     '- tip: one short HTML exam tip (e.g. <strong>Exam Tip:</strong> ...)',
-    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Islamabad teacher tone; Urdu-dominant with light English science terms (atom, proton, electron, nucleus, energy level). Include the MCQ answer explanation in Urdu at the end.',
+    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Islamabad teacher tone; Urdu-dominant with light English science terms (atom, proton, electron, nucleus, energy level). End with a clear Urdu explanation of the MCQ answer.',
+    '- mcq: include ONE related MCQ with {question, options: [A,B,C,D], correct}',
     '',
     'FOLLOW-UP MODE OUTPUT:',
     '- text: 1 short clarification sentence',
@@ -301,7 +315,7 @@ async function callOpenAIWithContext(message: string, chapter: string, recentCon
     'If a question is outside Atomic Structure, respond with:',
     '"This topic is not included in the current lesson."',
     '',
-    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip, urduTtsText.',
+    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip, urduTtsText, mcq.',
     'Rules:',
     '- Stay strictly on the user’s asked topic/question within Atomic Structure',
     '- If the user asks a follow-up (e.g. "more", "explain", "difference", "formula"), continue the SAME topic',
@@ -315,12 +329,12 @@ async function callOpenAIWithContext(message: string, chapter: string, recentCon
     '3) MCQ / short question / difference / marks-based -> EXAM MODE',
     '',
     'FULL TEACHING MODE OUTPUT:',
-    '- text: 1-2 sentence definition (define first)',
-    '- points: explanation steps + one short example if useful',
-    '- If a formula is relevant: include formula/flabel and a short numeric step inside points',
-    '- End with one related MCQ in the LAST point in this exact format: "MCQ: ... A) ... B) ... C) ... D) ... Correct: __."',
+    '- text: 1-2 sentence definition',
+    '- points: 3-5 short exam-relevant bullets (concept explanation + key points)',
+    '- formula/flabel: only if needed (otherwise empty)',
     '- tip: one short HTML exam tip (e.g. <strong>Exam Tip:</strong> ...)',
-    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Islamabad teacher tone; Urdu-dominant with light English science terms (atom, proton, electron, nucleus, energy level). Include the MCQ answer explanation in Urdu at the end.',
+    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Islamabad teacher tone; Urdu-dominant with light English science terms (atom, proton, electron, nucleus, energy level). End with a clear Urdu explanation of the MCQ answer.',
+    '- mcq: include ONE related MCQ with {question, options: [A,B,C,D], correct}',
     '',
     'FOLLOW-UP MODE OUTPUT:',
     '- text: 1 short clarification sentence',

@@ -543,6 +543,9 @@ async function send(){
       throw new Error(String(errData?.error || 'API request failed'));
     }
     const data = await apiRes.json();
+    if (data?.meta?.source === 'fallback') {
+      showToast('Offline', 'AI provider unavailable - showing offline answer');
+    }
     resp = data?.answer ?? null;
   } catch (e) {
     if (rateLimitMsg) {
@@ -624,6 +627,18 @@ function appendAI(r, time, save=true){
       <div class="formula-body">${esc(r.formula)}</div>
     </div>` : '';
 
+  const mcq = r.mcq;
+  const mcqOptions = Array.isArray(mcq?.options) ? mcq.options : [];
+  const mcqHtml = (mcq?.question && mcqOptions.length >= 2) ? `
+    <div class="ai-mcq" role="group" aria-label="Related MCQ">
+      <div class="mcq-title">Related MCQ</div>
+      <div class="mcq-q">${esc(mcq.question)}</div>
+      <div class="mcq-opts">
+        ${mcqOptions.map((o, i)=>`<div class="mcq-opt"><span class="mcq-opt-key">${String.fromCharCode(65+i)}</span><span>${esc(o)}</span></div>`).join('')}
+      </div>
+      ${mcq?.correct ? `<div class="mcq-ans">Correct: ${esc(mcq.correct)}</div>` : ''}
+    </div>` : '';
+
   const tipHtml = r.tip ? `<div class="ai-tip" role="note" aria-label="Exam tip">
     <span class="tip-star" aria-hidden="true">â˜…</span>
     <span class="tip-txt">${r.tip}</span>
@@ -666,6 +681,7 @@ function appendAI(r, time, save=true){
         </div>
 
         ${formulaHtml}
+        ${mcqHtml}
 
         <div class="voice-card" role="region" aria-label="Urdu voice explanation">
           <div class="vc-top-row">

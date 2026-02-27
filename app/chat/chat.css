@@ -667,6 +667,42 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   border: 1px solid var(--amber-bd);
   border-radius: 10px; padding: 10px 13px;
 }
+.ai-mcq{
+  margin-top: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.mcq-title{
+  font-size: .7rem; font-weight: 700; letter-spacing: .02em;
+  color: var(--t3); text-transform: uppercase;
+}
+.mcq-q{
+  margin-top: 6px;
+  font-size: .82rem; color: var(--t1);
+}
+.mcq-opts{
+  margin-top: 8px;
+  display: grid; gap: 6px;
+}
+.mcq-opt{
+  display: flex; gap: 8px; align-items: flex-start;
+  font-size: .78rem; color: var(--t2);
+}
+.mcq-opt-key{
+  min-width: 18px; height: 18px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .68rem; font-weight: 700;
+}
+.mcq-ans{
+  margin-top: 8px;
+  font-size: .74rem; color: var(--brand);
+  font-weight: 600;
+}
 .tip-star { font-size: .78rem; flex-shrink:0; margin-top:2px; }
 .ai-tip[aria-label="Exam tip"] .tip-star {
   font-size: 0;
