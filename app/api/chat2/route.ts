@@ -118,6 +118,7 @@ function normalizeAnswer(data: any): ChatAnswer {
     refChapterNo: typeof data?.refChapterNo === 'string' ? data.refChapterNo : '',
     refPageNo: typeof data?.refPageNo === 'string' ? data.refPageNo : '',
     refLabel: typeof data?.refLabel === 'string' ? data.refLabel : 'Board Reference',
+    urduTtsText: typeof data?.urduTtsText === 'string' ? data.urduTtsText : '',
   };
 }
 
@@ -129,16 +130,45 @@ async function callOpenAI(message: string, chapter: string): Promise<ChatAnswer>
 
   const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
   const prompt = [
-    'You are a chemistry tutor for FSc students.',
-    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip.',
+    'You are VoiceUstad, an expert FSc Chemistry tutor.',
+    'You ONLY teach Chapter: Atomic Structure (FSc KPK Board).',
+    'If a question is outside Atomic Structure, respond with:',
+    '"This topic is not included in the current lesson."',
+    '',
+    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip, urduTtsText.',
     'Rules:',
-    '- Focus on exam-relevant content only',
-    '- Avoid long theoretical paragraphs',
-    '- text: 1-2 short sentences only',
-    '- points: array of 3-5 short bullet-style strings (exam points/rules/definitions)',
-    '- formula/flabel can be empty strings if not applicable',
+    '- Stay strictly on the user’s asked topic/question within Atomic Structure',
+    '- If the user asks a follow-up (e.g. "more", "explain", "difference", "formula"), continue the SAME topic using recent context',
+    '- If the question is ambiguous, infer from recent context first, then chapter',
+    '- No long paragraphs; keep sentences short',
+    '- No repetition; avoid unnecessary words',
+    '- No advanced university-level detail',
+    '',
+    'MODE DETECTION:',
+    '1) New concept -> FULL TEACHING MODE',
+    '2) Confusion / why / explain again -> FOLLOW-UP MODE',
+    '3) MCQ / short question / difference / marks-based -> EXAM MODE',
+    '',
+    'FULL TEACHING MODE OUTPUT:',
+    '- text: 1-2 sentence definition',
+    '- points: 3-5 short exam-relevant bullets (concept explanation + key points)',
+    '- formula/flabel: only if needed (otherwise empty)',
+    '- tip: one short HTML exam tip (e.g. <strong>Exam Tip:</strong> ...)',
+    '- urduTtsText: 6-8 short spoken Urdu sentences, simple, natural, with English science terms (atom, proton, electron, nucleus, energy level)',
+    '',
+    'FOLLOW-UP MODE OUTPUT:',
+    '- text: 1 short clarification sentence',
+    '- points: 2-3 short bullets',
+    '- tip: optional short HTML line or empty',
+    '- urduTtsText: 3-5 short simple Urdu sentences',
+    '',
+    'EXAM MODE OUTPUT:',
+    '- For MCQ: text should include "Correct Option: __. Reason: __" (1-2 lines)',
+    '- For short question: text should be concise board-style',
+    '- For difference: points should be a compact list of contrasts',
+    '- urduTtsText: 3-5 short Urdu summary sentences',
+    '',
     '- dur: integer seconds between 20 and 60',
-    '- tip: short HTML string for important exam statement, e.g. <strong>Important:</strong> ...',
     `Chapter: ${chapter || 'General Chemistry'}`,
     `Question: ${message}`,
   ].join('\n');
@@ -164,7 +194,7 @@ async function callOpenAI(message: string, chapter: string): Promise<ChatAnswer>
           {
             role: 'system',
             content:
-              'You are VoiceUstad chemistry tutor. Respond as strict JSON only. No markdown.',
+              'You are VoiceUstad chemistry tutor focused only on Atomic Structure. Respond as strict JSON only. No markdown.',
           },
           { role: 'user', content: prompt },
         ],
@@ -265,20 +295,44 @@ async function callOpenAIWithContext(message: string, chapter: string, recentCon
 
   const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
   const prompt = [
-    'You are a chemistry tutor for FSc students.',
-    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip.',
+    'You are VoiceUstad, an expert FSc Chemistry tutor.',
+    'You ONLY teach Chapter: Atomic Structure (FSc KPK Board).',
+    'If a question is outside Atomic Structure, respond with:',
+    '"This topic is not included in the current lesson."',
+    '',
+    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip, urduTtsText.',
     'Rules:',
-    '- Focus on exam-relevant content only',
-    '- Stay strictly on the user’s asked topic/question',
-    '- If the user asks a follow-up (e.g. "more", "explain", "difference", "formula"), continue the SAME topic using recent context',
-    '- Do not switch to another chapter/topic unless the user explicitly asks',
-    '- If the question is ambiguous, infer from recent context first, then chapter',
-    '- Avoid long theoretical paragraphs',
-    '- text: 1-2 short sentences only',
-    '- points: array of 3-5 short bullet-style strings (exam points/rules/definitions)',
-    '- formula/flabel can be empty strings if not applicable',
+    '- Stay strictly on the user’s asked topic/question within Atomic Structure',
+    '- If the user asks a follow-up (e.g. "more", "explain", "difference", "formula"), continue the SAME topic',
+    '- No long paragraphs; keep sentences short',
+    '- No repetition; avoid unnecessary words',
+    '- No advanced university-level detail',
+    '',
+    'MODE DETECTION:',
+    '1) New concept -> FULL TEACHING MODE',
+    '2) Confusion / why / explain again -> FOLLOW-UP MODE',
+    '3) MCQ / short question / difference / marks-based -> EXAM MODE',
+    '',
+    'FULL TEACHING MODE OUTPUT:',
+    '- text: 1-2 sentence definition',
+    '- points: 3-5 short exam-relevant bullets (concept explanation + key points)',
+    '- formula/flabel: only if needed (otherwise empty)',
+    '- tip: one short HTML exam tip (e.g. <strong>Exam Tip:</strong> ...)',
+    '- urduTtsText: 6-8 short spoken Urdu sentences, simple, natural, with English science terms (atom, proton, electron, nucleus, energy level)',
+    '',
+    'FOLLOW-UP MODE OUTPUT:',
+    '- text: 1 short clarification sentence',
+    '- points: 2-3 short bullets',
+    '- tip: optional short HTML line or empty',
+    '- urduTtsText: 3-5 short simple Urdu sentences',
+    '',
+    'EXAM MODE OUTPUT:',
+    '- For MCQ: text should include "Correct Option: __. Reason: __" (1-2 lines)',
+    '- For short question: text should be concise board-style',
+    '- For difference: points should be a compact list of contrasts',
+    '- urduTtsText: 3-5 short Urdu summary sentences',
+    '',
     '- dur: integer seconds between 20 and 60',
-    '- tip: short HTML string for important exam statement, e.g. <strong>Important:</strong> ...',
     `Chapter: ${chapter || 'General Chemistry'}`,
     recentContext ? `Recent conversation context:\n${recentContext}` : 'Recent conversation context: none',
     `Current Question: ${message}`,
@@ -305,7 +359,7 @@ async function callOpenAIWithContext(message: string, chapter: string, recentCon
           {
             role: 'system',
             content:
-              'You are VoiceUstad chemistry tutor. Stay on-topic using recent context for follow-ups. Respond as strict JSON only. No markdown.',
+              'You are VoiceUstad chemistry tutor focused only on Atomic Structure. Respond as strict JSON only. No markdown.',
           },
           { role: 'user', content: prompt },
         ],
@@ -490,12 +544,14 @@ export async function POST(request: NextRequest) {
       const answer = { ...(await callOpenAIWithContext(message, chapter, recentContext)) };
       Object.assign(answer, inferBoardRef(message, chapter));
       try {
-        const ttsSourceText = [answer.text, ...(answer.points || [])]
-          .map((v) => String(v || '').trim())
-          .filter(Boolean)
-          .join('. ');
-        if (ttsSourceText) {
-          answer.urduTtsText = await callOpenAIUrduText(ttsSourceText);
+        if (!answer.urduTtsText) {
+          const ttsSourceText = [answer.text, ...(answer.points || [])]
+            .map((v) => String(v || '').trim())
+            .filter(Boolean)
+            .join('. ');
+          if (ttsSourceText) {
+            answer.urduTtsText = await callOpenAIUrduText(ttsSourceText);
+          }
         }
       } catch {
         // Best-effort optimization for playback; chat answer should still return.
@@ -527,3 +583,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Invalid JSON body.' }, { status: 400 });
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

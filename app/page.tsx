@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const faqItems = [
   {
     q: "Which boards are supported?",
-    a: "VoiceUstad is fully aligned with the KPK Board FSc (Part 1 & Part 2) curriculum. Punjab Board and Federal Board support is in development and coming in Q2 2025.",
+    a: "VoiceUstad is fully aligned with the KPK Board FSc (Part 1 & Part 2) curriculum. Punjab Board and Federal Board support is in development and coming in Q2 2026.",
   },
   {
     q: "Is the Urdu explanation real spoken audio or robot TTS?",
@@ -17,7 +17,7 @@ const faqItems = [
   },
   {
     q: "Can I use VoiceUstad on my Android phone?",
-    a: "Absolutely. It runs in your browser — no app download needed. Works on Android, iPhone, and desktop. A native Android app is coming in Q4 2025.",
+    a: "Absolutely. It runs in your browser — no app download needed. Works on Android, iPhone, and desktop. A native Android app is coming in Q4 2026.",
   },
   {
     q: "Can I ask questions in Urdu?",
@@ -355,19 +355,19 @@ export default function Home() {
               <p>FSc Part 1 &amp; Part 2, full syllabus</p>
             </div>
             <div className="road-item soon">
-              <span className="road-badge badge-soon">Q2 2025</span>
+              <span className="road-badge badge-soon">Q2 2026</span>
               <span className="road-icon">📱</span>
               <h4>Punjab &amp; Federal Board</h4>
               <p>Expanding to 2 more boards</p>
             </div>
             <div className="road-item soon">
-              <span className="road-badge badge-soon">Q3 2025</span>
+              <span className="road-badge badge-soon">Q3 2026</span>
               <span className="road-icon">⚡</span>
               <h4>Biology &amp; Physics</h4>
               <p>Full FSc science subject coverage</p>
             </div>
             <div className="road-item soon">
-              <span className="road-badge badge-soon">Q4 2025</span>
+              <span className="road-badge badge-soon">Q4 2026</span>
               <span className="road-icon">📱</span>
               <h4>Mobile App</h4>
               <p>Native Android app, offline mode</p>

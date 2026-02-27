@@ -673,6 +673,12 @@ function appendAI(r, time, save=true){
             <div class="vc-info">
               <div class="vc-label">Urdu Voice Explanation</div>
               <div class="vc-sub" lang="ur" dir="ltr">Tap play to listen - ${actualDur}s</div>
+              <div class="vc-loading" id="vcload_${id}" aria-live="polite">
+                <span class="vc-dot"></span>
+                <span class="vc-dot"></span>
+                <span class="vc-dot"></span>
+                Preparing Urdu audio...
+              </div>
             </div>
             <div class="vc-wave" id="wv_${id}" aria-hidden="true">
               <span></span><span></span><span></span>
@@ -868,6 +874,15 @@ async function togglePlay(id){
   const wv=document.getElementById('wv_'+id);
   const prog=document.getElementById('prog_'+id);
   const progbar=document.getElementById('progbar_'+id);
+  const card = btn.closest('.voice-card');
+  const sub = card?.querySelector('.vc-sub');
+  const setLoading = (on: boolean) => {
+    if (card) card.classList.toggle('loading', on);
+    if (sub) {
+      if (!sub.dataset.default) sub.dataset.default = sub.textContent || '';
+      sub.textContent = on ? 'Preparing Urdu audio...' : (sub.dataset.default || '');
+    }
+  };
   const dur=parseInt(btn.dataset.dur);
   const isOn=timers[id]!=null;
   const isLoading=ttsLoading[id]===true;
@@ -883,6 +898,7 @@ async function togglePlay(id){
   }
 
   ttsLoading[id]=true;
+  setLoading(true);
   btn.setAttribute('disabled','true');
 
   if (!audioUrls[id] && ttsPrefetchPromises[id]) {
@@ -927,6 +943,7 @@ async function togglePlay(id){
     audio.onended=()=>stopPlay(id);
     audio.onerror=()=>stopPlay(id);
     await audio.play();
+    setLoading(false);
   } catch(e){
     // Fallback to browser speech so the UI still works if API TTS fails.
     if(window.speechSynthesis){
@@ -934,6 +951,7 @@ async function togglePlay(id){
       const utter=new SpeechSynthesisUtterance(ttsUrText || ttsText);
       utter.lang='ur-PK'; utter.rate=0.9;
       window.speechSynthesis.speak(utter);
+      setLoading(false);
     } else {
       stopPlay(id);
       showToast('Audio', (e as any)?.message || 'Urdu TTS failed');
@@ -944,6 +962,7 @@ async function togglePlay(id){
   } finally {
     ttsLoading[id]=false;
     btn.removeAttribute('disabled');
+    setLoading(false);
   }
 
   const startAt=Date.now();
@@ -968,6 +987,13 @@ function stopPlay(id){
     try { audioPlayers[id].pause(); } catch(e){}
     audioPlayers[id].currentTime=0;
     audioPlayers[id]=null;
+  }
+  const btnForStop=document.getElementById('btn_'+id);
+  const cardForStop = btnForStop?.closest('.voice-card');
+  const subForStop = cardForStop?.querySelector('.vc-sub');
+  if (cardForStop) cardForStop.classList.remove('loading');
+  if (subForStop && subForStop.dataset?.default) {
+    subForStop.textContent = subForStop.dataset.default;
   }
   // Keep the generated audio blob URL cached for replaying the same response.
   ttsReady[id]=Boolean(audioUrls[id]);
@@ -1220,7 +1246,7 @@ export default function ChatPage() {
             <li>Saved conversation history across sessions</li>
             <li>Priority response speed</li>
           </ul>
-          <button className="modal-cta" onClick={() => closeUpgrade()}>Start Pro — Rs 299/month</button>
+          <button className="modal-cta" onClick={() => closeUpgrade()}>Start Pro — Rs 499/month</button>
           <button className="modal-skip" onClick={() => closeUpgrade()}>Maybe later</button>
         </div>
       </div>
