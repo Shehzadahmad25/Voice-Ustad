@@ -169,8 +169,25 @@ async function callOpenAIChat(message: string, chapter: string, recentContext: s
 
   const json = await res.json();
   const rawContent = json?.choices?.[0]?.message?.content;
-  const parsed = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
-  return normalizeAnswer(parsed);
+  if (rawContent == null) {
+    throw new Error('OpenAI returned empty content');
+  }
+  if (typeof rawContent !== 'string') {
+    return normalizeAnswer(rawContent);
+  }
+  try {
+    return normalizeAnswer(JSON.parse(rawContent));
+  } catch (err) {
+    const first = rawContent.indexOf('{');
+    const last = rawContent.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      const sliced = rawContent.slice(first, last + 1);
+      try {
+        return normalizeAnswer(JSON.parse(sliced));
+      } catch {}
+    }
+    throw new Error(`Invalid JSON from model: ${(err as Error)?.message || 'parse error'}`);
+  }
 }
 
 async function callOpenAIUrduSummary(inputText: string): Promise<string> {
