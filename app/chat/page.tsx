@@ -663,7 +663,6 @@ function appendAI(r, time, save=true){
         <div class="ai-card">
           <div class="ai-intro">${esc(r.text)}</div>
           <div class="ai-pts">${kp}</div>
-          <div class="ai-debug">TTS: ${r.urduTtsText ? 'ready' : 'missing'}</div>
         </div>
 
         ${formulaHtml}
