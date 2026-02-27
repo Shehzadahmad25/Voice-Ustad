@@ -685,6 +685,16 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   font-size: .68rem; color: var(--t3);
   margin-top: 5px; font-family: 'JetBrains Mono', monospace;
 }
+.ai-debug{
+  margin-top: 6px;
+  display: inline-block;
+  font-size: .62rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(100,116,139,.15);
+  color: var(--t3);
+  border: 1px solid var(--border);
+}
 
 /* â”€â”€ Typing indicator â”€â”€ */
 .typing-row {

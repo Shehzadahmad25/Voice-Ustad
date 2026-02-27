@@ -438,10 +438,10 @@ function showToast(icon: string, msg: string, duration: number = 2400){
 function showWelcome(){
   started=false; ri=0; chatHistory=[];
   const STARTERS=[
-    {icon:'\u2697', q:'What is electronegativity and its periodic trend?', label:'Chemical Bonding · Ch 4'},
-    {icon:'\u269B', q:"Explain Bohr's atomic model and its postulates",      label:'Atomic Structure · Ch 3'},
-    {icon:'\uD83D\uDD2C', q:'Explain the four quantum numbers with examples',      label:'Atomic Structure · Ch 3'},
-    {icon:'\uD83D\uDCDD', q:'Give me a 5-mark KPK Board past paper question',      label:'Exam Preparation'},
+    {icon:'\u269B', q:"Explain Bohr's atomic model and its postulates", label:'Atomic Structure · Ch 3'},
+    {icon:'\uD83D\uDD2C', q:'Explain the four quantum numbers with examples', label:'Atomic Structure · Ch 3'},
+    {icon:'\u269B', q:'What is electronegativity? Is it related to atomic structure?', label:'Atomic Structure · Ch 3'},
+    {icon:'\u269B', q:'What are isotopes and how do they relate to atomic mass?', label:'Atomic Structure · Ch 3'},
   ];
   const m=document.getElementById('msgs') as HTMLElement;
   if (m) m.innerHTML=`<div class="msgs-inner" id="msgsInner">
@@ -663,6 +663,7 @@ function appendAI(r, time, save=true){
         <div class="ai-card">
           <div class="ai-intro">${esc(r.text)}</div>
           <div class="ai-pts">${kp}</div>
+          <div class="ai-debug">TTS: ${r.urduTtsText ? 'ready' : 'missing'}</div>
         </div>
 
         ${formulaHtml}
