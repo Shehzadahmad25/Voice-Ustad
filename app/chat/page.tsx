@@ -30,6 +30,24 @@ const CHS = [
    followups:['What is the difference between addition and condensation polymerisation?','How are proteins structured?','Explain the role of enzymes']},
 ];
 
+const ATOMIC_SCOPE_TOPICS = [
+  'Fundamental particles (electron, proton, neutron)',
+  'Atomic number and mass number',
+  'Isotopes and isobars',
+  'Thomson, Rutherford, and Bohr models',
+  "Bohr's postulates and limitations",
+  'Electromagnetic radiation and Planck theory',
+  'Hydrogen emission spectrum',
+  'Quantum mechanical model of atom',
+  'Quantum numbers (n, l, m, s)',
+  'Orbitals and subshells (s, p, d, f)',
+  'Electronic configuration',
+  'Aufbau principle, Pauli exclusion principle, Hund rule',
+  'Ionization energy',
+  'Electron affinity',
+  'Electronegativity and periodic trend',
+];
+
 /* â•â•â•â•â•â•â•â•â•â•â• RESPONSE BANK â•â•â•â•â•â•â•â•â•â•â• */
 const BANK = [
   {
@@ -166,6 +184,8 @@ function initApp(){
   w.closeSb = closeSb;
   w.openUpgrade = openUpgrade;
   w.closeUpgrade = closeUpgrade;
+  w.openScope = openScope;
+  w.closeScope = closeScope;
   w.newChat = newChat;
   w.send = send;
   w.ask = ask;
@@ -184,6 +204,7 @@ function initApp(){
   buildSb();
   buildPrevChats();
   showWelcome();
+  updateInputPlaceholder(activeChIdx);
   updateSendBtn();
   buildChips(activeChIdx);
   updateTopbarSub(activeChIdx);
@@ -216,6 +237,7 @@ function initApp(){
     if(e.key==='Escape'){
       closeSb();
       closeUpgrade();
+      closeScope();
     }
   });
 
@@ -323,6 +345,7 @@ function selCh(i: number){
   const tbTitle = document.getElementById('tbTitle');
   if (tbTitle) tbTitle.textContent=activeCh;
   updateTopbarSub(i);
+  updateInputPlaceholder(i);
   sanitizeVisibleUiText();
   const tbSub2 = document.getElementById('tbSub');
   if (tbSub2) tbSub2.textContent = tbSub2.textContent?.replace('Aú', '•') || '';
@@ -367,6 +390,12 @@ function buildChips(i: number){
   const el=document.getElementById('chips') as HTMLElement;
   if (el) {
     el.innerHTML=`<span class="c-lbl">Try:</span>`;
+    const scopeBtn=document.createElement('button');
+    scopeBtn.className='chip chip-scope';
+    scopeBtn.textContent='What can I ask?';
+    scopeBtn.setAttribute('aria-label','Show chapter scope topics');
+    scopeBtn.addEventListener('click',()=>openScope());
+    el.appendChild(scopeBtn);
     ch.chips.forEach((q: string)=>{
     const btn=document.createElement('button');
     btn.className='chip';
@@ -406,6 +435,115 @@ function openUpgrade(){
 function closeUpgrade(){
   const bg = document.getElementById('upgradeBg');
   if (bg) bg.classList.remove('on');
+}
+
+function openScope(){
+  const bg=document.getElementById('scopeBg') as HTMLElement;
+  if (bg) {
+    bg.classList.add('on');
+    setTimeout(()=>bg.querySelector('.modal-close')?.focus(), 50);
+  }
+}
+function closeScope(){
+  const bg=document.getElementById('scopeBg');
+  if (bg) bg.classList.remove('on');
+}
+
+function updateInputPlaceholder(chIdx: number){
+  const msg = document.getElementById('msg') as HTMLTextAreaElement | null;
+  if (!msg) return;
+  if (chIdx === 2) {
+    msg.placeholder = 'Ask Atomic Structure only (Bohr model, quantum numbers, electron configuration...)';
+    return;
+  }
+  msg.placeholder = 'Ask any FSc Chemistry question...';
+}
+
+function isOutOfScopeAtomicResponse(text: string){
+  const t = String(text || '').toLowerCase();
+  return t.includes('this topic is not included in the current lesson');
+}
+
+function scopeGuardResponse(userText: string){
+  return {
+    text: 'This question is outside Chapter 03 (Atomic Structure). Please ask from the listed Atomic Structure topics.',
+    points: [
+      'Use the "What can I ask?" button to view allowed topics.',
+      'Try asking: Bohr model, quantum numbers, electron configuration, or isotopes.',
+      `Your question: ${String(userText || '').slice(0, 90)}`,
+    ],
+    formula: '',
+    flabel: '',
+    dur: 24,
+    tip: '<strong>Chapter Scope:</strong> Current AI support is limited to Atomic Structure topics only.',
+    urduTtsText:
+      'Yeh sawal Chapter 03 Atomic Structure se bahar hai. Meherbani kar ke isi chapter ke topics poochain, jaise Bohr model, quantum numbers, electron configuration, ya isotopes.',
+  };
+}
+
+function cleanLooseValue(v: string){
+  return String(v || '')
+    .trim()
+    .replace(/^[,\s]+/, '')
+    .replace(/[,\s]+$/, '')
+    .replace(/^"([\s\S]*)"$/, '$1')
+    .trim();
+}
+
+function recoverLabelledResponse(rawText: string){
+  const input = String(rawText || '').trim();
+  if (!/\btext\s*:/.test(input) || !/\bpoints\s*:/.test(input)) return null;
+
+  const keyRe = /\b(text|points|formula|flabel|dur|tip|urduTtsText|mcq)\s*:/gi;
+  const hits: Array<{ key: string; idx: number; valueStart: number }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = keyRe.exec(input)) !== null) {
+    hits.push({ key: String(m[1] || '').toLowerCase(), idx: m.index, valueStart: keyRe.lastIndex });
+  }
+  if (!hits.length) return null;
+
+  const out: any = {};
+  for (let i = 0; i < hits.length; i += 1) {
+    const cur = hits[i];
+    const next = hits[i + 1];
+    const value = cleanLooseValue(input.slice(cur.valueStart, next ? next.idx : input.length));
+    if (!value) continue;
+
+    if (cur.key === 'text') out.text = value;
+    else if (cur.key === 'points') {
+      const pts = value
+        .split(/,\s*(?=[A-Z][a-z]|[A-Z][a-z]+ quantum|\d+\.)/)
+        .map((p) => cleanLooseValue(p))
+        .filter(Boolean)
+        .slice(0, 6);
+      out.points = pts;
+    } else if (cur.key === 'formula') out.formula = value;
+    else if (cur.key === 'flabel') out.flabel = value;
+    else if (cur.key === 'tip') out.tip = value;
+    else if (cur.key === 'urduttstext') out.urduTtsText = value;
+    else if (cur.key === 'dur') {
+      const n = Number(String(value).match(/\d+/)?.[0] || '');
+      if (Number.isFinite(n)) out.dur = n;
+    } else if (cur.key === 'mcq') {
+      const q = cleanLooseValue(String(value.match(/question\s*:\s*([\s\S]*?)(?=,\s*options\s*:|,\s*correct\s*:|$)/i)?.[1] || ''));
+      const optRaw = cleanLooseValue(String(value.match(/options\s*:\s*([\s\S]*?)(?=,\s*correct\s*:|$)/i)?.[1] || ''));
+      const c = cleanLooseValue(String(value.match(/correct\s*:\s*([\s\S]*)$/i)?.[1] || ''));
+      const options = optRaw
+        ? optRaw
+            .split(/,\s*(?=[A-D][\.\):]\s*)/)
+            .map((o) => cleanLooseValue(o.replace(/^[A-D][\.\):]\s*/i, '')))
+            .filter(Boolean)
+            .slice(0, 4)
+        : [];
+      if (q || options.length || c) out.mcq = { question: q, options, correct: c };
+    }
+  }
+
+  if (!out.text) return null;
+  if (!Array.isArray(out.points) || !out.points.length) {
+    out.points = ['Key idea', 'Important detail', 'Example'];
+  }
+  return out;
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -450,6 +588,7 @@ function showWelcome(){
       <div class="wl-logo" aria-hidden="true">V</div>
       <h2 class="wl-h">Your <span>Chemistry</span> Tutor</h2>
       <p class="wl-p">Type any FSc Chemistry question in English. You&#39;ll get a clear textbook explanation - then tap Play to hear it in Urdu.</p>
+      <button class="wl-scope-btn" type="button" aria-label="Show allowed Chapter 03 topics" onclick="openScope()">What can I ask in Chapter 03?</button>
       <div class="wl-grid" id="wlGrid" role="list"></div>
     </div>
   </div>`;
@@ -578,6 +717,25 @@ async function send(){
   if(!resp || !resp.text || !Array.isArray(resp.points)){
     appendError('AI error', 'Invalid AI response');
     return;
+  }
+
+  const defaultPoints =
+    Array.isArray(resp.points) &&
+    resp.points.length === 3 &&
+    String(resp.points[0]) === 'Key idea' &&
+    String(resp.points[1]) === 'Important detail' &&
+    String(resp.points[2]) === 'Example';
+
+  if (defaultPoints && /\btext\s*:/.test(String(resp.text || ''))) {
+    const recovered = recoverLabelledResponse(resp.text);
+    if (recovered) {
+      resp = { ...resp, ...recovered };
+      if (!resp.urduSummary && recovered.urduTtsText) resp.urduSummary = recovered.urduTtsText;
+    }
+  }
+
+  if (isOutOfScopeAtomicResponse(resp.text)) {
+    resp = { ...scopeGuardResponse(txt), refPageNo: resp.refPageNo, refLabel: resp.refLabel };
   }
   appendAI(resp, ts(), true);
 }
@@ -1311,6 +1469,22 @@ export default function ChatPage() {
         </div>
       </div>
 
+      <div className="modal-bg" id="scopeBg" role="dialog" aria-modal="true" aria-labelledby="scopeTitle">
+        <div className="modal scope-modal">
+          <button className="modal-close" aria-label="Close chapter scope dialog" onClick={() => closeScope()}>×</button>
+          <div className="modal-badge">Chapter Scope</div>
+          <h3 id="scopeTitle">Ask Only These Atomic Structure Topics</h3>
+          <p>Chapter 03 AI is focused on these topics. For best answers, ask directly from this list.</p>
+          <ul className="scope-list">
+            {ATOMIC_SCOPE_TOPICS.map((topic) => (
+              <li key={topic}>{topic}</li>
+            ))}
+          </ul>
+          <button className="modal-cta" onClick={() => closeScope()}>Start Asking</button>
+          <button className="modal-skip" onClick={() => closeScope()}>Close</button>
+        </div>
+      </div>
+
       <aside className="sidebar" id="sb">
         <div className="sb-brand">
           <div className="sb-logo">V</div>
@@ -1389,6 +1563,13 @@ export default function ChatPage() {
             <div className="tb-title" id="tbTitle">Chapter 03 - Atomic Structure</div>
           </div>
           <div className="tb-right">
+            <button className="tb-btn tb-scope" title="What can I ask?" aria-label="Show chapter scope topics" onClick={() => openScope()}>
+              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path strokeLinecap="round" d="M9.5 9a2.5 2.5 0 115 0c0 1.7-2.5 1.9-2.5 3.6" />
+                <circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
             <div className="tb-status" aria-label="AI status: ready">
               <span className="blink-dot" aria-hidden="true"></span>AI Ready
             </div>
@@ -1415,7 +1596,7 @@ export default function ChatPage() {
             <div className="input-box">
               <textarea
                 id="msg"
-                placeholder="Ask any FSc Chemistry question..."
+                placeholder="Ask Atomic Structure only (Bohr model, quantum numbers, electron configuration...)"
                 rows={1}
                 onInput={(e) => onInput(e.currentTarget as HTMLTextAreaElement)}
                 onKeyDown={(e) => onKey(e)}
