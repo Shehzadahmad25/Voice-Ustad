@@ -21,7 +21,7 @@ type ChatAnswer = {
   };
 };
 
-const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 12000);
+const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 25000);
 const MAX_MESSAGE_CHARS = Number(process.env.CHAT_MAX_MESSAGE_CHARS || 400);
 const MAX_TTS_CHARS = Number(process.env.TTS_MAX_TEXT_CHARS || 1200);
 const MAX_COMPLETION_TOKENS = Number(process.env.OPENAI_MAX_COMPLETION_TOKENS || 280);
@@ -210,20 +210,23 @@ async function callOpenAIChat(message: string, chapter: string, recentContext: s
     '- points: 3-5 short exam-relevant bullets (concept explanation + key points)',
     '- formula/flabel: only if needed (otherwise empty)',
     '- tip: one short HTML exam tip (e.g. <strong>Exam Tip:</strong> ...)',
-    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Pakistani teacher tone; Urdu-dominant with light English science terms (atom, proton, electron, nucleus, energy level). End with a clear Urdu explanation of the MCQ answer.',
+    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Pakistani teacher tone.',
+    '- urduTtsText MUST naturally include at least 3 common English science terms exactly in English script (for example: atom, proton, electron, nucleus, energy level, shell, orbit).',
+    '- Keep Urdu dominant, but do not translate those science terms into Urdu script.',
+    '- End with a clear Urdu explanation of the MCQ answer.',
     '- mcq: include ONE related MCQ with {question, options: [A,B,C,D], correct}',
     '',
     'FOLLOW-UP MODE OUTPUT:',
     '- text: 1 short clarification sentence',
     '- points: 2-3 short bullets',
     '- tip: optional short HTML line or empty',
-    '- urduTtsText: 3-5 short simple Urdu sentences',
+    '- urduTtsText: 3-5 short simple Urdu sentences with at least 2 English science terms in English script',
     '',
     'EXAM MODE OUTPUT:',
     '- For MCQ: text should include "Correct Option: __. Reason: __" (1-2 lines)',
     '- For short question: text should be concise board-style',
     '- For difference: points should be a compact list of contrasts',
-    '- urduTtsText: 3-5 short Urdu summary sentences',
+    '- urduTtsText: 3-5 short Urdu summary sentences with at least 2 English science terms in English script',
     '',
     '- dur: integer seconds between 20 and 60',
     `Chapter: ${chapter || 'General Chemistry'}`,
@@ -308,7 +311,7 @@ async function callOpenAIUrduSummary(inputText: string): Promise<string> {
           {
             role: 'system',
             content:
-              'Write a short Urdu summary (30–80 words) in proper Urdu script. Student-friendly, clear, no Roman Urdu, no English paragraphs. Use light English science terms like atom, proton, electron, nucleus, energy level, formula, example as a Pakistani teacher would.',
+              'Write a short Urdu summary (30-80 words) in proper Urdu script. Student-friendly and clear. Do not write English paragraphs, but naturally include at least 3 English science terms in English script (atom, proton, electron, nucleus, energy level, shell, orbit, formula, example).',
           },
           { role: 'user', content: inputText },
         ],
@@ -431,34 +434,29 @@ export async function POST(request: NextRequest) {
     let audioBase64: string | null = null;
     let audioError: string | null = null;
 
-    try {
-      const summarySource = [
-        answer.text,
-        ...(answer.points || []),
-        answer.formula ? `Formula: ${answer.formula}` : '',
-      ]
-        .map((v) => String(v || '').trim())
-        .filter(Boolean)
-        .join('. ');
+    urduSummary = String(answer.urduTtsText || '').trim() || null;
 
-      urduSummary = await callOpenAIUrduSummary(summarySource);
-      console.log('Urdu summary length:', urduSummary?.length || 0);
-    } catch (err) {
-      urduSummary = null;
-      audioBase64 = null;
-      audioError = err instanceof Error ? err.message : 'Urdu summary generation failed';
-    }
-
-    if (urduSummary) {
+    if (!urduSummary) {
       try {
-        if (urduSummary.length > MAX_TTS_CHARS) {
-          throw new Error(`TTS text too long. Max ${MAX_TTS_CHARS} characters.`);
-        }
-        const audioBuffer = await callOpenAIUrduSpeech(urduSummary);
-        audioBase64 = bufferToBase64(audioBuffer);
+        const summarySource = [
+          answer.text,
+          ...(answer.points || []),
+          answer.formula ? `Formula: ${answer.formula}` : '',
+        ]
+          .map((v) => String(v || '').trim())
+          .filter(Boolean)
+          .join('. ');
+
+        urduSummary = await Promise.race([
+          callOpenAIUrduSummary(summarySource),
+          new Promise<string>((resolve) => setTimeout(() => resolve(''), 1200)),
+        ]);
+        urduSummary = String(urduSummary || '').trim() || null;
+        console.log('Urdu summary length:', urduSummary?.length || 0);
       } catch (err) {
+        urduSummary = null;
         audioBase64 = null;
-        audioError = err instanceof Error ? err.message : 'TTS generation failed';
+        audioError = err instanceof Error ? err.message : 'Urdu summary generation failed';
       }
     }
 
@@ -480,3 +478,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

@@ -87,7 +87,7 @@ let userScrolled=false;
 let lastQuestion='';
 let sendTimeout: number | null = null;
 const TRIAL_DAYS=5;
-const SEND_TIMEOUT_MS=15000;
+const SEND_TIMEOUT_MS=45000;
 
 function isChapterAvailable(i: number){
   return ENABLED_CHAPTERS.has(i);
@@ -509,8 +509,10 @@ async function send(){
 
   // Error timeout (item 10)
   let timedOut=false;
+  const controller = new AbortController();
   sendTimeout=setTimeout(()=>{
     timedOut=true;
+    controller.abort();
     hideTyping(); busy=false; setSpin(false); updateSendBtn();
     clearTimeout(sendTimeout);
     appendError();
@@ -523,6 +525,7 @@ async function send(){
     const apiRes = await fetch('/api/chat2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         message: txt,
         chapter: CHS[activeChIdx]?.t ?? '',
@@ -631,7 +634,7 @@ function appendAI(r, time, save=true){
   const actualDur = Math.max(dur, computedDur);
   const mm=Math.floor(actualDur/60), ss=String(actualDur%60).padStart(2,'0');
 
-  const urduSummary = String(r?.urduSummary || '').trim();
+  const urduSummary = String(r?.urduSummary || r?.urduTtsText || '').trim();
   urduSummaries[id] = urduSummary;
 
   if (r?.audioBase64) {
@@ -717,7 +720,7 @@ function appendAI(r, time, save=true){
                 Preparing Urdu audio...
               </div>
             </div>
-            <span class="vc-badge" aria-label="AI voice badge">AI Voice</span>
+            <span class="vc-badge" aria-label="Urdu voice badge">Urdu Voice</span>
             <div class="vc-wave" id="wv_${id}" aria-hidden="true">
               <span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
@@ -781,7 +784,7 @@ function appendAI(r, time, save=true){
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function appendError(
   title='Response timed out',
-  body='The answer took too long to load. This may be due to a slow connection. Please check your internet and try again.',
+  body='The server is taking longer than expected to respond. Please try again in a moment.',
   retryAfterMs=0
 ){
   const w=document.createElement('div');
@@ -819,6 +822,10 @@ function appendError(
 }
 
 async function prefetchUrduAudio(id){
+  if (!audioUrls[id] && urduSummaries[id]) {
+    retryAudio(id, true);
+    return;
+  }
   if(!audioUrls[id]) return;
   ttsReady[id]=true;
   const btn=document.getElementById('btn_'+id);
@@ -1034,7 +1041,7 @@ function speakUrdu(text: string){
   return true;
 }
 
-async function retryAudio(id){
+async function retryAudio(id, silent=false){
   const summary = String(urduSummaries[id] || '').trim();
   if(!summary){
     showToast('Audio', 'Urdu summary unavailable');
@@ -1063,9 +1070,9 @@ async function retryAudio(id){
     ttsReady[id] = true;
     const retryBtn = document.getElementById('retry_'+id) as HTMLButtonElement | null;
     if (retryBtn) retryBtn.style.display = 'none';
-    showToast('Audio', 'Urdu voice ready');
+    if (!silent) showToast('Audio', 'Urdu voice ready');
   } catch(e){
-    showToast('Audio', (e as any)?.message || 'Urdu TTS failed');
+    if (!silent) showToast('Audio', (e as any)?.message || 'Urdu TTS failed');
   } finally {
     if (card) card.classList.remove('loading');
     if (sub && sub.dataset?.default) sub.textContent = sub.dataset.default;
