@@ -1055,16 +1055,16 @@ function setVoiceSource(id: string, source: 'openai' | 'browser' | 'unknown'){
   if (!badge) return;
   badge.classList.remove('src-openai', 'src-browser', 'src-unknown');
   if (source === 'openai') {
-    badge.textContent = 'OpenAI TTS';
+    badge.textContent = 'Urdu Voice';
     badge.classList.add('src-openai');
     return;
   }
   if (source === 'browser') {
-    badge.textContent = 'Browser Voice';
+    badge.textContent = 'Urdu Voice.';
     badge.classList.add('src-browser');
     return;
   }
-  badge.textContent = 'Urdu Voice';
+  badge.textContent = 'Urdu Voice.';
   badge.classList.add('src-unknown');
 }
 
