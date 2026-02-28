@@ -449,6 +449,12 @@ function closeScope(){
   if (bg) bg.classList.remove('on');
 }
 
+function askScopeTopic(topic: string){
+  const q = `Explain ${String(topic || '').trim()} with a short exam-focused answer.`;
+  closeScope();
+  ask(q);
+}
+
 function updateInputPlaceholder(chIdx: number){
   const msg = document.getElementById('msg') as HTMLTextAreaElement | null;
   if (!msg) return;
@@ -1477,7 +1483,11 @@ export default function ChatPage() {
           <p>Chapter 03 AI is focused on these topics. For best answers, ask directly from this list.</p>
           <ul className="scope-list">
             {ATOMIC_SCOPE_TOPICS.map((topic) => (
-              <li key={topic}>{topic}</li>
+              <li key={topic}>
+                <button type="button" className="scope-item-btn" onClick={() => askScopeTopic(topic)}>
+                  {topic}
+                </button>
+              </li>
             ))}
           </ul>
           <button className="modal-cta" onClick={() => closeScope()}>Start Asking</button>
