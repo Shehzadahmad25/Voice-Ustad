@@ -97,10 +97,12 @@ const ENABLED_CHAPTERS = new Set([2]); // Chapter 03 only for now
 const timers={};
 const audioPlayers: any = {};
 const audioUrls: any = {};
+const audioCacheKeys: any = {};
 const ttsLoading: any = {};
 const ttsReady: any = {};
 const audioErrors: any = {};
 const urduSummaries: any = {};
+const voiceSources: any = {};
 let userScrolled=false;
 let lastQuestion='';
 let sendTimeout: number | null = null;
@@ -129,10 +131,59 @@ function chapterSoonResponse(i: number){
 
 /* â”€â”€â”€ localStorage conversation history â”€â”€â”€ */
 const STORAGE_KEY='voiceustad_history';
+const AUDIO_CACHE_KEY='voiceustad_audio_cache_v1';
+const AUDIO_CACHE_MAX=24;
 function loadHistory(){
   if (typeof window === 'undefined') return {};
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); }
   catch(e){ return {}; }
+}
+
+function loadAudioCache(){
+  if (typeof window === 'undefined') return {};
+  try { return JSON.parse(localStorage.getItem(AUDIO_CACHE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveAudioCache(cache: any){
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(AUDIO_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+function hashText(input: string){
+  const s = String(input || '');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+}
+function makeAudioCacheKey(text: string){
+  const t = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 1400);
+  return t ? `ur_${hashText(t)}` : '';
+}
+function getCachedAudio(text: string){
+  const key = makeAudioCacheKey(text);
+  if (!key) return null;
+  const cache = loadAudioCache();
+  const val = cache[key];
+  return typeof val === 'string' && val ? { key, audioBase64: val } : null;
+}
+function putCachedAudio(text: string, audioBase64: string){
+  const key = makeAudioCacheKey(text);
+  const audio = String(audioBase64 || '').trim();
+  if (!key || !audio) return '';
+  const cache = loadAudioCache();
+  const next = { ...cache, [key]: audio };
+  const keys = Object.keys(next);
+  if (keys.length > AUDIO_CACHE_MAX) {
+    const keep = keys.slice(keys.length - AUDIO_CACHE_MAX);
+    const pruned: any = {};
+    keep.forEach((k) => { pruned[k] = next[k]; });
+    saveAudioCache(pruned);
+  } else {
+    saveAudioCache(next);
+  }
+  return key;
 }
 function saveHistory(chIdx: number, msgs: any[]){
   if (typeof window === 'undefined') return;
@@ -803,7 +854,19 @@ function appendAI(r, time, save=true){
 
   if (r?.audioBase64) {
     audioUrls[id] = `data:audio/mpeg;base64,${r.audioBase64}`;
+    audioCacheKeys[id] = putCachedAudio(urduSummary, String(r.audioBase64));
     ttsReady[id] = true;
+    setVoiceSource(id, 'openai');
+  } else {
+    const cached = getCachedAudio(urduSummary);
+    if (cached) {
+      audioUrls[id] = `data:audio/mpeg;base64,${cached.audioBase64}`;
+      audioCacheKeys[id] = cached.key;
+      ttsReady[id] = true;
+      setVoiceSource(id, 'openai');
+    } else {
+      setVoiceSource(id, 'unknown');
+    }
   }
   if (r?.audioError) {
     audioErrors[id] = String(r.audioError);
@@ -884,7 +947,7 @@ function appendAI(r, time, save=true){
                 Preparing Urdu audio...
               </div>
             </div>
-            <span class="vc-badge" aria-label="Urdu voice badge">Urdu Voice</span>
+            <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu Voice</span>
             <div class="vc-wave" id="wv_${id}" aria-hidden="true">
               <span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
@@ -932,6 +995,7 @@ function appendAI(r, time, save=true){
     </div>`;
 
   getInner().appendChild(w); scrollDn();
+  setVoiceSource(id, (voiceSources[id] || 'unknown'));
   prefetchUrduAudio(id);
   const retryBtn = document.getElementById('retry_'+id) as HTMLButtonElement | null;
   if (retryBtn) retryBtn.style.display = audioUrls[id] ? 'none' : 'inline-flex';
@@ -985,13 +1049,40 @@ function appendError(
   }
 }
 
+function setVoiceSource(id: string, source: 'openai' | 'browser' | 'unknown'){
+  voiceSources[id] = source;
+  const badge = document.getElementById('badge_'+id);
+  if (!badge) return;
+  badge.classList.remove('src-openai', 'src-browser', 'src-unknown');
+  if (source === 'openai') {
+    badge.textContent = 'OpenAI TTS';
+    badge.classList.add('src-openai');
+    return;
+  }
+  if (source === 'browser') {
+    badge.textContent = 'Browser Voice';
+    badge.classList.add('src-browser');
+    return;
+  }
+  badge.textContent = 'Urdu Voice';
+  badge.classList.add('src-unknown');
+}
+
 async function prefetchUrduAudio(id){
+  const cached = getCachedAudio(String(urduSummaries[id] || ''));
+  if (!audioUrls[id] && cached) {
+    audioUrls[id] = `data:audio/mpeg;base64,${cached.audioBase64}`;
+    audioCacheKeys[id] = cached.key;
+    ttsReady[id] = true;
+    setVoiceSource(id, 'openai');
+  }
   if (!audioUrls[id] && urduSummaries[id]) {
     retryAudio(id, true);
     return;
   }
   if(!audioUrls[id]) return;
   ttsReady[id]=true;
+  setVoiceSource(id, 'openai');
   const btn=document.getElementById('btn_'+id);
   if(btn){
     btn.setAttribute('data-tts-ready','1');
@@ -1101,20 +1192,33 @@ async function togglePlay(id){
     }
 
     if(!audioUrls[id]){
-      const summary = String(urduSummaries[id] || '').trim();
-      if (summary && speakUrdu(summary)) {
+      const ok = await retryAudio(id, true);
+      if (ok && audioUrls[id]) {
+        const audio = new Audio(audioUrls[id]);
+        audioPlayers[id]=audio;
+        audio.onended=()=>stopPlay(id);
+        audio.onerror=()=>stopPlay(id);
+        await audio.play();
         setLoading(false);
-        return;
+      } else {
+        const summary = String(urduSummaries[id] || '').trim();
+        if (summary && speakUrdu(summary)) {
+          setVoiceSource(id, 'browser');
+          setLoading(false);
+          return;
+        }
+        const errMsg = audioErrors[id] || 'Voice unavailable — Retry';
+        throw new Error(errMsg);
       }
-      const errMsg = audioErrors[id] || 'Voice unavailable — Retry';
-      throw new Error(errMsg);
+    } else {
+      const audio = new Audio(audioUrls[id]);
+      audioPlayers[id]=audio;
+      audio.onended=()=>stopPlay(id);
+      audio.onerror=()=>stopPlay(id);
+      await audio.play();
+      setVoiceSource(id, 'openai');
+      setLoading(false);
     }
-    const audio = new Audio(audioUrls[id]);
-    audioPlayers[id]=audio;
-    audio.onended=()=>stopPlay(id);
-    audio.onerror=()=>stopPlay(id);
-    await audio.play();
-    setLoading(false);
   } catch(e){
     // Fallback to browser speech so the UI still works if API TTS fails.
     if(window.speechSynthesis){
@@ -1122,6 +1226,7 @@ async function togglePlay(id){
       const utter=new SpeechSynthesisUtterance(ttsUrText || ttsText);
       utter.lang='ur-PK'; utter.rate=0.9;
       window.speechSynthesis.speak(utter);
+      setVoiceSource(id, 'browser');
       setLoading(false);
     } else {
       stopPlay(id);
@@ -1223,23 +1328,41 @@ async function retryAudio(id, silent=false){
     sub.textContent = 'Preparing Urdu audio...';
   }
   try{
-    const res = await fetch('/api/chat2', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ mode:'audio', urduSummary: summary }),
-    });
-    const data = await res.json();
-    if(!res.ok || data?.ok === false){
-      throw new Error(String(data?.error || 'TTS generation failed'));
+    const attempts = [350, 900, 1600];
+    let data: any = null;
+    let lastErr = 'TTS generation failed';
+    for (let i = 0; i < attempts.length; i += 1) {
+      try {
+        const res = await fetch('/api/chat2', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ mode:'audio', urduSummary: summary }),
+        });
+        data = await res.json();
+        if(!res.ok || data?.ok === false){
+          throw new Error(String(data?.error || 'TTS generation failed'));
+        }
+        break;
+      } catch (e) {
+        lastErr = (e as any)?.message || 'TTS generation failed';
+        if (i < attempts.length - 1) {
+          await new Promise((r) => setTimeout(r, attempts[i]));
+        }
+      }
     }
-    if(!data?.audioBase64) throw new Error('Empty audio response');
+    if(!data?.audioBase64) throw new Error(lastErr || 'Empty audio response');
     audioUrls[id] = `data:audio/mpeg;base64,${data.audioBase64}`;
+    audioCacheKeys[id] = putCachedAudio(summary, String(data.audioBase64 || ''));
     ttsReady[id] = true;
+    setVoiceSource(id, 'openai');
     const retryBtn = document.getElementById('retry_'+id) as HTMLButtonElement | null;
     if (retryBtn) retryBtn.style.display = 'none';
     if (!silent) showToast('Audio', 'Urdu voice ready');
+    return true;
   } catch(e){
+    audioErrors[id] = (e as any)?.message || 'Urdu TTS failed';
     if (!silent) showToast('Audio', (e as any)?.message || 'Urdu TTS failed');
+    return false;
   } finally {
     if (card) card.classList.remove('loading');
     if (sub && sub.dataset?.default) sub.textContent = sub.dataset.default;

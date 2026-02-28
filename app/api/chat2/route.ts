@@ -465,6 +465,24 @@ function bufferToBase64(buffer: ArrayBuffer) {
   return Buffer.from(buffer).toString('base64');
 }
 
+function sanitizeUrduTtsText(input: string): string {
+  let out = String(input || '')
+    .replace(/\\n/g, ' ')
+    .replace(/\\r/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  out = out
+    .replace(/\b(text|points|formula|flabel|dur|tip|mcq|question|options|correct)\s*:/gi, ' ')
+    .replace(/\b[A-D][\.\):]\s*/g, ' ')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  if (out.length > MAX_TTS_CHARS) out = out.slice(0, MAX_TTS_CHARS);
+  return out;
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('Has key?', Boolean(process.env.OPENAI_API_KEY));
@@ -472,7 +490,7 @@ export async function POST(request: NextRequest) {
     const mode = String(body?.mode ?? 'chat').trim().toLowerCase();
 
     if (mode === 'audio') {
-      const urduSummary = String(body?.urduSummary ?? '').trim();
+      const urduSummary = sanitizeUrduTtsText(String(body?.urduSummary ?? '').trim());
       if (!urduSummary) {
         return NextResponse.json({ ok: false, error: 'urduSummary is required.' }, { status: 400 });
       }
@@ -515,7 +533,7 @@ export async function POST(request: NextRequest) {
     let audioBase64: string | null = null;
     let audioError: string | null = null;
 
-    urduSummary = String(answer.urduTtsText || '').trim() || null;
+    urduSummary = sanitizeUrduTtsText(String(answer.urduTtsText || '').trim()) || null;
 
     if (!urduSummary) {
       try {
@@ -532,7 +550,7 @@ export async function POST(request: NextRequest) {
           callOpenAIUrduSummary(summarySource),
           new Promise<string>((resolve) => setTimeout(() => resolve(''), 1200)),
         ]);
-        urduSummary = String(urduSummary || '').trim() || null;
+        urduSummary = sanitizeUrduTtsText(String(urduSummary || '').trim()) || null;
         console.log('Urdu summary length:', urduSummary?.length || 0);
       } catch (err) {
         urduSummary = null;

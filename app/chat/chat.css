@@ -594,6 +594,20 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   text-transform: uppercase;
   letter-spacing: .04em;
 }
+.vc-badge.src-openai {
+  background: var(--green-lt);
+  color: var(--green);
+  border: 1px solid var(--green-bd);
+}
+.vc-badge.src-browser {
+  background: var(--amber-lt);
+  color: var(--amber-dk);
+  border: 1px solid var(--amber-bd);
+}
+.vc-badge.src-unknown {
+  background: rgba(59,130,246,.12);
+  color: var(--brand);
+}
 .vc-badge{
   font-size: .6rem;
   padding: 3px 6px;
