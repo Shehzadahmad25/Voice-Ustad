@@ -1102,7 +1102,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   .modal p  { font-size: .8rem; }
   .modal-features li { font-size: .77rem; }
   .modal-cta { font-size: .84rem; padding: 11px; }
-  .scope-list { grid-template-columns: 1fr; max-height: 250px; }
+  .scope-list { grid-template-columns: 1fr; max-height: 44dvh; }
 
   /* â”€â”€ Trial bar â”€â”€ */
   .trial-bar { margin: 6px 8px 0; padding: 7px 10px; }
@@ -1347,12 +1347,20 @@ button:focus-visible { outline-offset: 3px; }
   transition: color .13s;
 }
 .modal-skip:hover { color: var(--t2); }
-.scope-modal { max-width: 520px; }
+.scope-modal {
+  max-width: 520px;
+  max-height: min(80dvh, 700px);
+  display: flex;
+  flex-direction: column;
+}
 .scope-list {
   list-style: none;
   margin: 0 0 18px;
   max-height: 300px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 7px;

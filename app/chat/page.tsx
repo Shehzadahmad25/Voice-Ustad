@@ -1396,7 +1396,7 @@ function setupMobileEnhancements(){
 
   /* Prevent body scroll bounce on iOS (overscroll) */
   document.body.addEventListener('touchmove', e=>{
-    if((e.target as Element)?.closest('.msgs,.sb-list,.chips,.ai-followups')) return;
+    if((e.target as Element)?.closest('.msgs,.sb-list,.chips,.ai-followups,.scope-list,.scope-modal')) return;
     e.preventDefault();
   }, { passive: false });
 
