@@ -1042,12 +1042,15 @@ function speakUrdu(text: string){
 }
 
 async function retryAudio(id, silent=false){
-  const summary = String(urduSummaries[id] || '').trim();
+  const btn=document.getElementById('btn_'+id);
+  const ttsUrText = decodeURIComponent(String(btn?.getAttribute('data-tts-ur') || ''));
+  const ttsText = decodeURIComponent(String(btn?.getAttribute('data-tts') || ''));
+  let summary = String(urduSummaries[id] || ttsUrText || ttsText || '').trim();
+  if (summary.length > 1100) summary = summary.slice(0, 1100);
   if(!summary){
     showToast('Audio', 'Urdu summary unavailable');
     return;
   }
-  const btn=document.getElementById('btn_'+id);
   const card = btn?.closest('.voice-card');
   const sub = card?.querySelector('.vc-sub');
   if (card) card.classList.add('loading');

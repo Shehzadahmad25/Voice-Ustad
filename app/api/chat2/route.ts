@@ -141,6 +141,80 @@ function sanitizeModelJsonCandidate(input: string): string {
   return out;
 }
 
+function cleanFieldValue(value: string): string {
+  return String(value || '')
+    .trim()
+    .replace(/^[,\s]+/, '')
+    .replace(/[,\s]+$/, '')
+    .replace(/^"(.*)"$/s, '$1')
+    .trim();
+}
+
+function parseLoosePoints(value: string): string[] {
+  const v = cleanFieldValue(value);
+  if (!v) return [];
+
+  const bracketMatch = v.match(/^\[(.*)\]$/s);
+  const content = bracketMatch ? bracketMatch[1] : v;
+  return content
+    .split(/\s*,\s*/)
+    .map((p) => cleanFieldValue(p))
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function parseLabelledAnswer(raw: string): Partial<ChatAnswer> | null {
+  const input = raw.trim();
+  const keyRe = /\b(text|points|formula|flabel|dur|tip|urduTtsText|mcq)\s*:/gi;
+  const hits: Array<{ key: string; index: number; valueStart: number }> = [];
+
+  let m: RegExpExecArray | null;
+  while ((m = keyRe.exec(input)) !== null) {
+    hits.push({ key: m[1], index: m.index, valueStart: keyRe.lastIndex });
+  }
+
+  if (!hits.length || !hits.some((h) => h.key.toLowerCase() === 'text')) return null;
+
+  const out: Partial<ChatAnswer> = {};
+  for (let i = 0; i < hits.length; i += 1) {
+    const cur = hits[i];
+    const next = hits[i + 1];
+    const rawValue = input.slice(cur.valueStart, next ? next.index : input.length);
+    const value = cleanFieldValue(rawValue);
+    const key = cur.key.toLowerCase();
+
+    if (key === 'text') out.text = value;
+    else if (key === 'points') out.points = parseLoosePoints(value);
+    else if (key === 'formula') out.formula = value;
+    else if (key === 'flabel') out.flabel = value;
+    else if (key === 'tip') out.tip = value;
+    else if (key === 'urduttstext') out.urduTtsText = value;
+    else if (key === 'dur') {
+      const n = Number(String(value).match(/\d+/)?.[0] || '');
+      if (Number.isFinite(n)) out.dur = n;
+    } else if (key === 'mcq') {
+      const qMatch = value.match(/question\s*:\s*(.*?)(?=,\s*options\s*:|,\s*correct\s*:|$)/is);
+      const oMatch = value.match(/options\s*:\s*(.*?)(?=,\s*correct\s*:|$)/is);
+      const cMatch = value.match(/correct\s*:\s*(.*)$/is);
+      const optionsRaw = cleanFieldValue(oMatch?.[1] || '');
+      const options = optionsRaw
+        ? optionsRaw
+            .split(/\s*(?:,\s*|\n)\s*/)
+            .map((o) => cleanFieldValue(o.replace(/^[A-D][\.\):]\s*/i, '')))
+            .filter(Boolean)
+            .slice(0, 4)
+        : [];
+      out.mcq = {
+        question: cleanFieldValue(qMatch?.[1] || ''),
+        options,
+        correct: cleanFieldValue(cMatch?.[1] || ''),
+      };
+    }
+  }
+
+  return out;
+}
+
 function parseModelJson(rawContent: string): ChatAnswer {
   const candidates: string[] = [];
   const trimmed = rawContent.trim();
@@ -165,6 +239,13 @@ function parseModelJson(rawContent: string): ChatAnswer {
     try {
       return normalizeAnswer(JSON.parse(repaired));
     } catch {}
+  }
+
+  for (const candidate of candidates) {
+    const labelled = parseLabelledAnswer(candidate);
+    if (labelled) {
+      return normalizeAnswer(labelled);
+    }
   }
 
   const plainText = trimmed
