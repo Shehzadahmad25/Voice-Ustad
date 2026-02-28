@@ -146,7 +146,7 @@ function cleanFieldValue(value: string): string {
     .trim()
     .replace(/^[,\s]+/, '')
     .replace(/[,\s]+$/, '')
-    .replace(/^"(.*)"$/s, '$1')
+    .replace(/^"([\s\S]*)"$/, '$1')
     .trim();
 }
 
@@ -154,7 +154,7 @@ function parseLoosePoints(value: string): string[] {
   const v = cleanFieldValue(value);
   if (!v) return [];
 
-  const bracketMatch = v.match(/^\[(.*)\]$/s);
+  const bracketMatch = v.match(/^\[([\s\S]*)\]$/);
   const content = bracketMatch ? bracketMatch[1] : v;
   return content
     .split(/\s*,\s*/)
@@ -193,9 +193,9 @@ function parseLabelledAnswer(raw: string): Partial<ChatAnswer> | null {
       const n = Number(String(value).match(/\d+/)?.[0] || '');
       if (Number.isFinite(n)) out.dur = n;
     } else if (key === 'mcq') {
-      const qMatch = value.match(/question\s*:\s*(.*?)(?=,\s*options\s*:|,\s*correct\s*:|$)/is);
-      const oMatch = value.match(/options\s*:\s*(.*?)(?=,\s*correct\s*:|$)/is);
-      const cMatch = value.match(/correct\s*:\s*(.*)$/is);
+      const qMatch = value.match(/question\s*:\s*([\s\S]*?)(?=,\s*options\s*:|,\s*correct\s*:|$)/i);
+      const oMatch = value.match(/options\s*:\s*([\s\S]*?)(?=,\s*correct\s*:|$)/i);
+      const cMatch = value.match(/correct\s*:\s*([\s\S]*)$/i);
       const optionsRaw = cleanFieldValue(oMatch?.[1] || '');
       const options = optionsRaw
         ? optionsRaw
