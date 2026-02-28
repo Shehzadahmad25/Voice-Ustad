@@ -74,6 +74,111 @@ function buildRecentContext(history: any): string {
   return recent.join('\n');
 }
 
+function sanitizeModelJsonCandidate(input: string): string {
+  let candidate = input.trim();
+
+  if (candidate.startsWith('```')) {
+    candidate = candidate.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  }
+
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  let objectDepth = 0;
+
+  for (let i = 0; i < candidate.length; i += 1) {
+    const ch = candidate[i];
+
+    if (inString) {
+      if (escaped) {
+        out += ch;
+        escaped = false;
+        continue;
+      }
+
+      if (ch === '\\') {
+        out += ch;
+        escaped = true;
+        continue;
+      }
+
+      // Raw newlines inside JSON strings break parsing; escape them.
+      if (ch === '\n') {
+        out += '\\n';
+        continue;
+      }
+      if (ch === '\r') {
+        out += '\\r';
+        continue;
+      }
+      if (ch === '\t') {
+        out += '\\t';
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = false;
+      }
+      out += ch;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      out += ch;
+      continue;
+    }
+    if (ch === '{') objectDepth += 1;
+    if (ch === '}') objectDepth = Math.max(0, objectDepth - 1);
+    out += ch;
+  }
+
+  if (inString) out += '"';
+  if (objectDepth > 0) out += '}'.repeat(objectDepth);
+
+  out = out.replace(/,\s*([}\]])/g, '$1');
+
+  return out;
+}
+
+function parseModelJson(rawContent: string): ChatAnswer {
+  const candidates: string[] = [];
+  const trimmed = rawContent.trim();
+  candidates.push(trimmed);
+
+  const first = trimmed.indexOf('{');
+  const last = trimmed.lastIndexOf('}');
+  if (first !== -1 && last !== -1 && last > first) {
+    candidates.push(trimmed.slice(first, last + 1));
+  } else if (first !== -1) {
+    candidates.push(trimmed.slice(first));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return normalizeAnswer(JSON.parse(candidate));
+    } catch {}
+  }
+
+  for (const candidate of candidates) {
+    const repaired = sanitizeModelJsonCandidate(candidate);
+    try {
+      return normalizeAnswer(JSON.parse(repaired));
+    } catch {}
+  }
+
+  const plainText = trimmed
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/i, '')
+    .replace(/[{}[\]"]/g, '')
+    .trim();
+
+  return normalizeAnswer({
+    text: plainText || 'I could not fully parse the model response, but here is a concise answer.',
+    points: ['Key idea', 'Important detail', 'Example'],
+  });
+}
+
 async function callOpenAIChat(message: string, chapter: string, recentContext: string): Promise<ChatAnswer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
@@ -175,19 +280,7 @@ async function callOpenAIChat(message: string, chapter: string, recentContext: s
   if (typeof rawContent !== 'string') {
     return normalizeAnswer(rawContent);
   }
-  try {
-    return normalizeAnswer(JSON.parse(rawContent));
-  } catch (err) {
-    const first = rawContent.indexOf('{');
-    const last = rawContent.lastIndexOf('}');
-    if (first !== -1 && last !== -1 && last > first) {
-      const sliced = rawContent.slice(first, last + 1);
-      try {
-        return normalizeAnswer(JSON.parse(sliced));
-      } catch {}
-    }
-    throw new Error(`Invalid JSON from model: ${(err as Error)?.message || 'parse error'}`);
-  }
+  return parseModelJson(rawContent);
 }
 
 async function callOpenAIUrduSummary(inputText: string): Promise<string> {
