@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { inferBoardRef } from './boardRefs';
-import { classifyQuestionType } from '@/lib/classifyQuestionType';
-import { retrieveBookContent }  from '@/lib/retrieveBookContent';
-import { formatWithLLM }        from '@/lib/formatWithLLM';
-import { validateAnswer, buildFallback } from '@/lib/validateAnswer';
 import { checkRateLimit } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
 function checkDemoKey(request: NextRequest): boolean {
   const key = process.env.DEMO_ACCESS_KEY;
-  if (!key) return true; // No key configured = open mode
+  if (!key) return true;
   return request.nextUrl.searchParams.get('demo') === key
       || request.headers.get('x-demo-key') === key;
 }
@@ -20,11 +16,6 @@ function getIp(request: NextRequest): string {
 }
 
 type ChatAnswer = {
-  // New strict format fields
-  definition: string;
-  explanation: string;
-  example: string;
-  // Legacy fields kept for backward-compat with stored history
   text: string;
   points: string[];
   formula?: string;
@@ -42,79 +33,58 @@ type ChatAnswer = {
   };
 };
 
-type ChatAnswerInput = Partial<ChatAnswer> & {
-  definition?: unknown;
-  explanation?: unknown;
-  example?: unknown;
-  mcq?: {
-    question?: unknown;
-    options?: unknown;
-    correct?: unknown;
-  };
-};
-
-type ChatHistoryEntry = {
-  type?: 'user' | 'ai' | string;
-  text?: unknown;
-  response?: {
-    definition?: unknown;
-    explanation?: unknown;
-    example?: unknown;
-    text?: unknown;
-    points?: unknown;
-  };
-};
-
 const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 25000);
 const MAX_MESSAGE_CHARS = Number(process.env.CHAT_MAX_MESSAGE_CHARS || 400);
 const MAX_TTS_CHARS = Number(process.env.TTS_MAX_TEXT_CHARS || 1200);
-const MAX_COMPLETION_TOKENS = Number(process.env.OPENAI_MAX_COMPLETION_TOKENS || 480);
+const MAX_COMPLETION_TOKENS = Number(process.env.OPENAI_MAX_COMPLETION_TOKENS || 280);
 
-function normalizeAnswer(data: ChatAnswerInput | null | undefined): ChatAnswer {
-  const clean = (v: unknown) => typeof v === 'string' ? v.trim() : '';
+function normalizeAnswer(data: any): ChatAnswer {
+  const text = typeof data?.text === 'string' && data.text.trim()
+    ? data.text.trim()
+    : 'Here is your chemistry answer.';
 
-  const definition = clean(data?.definition);
-  const explanation = clean(data?.explanation);
-  const example = clean(data?.example);
-
-  // Legacy text/points kept for backward-compat with stored chat history
-  const text = clean(data?.text) || definition || 'Here is your chemistry answer.';
   const points = Array.isArray(data?.points)
     ? data.points.map((p: unknown) => String(p).trim()).filter(Boolean).slice(0, 6)
     : [];
 
-  const refPageNo = (() => {
-    const p = clean(data?.refPageNo);
-    if (!p || /^(tbd|n\/a|na|0|-|none|unknown)$/i.test(p) || p.includes('-')) return '';
-    return p;
-  })();
-
   return {
-    definition,
-    explanation,
-    example,
     text,
-    points,
-    formula: clean(data?.formula),
-    flabel: clean(data?.flabel) || 'FORMULA',
-    dur: Number.isFinite(Number(data?.dur)) ? Number(data?.dur) : 30,
-    tip: '',
-    refChapterNo: clean(data?.refChapterNo),
-    refPageNo,
-    refLabel: clean(data?.refLabel) || 'Book Reference',
-    urduTtsText: clean(data?.urduTtsText),
+    points: points.length ? points : ['Definition', 'Key point', 'Example'],
+    formula: typeof data?.formula === 'string' ? data.formula : '',
+    flabel: typeof data?.flabel === 'string' ? data.flabel : 'KEY IDEA',
+    dur: Number.isFinite(Number(data?.dur)) ? Number(data.dur) : 30,
+    tip: typeof data?.tip === 'string' ? data.tip : '',
+    refChapterNo: typeof data?.refChapterNo === 'string' ? data.refChapterNo : '',
+    refPageNo: typeof data?.refPageNo === 'string' ? data.refPageNo : '',
+    refLabel: typeof data?.refLabel === 'string' ? data.refLabel : 'Board Reference',
+    urduTtsText: typeof data?.urduTtsText === 'string' ? data.urduTtsText : '',
     mcq: data?.mcq && typeof data.mcq === 'object'
       ? {
-          question: String(data.mcq?.question || '').trim(),
-          options: Array.isArray(data.mcq?.options)
-            ? data.mcq.options.map((o: unknown) => String(o || '').trim()).filter(Boolean).slice(0, 4)
+          question: String(data.mcq.question || '').trim(),
+          options: Array.isArray(data.mcq.options)
+            ? data.mcq.options.map((o: any) => String(o || '').trim()).filter(Boolean).slice(0, 4)
             : [],
-          correct: String(data.mcq?.correct || '').trim(),
+          correct: String(data.mcq.correct || '').trim(),
         }
       : undefined,
   };
 }
 
+function buildRecentContext(history: any): string {
+  if (!Array.isArray(history)) return '';
+  const recent = history
+    .filter((m) => m && (m.type === 'user' || m.type === 'ai'))
+    .slice(-6)
+    .map((m) => {
+      if (m.type === 'user') return `User: ${String(m.text || '').trim()}`;
+      const aiText = m.response?.text ? String(m.response.text).trim() : '';
+      const aiPoints = Array.isArray(m.response?.points) ? m.response.points.slice(0, 2).join(' | ') : '';
+      const combined = [aiText, aiPoints].filter(Boolean).join(' | ');
+      return combined ? `Assistant: ${combined}` : '';
+    })
+    .filter(Boolean);
+  return recent.join('\n');
+}
 
 function sanitizeModelJsonCandidate(input: string): string {
   let candidate = input.trim();
@@ -207,7 +177,7 @@ function parseLoosePoints(value: string): string[] {
 
 function parseLabelledAnswer(raw: string): Partial<ChatAnswer> | null {
   const input = raw.trim();
-  const keyRe = /\b(definition|explanation|example|text|points|formula|flabel|dur|tip|urduTtsText|refPageNo|refChapterNo|mcq)\s*:/gi;
+  const keyRe = /\b(text|points|formula|flabel|dur|tip|urduTtsText|mcq)\s*:/gi;
   const hits: Array<{ key: string; index: number; valueStart: number }> = [];
 
   let m: RegExpExecArray | null;
@@ -215,9 +185,7 @@ function parseLabelledAnswer(raw: string): Partial<ChatAnswer> | null {
     hits.push({ key: m[1], index: m.index, valueStart: keyRe.lastIndex });
   }
 
-  const hasNewFormat = hits.some((h) => ['definition','explanation','example'].includes(h.key.toLowerCase()));
-  const hasLegacyFormat = hits.some((h) => h.key.toLowerCase() === 'text');
-  if (!hits.length || (!hasNewFormat && !hasLegacyFormat)) return null;
+  if (!hits.length || !hits.some((h) => h.key.toLowerCase() === 'text')) return null;
 
   const out: Partial<ChatAnswer> = {};
   for (let i = 0; i < hits.length; i += 1) {
@@ -227,15 +195,11 @@ function parseLabelledAnswer(raw: string): Partial<ChatAnswer> | null {
     const value = cleanFieldValue(rawValue);
     const key = cur.key.toLowerCase();
 
-    if (key === 'definition') out.definition = value;
-    else if (key === 'explanation') out.explanation = value;
-    else if (key === 'example') out.example = value;
-    else if (key === 'text') out.text = value;
+    if (key === 'text') out.text = value;
     else if (key === 'points') out.points = parseLoosePoints(value);
     else if (key === 'formula') out.formula = value;
     else if (key === 'flabel') out.flabel = value;
-    else if (key === 'refpageno') out.refPageNo = value;
-    else if (key === 'refchapterno') out.refChapterNo = value;
+    else if (key === 'tip') out.tip = value;
     else if (key === 'urduttstext') out.urduTtsText = value;
     else if (key === 'dur') {
       const n = Number(String(value).match(/\d+/)?.[0] || '');
@@ -308,70 +272,60 @@ function parseModelJson(rawContent: string): ChatAnswer {
   });
 }
 
-// callOpenAIChat removed — replaced by formatWithLLM in lib/formatWithLLM.ts
-// All content retrieval is now handled by retrieveBookContent in lib/retrieveBookContent.ts
-
-async function _unused_callOpenAIChat(
-  message: string,
-  chapter: string,
-  recentContext: string,
-  textbookContext: string
-): Promise<ChatAnswer> {
+async function callOpenAIChat(message: string, chapter: string, recentContext: string): Promise<ChatAnswer> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
 
   const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
   const prompt = [
-    'You are a STRICT formatting engine for VoiceUstad.',
-    'You are NOT allowed to think, guess, or add knowledge.',
-    'You MUST use ONLY the PROVIDED_BOOK_CONTENT below.',
+    'You are VoiceUstad, an expert FSc Chemistry tutor.',
+    'You ONLY teach Chapter: Atomic Structure (FSc KPK Board).',
+    'If a question is outside Atomic Structure, respond with:',
+    '"This topic is not included in the current lesson."',
     '',
-    '## RULES (VERY STRICT)',
-    '1. Use ONLY PROVIDED_BOOK_CONTENT.',
-    '2. Do NOT add any new information.',
-    '3. Do NOT create bullet points or numbering inside field values.',
-    '4. Output must be clean plain text inside each field (no lists).',
-    '5. Definition must be EXACT same wording as provided.',
-    '6. Explanation must be based ONLY on provided content — do not invent it.',
-    '7. If definition is missing from book content → leave "definition" as "".',
-    '8. If formula is missing → leave "formula" as "".',
-    '9. If no worked example exists → leave "example" as "".',
-    '10. NEVER repeat the same sentence across multiple fields.',
+    'Return ONLY valid JSON with keys: text, points, formula, flabel, dur, tip, urduTtsText, mcq.',
+    'Rules:',
+    '- Stay strictly on the user’s asked topic/question within Atomic Structure',
+    '- Use recent context ONLY if the current question is an explicit follow-up (e.g. "explain again", "more", "difference", "continue").',
+    '- Otherwise, answer the current question directly.',
+    '- If the question is ambiguous, infer from recent context first, then chapter',
+    '- No long paragraphs; keep sentences short',
+    '- No repetition; avoid unnecessary words',
+    '- No advanced university-level detail',
     '',
-    '## OUTPUT FORMAT',
-    'Return ONLY valid JSON with exactly these keys:',
-    '{ "definition": "", "explanation": "", "formula": "", "flabel": "", "example": "", "refPageNo": "", "refChapterNo": "", "dur": 30, "urduTtsText": "", "mcq": null }',
+    'MODE DETECTION:',
+    '1) New concept -> FULL TEACHING MODE',
+    '2) Confusion / why / explain again -> FOLLOW-UP MODE',
+    '3) MCQ / short question / difference / marks-based -> EXAM MODE',
     '',
-    '## FIELD RULES',
-    '- definition: Copy word-for-word from BOOK DEFINITIONS section. Plain text, no lists.',
-    '- explanation: If the book provides elaboration text beyond the definition, include it here in plain text. Otherwise leave "".',
-    '- formula: The exact formula from BOOK FORMULAS section if relevant. Leave "" if none.',
-    '- flabel: Short uppercase label for the formula (e.g. "MOLE FORMULA"). Leave "" if no formula.',
-    '- example: If a BOOK WORKED EXAMPLE matches, write: "Page [X]: [question] → [answer]". Leave "" if none.',
-    '- refPageNo: The page number digit(s) from the matched worked example only (e.g. "8"). Leave "" if none.',
-    '- refChapterNo: Unit number from the CHAPTER line.',
-    '- dur: Estimated Urdu audio duration in seconds (integer, 25–60).',
-    '- urduTtsText: 7-9 natural spoken Urdu sentences, teacher tone, based ONLY on provided content.',
-    '  Structure: opening → definition in Urdu → what it means → example/formula if present → closing.',
-    '  Science terms stay in English script. No bullet points. No invented content.',
-    '- mcq: One MCQ object {question, options:[A,B,C,D], correct} from the book content. null if not applicable.',
+    'FULL TEACHING MODE OUTPUT:',
+    '- text: 1-2 sentence definition',
+    '- points: 3-5 short exam-relevant bullets (concept explanation + key points)',
+    '- formula/flabel: only if needed (otherwise empty)',
+    '- tip: one short HTML exam tip (e.g. <strong>Exam Tip:</strong> ...)',
+    '- urduTtsText: 6-8 short spoken Urdu sentences in a natural Pakistani teacher tone.',
+    '- urduTtsText MUST naturally include at least 3 common English science terms exactly in English script (for example: atom, proton, electron, nucleus, energy level, shell, orbit).',
+    '- Keep Urdu dominant, but do not translate those science terms into Urdu script.',
+    '- End with a clear Urdu explanation of the MCQ answer.',
+    '- mcq: include ONE related MCQ with {question, options: [A,B,C,D], correct}',
     '',
-    ...(textbookContext.trim()
-      ? [
-          '## PROVIDED_BOOK_CONTENT',
-          textbookContext,
-          '## END OF PROVIDED_BOOK_CONTENT',
-        ]
-      : [
-          '## PROVIDED_BOOK_CONTENT',
-          'NONE',
-          '## END OF PROVIDED_BOOK_CONTENT',
-        ]),
+    'FOLLOW-UP MODE OUTPUT:',
+    '- text: 1 short clarification sentence',
+    '- points: 2-3 short bullets',
+    '- tip: optional short HTML line or empty',
+    '- urduTtsText: 3-5 short simple Urdu sentences with at least 2 English science terms in English script',
     '',
+    'EXAM MODE OUTPUT:',
+    '- For MCQ: text should include "Correct Option: __. Reason: __" (1-2 lines)',
+    '- For short question: text should be concise board-style',
+    '- For difference: points should be a compact list of contrasts',
+    '- urduTtsText: 3-5 short Urdu summary sentences with at least 2 English science terms in English script',
+    '',
+    '- dur: integer seconds between 20 and 60',
     `Chapter: ${chapter || 'General Chemistry'}`,
-    recentContext ? `Recent conversation:\n${recentContext}` : '',
-    `Student Question: ${message}`,
-  ].filter(Boolean).join('\n');
+    recentContext ? `Recent conversation context:\n${recentContext}` : 'Recent conversation context: none',
+    `Current Question: ${message}`,
+  ].join('\n');
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort('OpenAI request timeout'), OPENAI_TIMEOUT_MS);
@@ -394,7 +348,7 @@ async function _unused_callOpenAIChat(
           {
             role: 'system',
             content:
-              'You are a STRICT formatting engine. You are NOT allowed to think, guess, or add knowledge. Use ONLY the PROVIDED_BOOK_CONTENT given in the user message. Return strict JSON only — no markdown, no text outside the JSON object. Fields: definition, explanation, formula, flabel, example, refPageNo, refChapterNo, dur, urduTtsText, mcq. All field values must be plain text with no bullet points or numbering. Never invent content.',
+              'You are VoiceUstad chemistry tutor focused only on Atomic Structure. Respond as strict JSON only. No markdown.',
           },
           { role: 'user', content: prompt },
         ],
@@ -531,7 +485,7 @@ function sanitizeUrduTtsText(input: string): string {
     .trim();
 
   out = out
-    .replace(/\b(definition|explanation|example|text|points|formula|flabel|dur|tip|refPageNo|refChapterNo|mcq|question|options|correct)\s*:/gi, ' ')
+    .replace(/\b(text|points|formula|flabel|dur|tip|mcq|question|options|correct)\s*:/gi, ' ')
     .replace(/\b[A-D][\.\):]\s*/g, ' ')
     .replace(/,\s*,+/g, ', ')
     .replace(/\s{2,}/g, ' ')
@@ -543,12 +497,10 @@ function sanitizeUrduTtsText(input: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    // ── Auth: block requests when DEMO_ACCESS_KEY is set ─────────────────────
     if (!checkDemoKey(request)) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // ── Rate limit: 20 req/min chat, 30 req/min TTS per IP ───────────────────
     const body = await request.json();
     const mode = String(body?.mode ?? 'chat').trim().toLowerCase();
     const ip   = getIp(request);
@@ -563,6 +515,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[chat2] ip=${ip} mode=${mode}`);
+
     if (mode === 'audio') {
       const urduSummary = sanitizeUrduTtsText(String(body?.urduSummary ?? '').trim());
       if (!urduSummary) {
@@ -574,7 +527,6 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
-      console.log(`[chat2/tts] OpenAI TTS call | ip=${ip} | chars=${urduSummary.length}`);
       try {
         const audioBuffer = await callOpenAIUrduSpeech(urduSummary);
         const audioBase64 = bufferToBase64(audioBuffer);
@@ -589,7 +541,7 @@ export async function POST(request: NextRequest) {
 
     const message = String(body?.message ?? '').trim();
     const chapter = String(body?.chapter ?? '').trim();
-    const chapterNumber = Number(body?.chapterNumber ?? 0);
+    const recentContext = buildRecentContext(body?.history);
 
     if (!message) {
       return NextResponse.json({ ok: false, error: 'Message is required.' }, { status: 400 });
@@ -601,94 +553,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Step 1: Classify question intent ──────────────────────────────────────
-    const questionType = classifyQuestionType(message);
-
-    // ── Step 2: Retrieve matching book content from DB ────────────────────────
-    const retrieval = chapterNumber > 0
-      ? await retrieveBookContent(message, questionType, chapterNumber).catch((e) => {
-          console.error('retrieveBookContent error:', e);
-          return null;
-        })
-      : null;
-
-    // ── Step 3: Not found → return immediately, no AI call ────────────────────
-    if (chapterNumber > 0 && (!retrieval || !retrieval.found)) {
-      const notFound = normalizeAnswer({
-        definition: '',
-        explanation: '',
-        example: '',
-        text: 'Not available in book',
-        points: [],
-        formula: '',
-        flabel: '',
-        dur: 20,
-        refPageNo: '',
-        refChapterNo: String(chapterNumber),
-        urduTtsText: 'Maafi chahta hoon, yeh topic is chapter ki book mein available nahi hai.',
-      });
-      return NextResponse.json(
-        { ok: true, answer: notFound, questionType, answerEnglish: notFound.text, urduSummary: notFound.urduTtsText, audioBase64: null, audioError: null },
-        { status: 200 },
-      );
-    }
-
-    // ── Step 4: Format retrieved content with LLM (temp=0, JSON only) ─────────
-    console.log(`[chat2] OpenAI LLM call | user=${session.user.id} | chapter=${chapterNumber} | q=${message.slice(0, 80)}`);
-    let formatted;
-    if (retrieval && retrieval.found) {
-      try {
-        formatted = await formatWithLLM(message, retrieval);
-        // Validate and auto-clean; retry once on failure
-        let validation = validateAnswer(formatted);
-        if (!validation.valid) {
-          console.warn('chat2: validation failed, retrying:', validation.errors);
-          try {
-            formatted = await formatWithLLM(message, retrieval);
-            validation = validateAnswer(formatted);
-          } catch { /* ignore retry error */ }
-          if (!validation.valid) {
-            formatted = buildFallback({}, retrieval.blocks, retrieval.page);
-          } else {
-            formatted = validation.answer;
-          }
-        } else {
-          formatted = validation.answer;
-        }
-      } catch (e) {
-        console.error('chat2: formatWithLLM error:', e);
-        formatted = buildFallback({}, retrieval?.blocks, retrieval?.page);
-      }
-    } else {
-      // No chapterNumber provided — use legacy path for general questions
-      formatted = { definition: '', explanation: '', example: '', formula: '', flabel: '', urduTtsText: '', refPageNo: '', dur: 30 };
-    }
-
-    // ── Step 5: Build final answer shape ──────────────────────────────────────
-    const answer = normalizeAnswer({
-      definition:  formatted.definition,
-      explanation: formatted.explanation,
-      example:     formatted.example,
-      text:        formatted.definition || formatted.explanation || 'Here is your chemistry answer.',
-      points:      [],
-      formula:     formatted.formula,
-      flabel:      formatted.flabel,
-      dur:         formatted.dur,
-      refPageNo:   formatted.refPageNo || String(retrieval?.page ?? ''),
-      refChapterNo: String(chapterNumber),
-      urduTtsText: formatted.urduTtsText,
-    });
-
+    const answer = { ...(await callOpenAIChat(message, chapter, recentContext)) };
     Object.assign(answer, inferBoardRef(message, chapter));
 
-    const urduSummary: string | null = sanitizeUrduTtsText(String(answer.urduTtsText || '').trim()) || null;
-    const audioBase64: string | null = null;
-    const audioError: string | null = null;
+    let urduSummary: string | null = null;
+    let audioBase64: string | null = null;
+    let audioError: string | null = null;
+
+    urduSummary = sanitizeUrduTtsText(String(answer.urduTtsText || '').trim()) || null;
+
+    if (!urduSummary) {
+      try {
+        const summarySource = [
+          answer.text,
+          ...(answer.points || []),
+          answer.formula ? `Formula: ${answer.formula}` : '',
+        ]
+          .map((v) => String(v || '').trim())
+          .filter(Boolean)
+          .join('. ');
+
+        urduSummary = await Promise.race([
+          callOpenAIUrduSummary(summarySource),
+          new Promise<string>((resolve) => setTimeout(() => resolve(''), 1200)),
+        ]);
+        urduSummary = sanitizeUrduTtsText(String(urduSummary || '').trim()) || null;
+        console.log('Urdu summary length:', urduSummary?.length || 0);
+      } catch (err) {
+        urduSummary = null;
+        audioBase64 = null;
+        audioError = err instanceof Error ? err.message : 'Urdu summary generation failed';
+      }
+    }
 
     return NextResponse.json(
       {
         ok: true,
-        questionType,
         answer,
         answerEnglish: answer.text,
         urduSummary,
