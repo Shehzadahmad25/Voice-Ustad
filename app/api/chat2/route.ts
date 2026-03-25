@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/auth-helpers-nextjs';
 import { inferBoardRef } from './boardRefs';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
+
+async function getSession(request: NextRequest) {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll() { return request.cookies.getAll(); }, setAll() {} } }
+  );
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
+}
 
 type ChatAnswer = {
   text: string;
@@ -485,9 +497,26 @@ function sanitizeUrduTtsText(input: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Has key?', Boolean(process.env.OPENAI_API_KEY));
+    // ── Auth: block unauthenticated requests ──────────────────────────────────
+    const session = await getSession(request);
+    if (!session) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // ── Rate limit: 20 req/min chat, 30 req/min TTS per user ─────────────────
     const body = await request.json();
     const mode = String(body?.mode ?? 'chat').trim().toLowerCase();
+
+    const rlKey = mode === 'audio' ? `tts:${session.user.id}` : `chat2:${session.user.id}`;
+    const rl = checkRateLimit(rlKey, mode === 'audio' ? 30 : 20);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { ok: false, error: 'Too many requests', retryAfterMs: rl.retryAfterMs },
+        { status: 429 },
+      );
+    }
+
+    console.log(`[chat2] user=${session.user.id} mode=${mode}`);
 
     if (mode === 'audio') {
       const urduSummary = sanitizeUrduTtsText(String(body?.urduSummary ?? '').trim());

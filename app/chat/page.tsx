@@ -1328,10 +1328,13 @@ async function retryAudio(id, silent=false){
     sub.textContent = 'Preparing Urdu audio...';
   }
   try{
-    const attempts = [350, 900, 1600];
+    // silent=true (auto-prefetch on render): 1 attempt only — prevent 3x TTS calls per message
+    // silent=false (user clicks Retry): 2 attempts with a delay
+    const attempts = silent ? [0] : [0, 1200];
     let data: any = null;
     let lastErr = 'TTS generation failed';
     for (let i = 0; i < attempts.length; i += 1) {
+      if (attempts[i] > 0) await new Promise((r) => setTimeout(r, attempts[i]));
       try {
         const res = await fetch('/api/chat2', {
           method:'POST',
@@ -1345,9 +1348,6 @@ async function retryAudio(id, silent=false){
         break;
       } catch (e) {
         lastErr = (e as any)?.message || 'TTS generation failed';
-        if (i < attempts.length - 1) {
-          await new Promise((r) => setTimeout(r, attempts[i]));
-        }
       }
     }
     if(!data?.audioBase64) throw new Error(lastErr || 'Empty audio response');
