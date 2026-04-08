@@ -1,5 +1,5 @@
-export const dynamic = 'force-dynamic';
 'use client'
+export const dynamic = 'force-dynamic';
 // ── AUTH BYPASS — development mode ──────────────────────────────────────────
 // Auth guard (router.push('/auth/signin')) is disabled.
 // A mock user is used when no real session exists.
