@@ -3,13 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "dev": "node node_modules/next/dist/bin/next dev --hostname 0.0.0.0 --port 3001",
+    "build": "node node_modules/next/dist/bin/next build",
+    "start": "node node_modules/next/dist/bin/next start",
+    "lint": "eslint app components contexts lib middleware.ts next.config.ts eslint.config.mjs --cache --cache-location .eslintcache"
   },
   "dependencies": {
-    "next": "16.1.6",
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/supabase-js": "^2.99.1",
+    "microsoft-cognitiveservices-speech-sdk": "^1.49.0",
+    "next": "15.2.4",
+    "next-auth": "^4.24.13",
+    "openai": "^6.32.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -18,8 +23,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.3.1",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "15.2.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

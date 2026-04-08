@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:3001)",
+      "Bash(npm run:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:3001/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:3001/chat)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:3001/login)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:3001/dashboard)",
+      "Bash(lsof -ti:3001)",
+      "Bash(xargs kill:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \":*)",
+      "Bash(npm list:*)",
+      "Bash(node -e ':*)",
+      "Bash(sed -i '1384s/function copyAnswer\\(id, text\\){/function copyAnswer\\(id: string\\){/' \"c:/Users/hp/Desktop/Voice-Ustad/app/chat/page.tsx\")",
+      "Bash(sed -i '1385s/  const btn=document.getElementById/  const text: string = \\(window as any\\).__copyData?.[id] ?? \\\\\"\\\\\";\\\\n  const btn=document.getElementById/' \"c:/Users/hp/Desktop/Voice-Ustad/app/chat/page.tsx\")",
+      "Bash(node write_json.js)",
+      "Bash(node -e \"const s=require\\('./scripts/upload-chapter.js'\\)\")",
+      "Bash(node scripts/upload-chapter.js content/chapters/chapter1_stoichiometry.json --update)",
+      "Read(//c/Users/hp/AppData/Local/Temp/claude/c--Users-hp-Desktop-Voice-Ustad/525ef8c4-e0a4-42b3-a5cf-911b602b6025/tasks/**)",
+      "Bash(node scripts/clearCache.js)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

@@ -1,0 +1,413 @@
+[
+  {
+    "id": "concept_mole",
+    "chapter": 1,
+    "section": "1.1",
+    "type": "concept",
+    "term": "Mole",
+    "topic_slug": "mole",
+    "difficulty": "basic",
+    "keywords": [
+      "mole",
+      "what is mole",
+      "define mole",
+      "mole definition",
+      "counting unit",
+      "6.023x10^23"
+    ],
+    "definition": "The atomic mass, molecular mass, formula mass or ionic mass of a substance expressed in grams. It is a counting unit equal to 6.023 x 10^23 similar things (atoms, molecules, ions, etc.).",
+    "explanation": "Mole is a Latin word meaning huge mass. Think of it like a counting unit: 2 similar things = 1 pair, 12 = 1 dozen, 100 = 1 century, and 6.023x10^23 similar things = 1 mole. Examples: 1 mole of H atoms = 1.008g, 1 mole of H2O = 18.016g, 1 mole of NaCl = 58.5g.",
+    "formula": null,
+    "example": "For example, 60g of NaOH contains 1.5 moles because the molar mass of NaOH is 40g/mol.",
+    "example_q": "How many moles are there in 60g of sodium hydroxide (NaOH)?",
+    "example_solution": "Step 1: Find molar mass of NaOH.\nNa + O + H = 23 + 16 + 1 = 40g/mol\nStep 2: Apply formula.\nn = mass / molar mass = 60 / 40 = 1.5 moles",
+    "example_answer": "1.5 mol"
+  },
+  {
+    "id": "concept_avogadro",
+    "chapter": 1,
+    "section": "1.1",
+    "type": "concept",
+    "term": "Avogadro's Number",
+    "topic_slug": "avogadro-number",
+    "difficulty": "basic",
+    "keywords": [
+      "avogadro",
+      "avogadro's number",
+      "Na",
+      "6.023x10^23",
+      "number of particles",
+      "what is avogadro number"
+    ],
+    "definition": "The number of particles (atoms, molecules, ions) in one mole of any substance. Its value is 6.023 x 10^23. Represented by Na.",
+    "explanation": "Avogadro's number was determined experimentally by Italian scientist Amadeo Avogadro. It is a constant. Examples: 1 mole Na = 23g = 6.023x10^23 Na-atoms. 1 mole O2 = 32g = 6.023x10^23 O2-molecules. 1 mole NaCl = 58.5g = 6.023x10^23 formula units.",
+    "formula": [
+      "n = Number of particles / Na",
+      "No. of particles = n x Na"
+    ],
+    "example": "For example, 8.50x10^25 molecules of water = 141 moles because dividing by 6.023x10^23 gives 141.",
+    "example_q": "In a certain experiment 8.50x10^25 molecules of water were used. Calculate the number of moles.",
+    "example_solution": "Step 1: Write the formula.\nn = No. of molecules / Na\nStep 2: Substitute values.\nn = 8.50x10^25 / 6.023x10^23\nStep 3: Simplify.\nn = 1.41 x 10^2 = 141 moles",
+    "example_answer": "141 moles"
+  },
+  {
+    "id": "concept_atomic_mass",
+    "chapter": 1,
+    "section": "1.1",
+    "type": "concept",
+    "term": "Atomic Mass",
+    "topic_slug": "atomic-mass",
+    "difficulty": "basic",
+    "keywords": [
+      "atomic mass",
+      "relative atomic mass",
+      "amu",
+      "atomic mass unit",
+      "dalton",
+      "C-12",
+      "what is atomic mass"
+    ],
+    "definition": "The mass of one atom of an element compared to the mass of 1/12 of carbon (C-12). Also called relative atomic mass.",
+    "explanation": "Atoms are too small to weigh directly. Scientists chose Carbon-12 as standard. C-12 has mass of exactly 12 units. So 1 atomic mass unit (amu) = 1/12 of C-12 mass. amu is also called Dalton (Da). Examples: H = 1.008 amu, O = 16 amu, Na = 23 amu, Ca = 40.07 amu.",
+    "formula": [
+      "Atomic mass unit (amu) = 1/12 of C-12 mass",
+      "1 amu = 1.67 x 10^-24 grams"
+    ],
+    "example": "For example, molecular mass of SO2 = 32 + (16x2) = 64 amu because S=32 and O=16.",
+    "example_q": "Calculate the molecular mass of (a) SO2 and (b) Caffeine C8H10N4O2. Given: C=12, S=32, N=14, H=1, O=16.",
+    "example_solution": "(a) SO2:\nStep 1: Identify atoms. S=1, O=2\nStep 2: Multiply by atomic mass.\nS = 32 x 1 = 32\nO = 16 x 2 = 32\nStep 3: Add. 32 + 32 = 64 amu\n\n(b) Caffeine C8H10N4O2:\nC = 12 x 8 = 96\nH = 1 x 10 = 10\nN = 14 x 4 = 56\nO = 16 x 2 = 32\nTotal = 96+10+56+32 = 194 amu",
+    "example_answer": "(a) SO2 = 64 amu  (b) Caffeine = 194 amu"
+  },
+  {
+    "id": "concept_gram_atom",
+    "chapter": 1,
+    "section": "1.1",
+    "type": "concept",
+    "term": "Gram-atom",
+    "topic_slug": "gram-atom",
+    "difficulty": "basic",
+    "keywords": [
+      "gram atom",
+      "gram atomic mass",
+      "gram-atom",
+      "what is gram atom",
+      "atomic mass in grams"
+    ],
+    "definition": "One gram-atom of any element is the relative atomic mass of the element expressed in grams. For example 1 gram-atom of Cl = 35.5g, S = 32g.",
+    "explanation": "Atomic mass expressed in grams instead of amu is called gram atomic mass. This concept is useful because we cannot see or weigh individual atoms, but we can see and weigh one gram atom of an element. Examples: 1 gram-atom of C = 12g, Na = 23g, H = 1.008g, O = 16g.",
+    "formula": null,
+    "example": "For example, 1.204x10^22 atoms of lead (Pb) has a mass of 4.14g because molar mass of Pb is 207g/mol.",
+    "example_q": "What is the mass of 1.204x10^22 atoms of lead (Pb)? Atomic mass of Pb = 207.",
+    "example_solution": "Step 1: Find moles from number of atoms.\nn = No. of atoms / Na\nn = 1.204x10^22 / 6.023x10^23\nn = 0.02 moles\nStep 2: Find mass.\nMass = n x molar mass\nMass = 0.02 x 207 = 4.14 grams",
+    "example_answer": "4.14 grams"
+  },
+  {
+    "id": "concept_molar_mass",
+    "chapter": 1,
+    "section": "1.2",
+    "type": "concept",
+    "term": "Molar Mass",
+    "topic_slug": "molar-mass",
+    "difficulty": "basic",
+    "keywords": [
+      "molar mass",
+      "what is molar mass",
+      "gram per mole",
+      "molecular mass",
+      "formula mass",
+      "g/mol"
+    ],
+    "definition": "The mass in grams of one mole of a substance. It equals the sum of atomic masses of all atoms in the formula, expressed in g/mol.",
+    "explanation": "To find molar mass: (1) Write correct formula, (2) Add atomic masses of all atoms, (3) Express in g/mol. Example: molar mass of H2SO4 = (1x2)+(32x1)+(16x4) = 98g/mol. Molar mass of H2O = 18g/mol means 1 mole H2O weighs 18g.",
+    "formula": [
+      "Molar mass = sum of all atomic masses in the formula (in g/mol)"
+    ],
+    "example": "For example, 0.5 moles of CaCO3 has a mass of 50g because molar mass of CaCO3 is 100g/mol.",
+    "example_q": "What is the mass of 0.5 moles of calcium carbonate (CaCO3)?",
+    "example_solution": "Step 1: Find molar mass of CaCO3.\nCa + C + 3O = 40 + 12 + (16x3) = 100g/mol\nStep 2: Apply formula.\nMass = n x molar mass\nMass = 0.5 x 100 = 50 grams",
+    "example_answer": "50g"
+  },
+  {
+    "id": "formula_moles_from_mass",
+    "chapter": 1,
+    "section": "1.2",
+    "type": "formula",
+    "term": "Moles from mass",
+    "topic_slug": "moles-from-mass",
+    "difficulty": "basic",
+    "keywords": [
+      "moles from mass",
+      "calculate moles",
+      "how to find moles",
+      "n = mass/molar mass",
+      "mole formula",
+      "moles calculation"
+    ],
+    "definition": "Formula to calculate number of moles when mass is given, or mass when moles are given.",
+    "explanation": "Most used formula in stoichiometry. Two forms: use n = mass/molar mass when mass is given and moles are needed. Use mass = n x molar mass when moles are given and mass is needed. Always calculate molar mass first.",
+    "formula": [
+      "n = mass(g) / molar mass(g/mol)",
+      "mass = n x molar mass"
+    ],
+    "example": "For example, 60g of NaOH contains 1.5 moles because molar mass of NaOH = 40g/mol and 60/40 = 1.5.",
+    "example_q": "How many moles are there in 60g of NaOH?",
+    "example_solution": "Step 1: Find molar mass of NaOH.\nNa + O + H = 23 + 16 + 1 = 40g/mol\nStep 2: Apply formula.\nn = mass / molar mass\nn = 60 / 40 = 1.5 moles",
+    "example_answer": "1.5 mol"
+  },
+  {
+    "id": "formula_moles_from_particles",
+    "chapter": 1,
+    "section": "1.2",
+    "type": "formula",
+    "term": "Moles from particles",
+    "topic_slug": "moles-from-particles",
+    "difficulty": "intermediate",
+    "keywords": [
+      "moles from particles",
+      "atoms to moles",
+      "molecules to moles",
+      "avogadro formula",
+      "number of particles formula"
+    ],
+    "definition": "Formula to convert between number of particles (atoms, molecules, formula units) and moles.",
+    "explanation": "Use this formula when number of particles is given and moles are needed, or vice versa. Na = 6.023x10^23. Example: 0.5 moles Cu = 0.5 x 6.023x10^23 = 3.011x10^23 Cu-atoms.",
+    "formula": [
+      "n = Number of particles / Na",
+      "No. of particles = n x Na"
+    ],
+    "example": "For example, 125g of CuSO4.5H2O contains 3.011x10^23 formula units because n = 0.5 mol and 0.5 x Na = 3.011x10^23.",
+    "example_q": "How many formula units are present in 125g of CuSO4.5H2O?",
+    "example_solution": "Step 1: Find molar mass of CuSO4.5H2O.\n= 64 + 32 + 64 + 5(18) = 250g/mol\nStep 2: Find moles.\nn = 125 / 250 = 0.5 mol\nStep 3: Find formula units.\nFormula units = n x Na\n= 0.5 x 6.023x10^23 = 3.011x10^23",
+    "example_answer": "3.011x10^23 formula units"
+  },
+  {
+    "id": "formula_moles_from_volume",
+    "chapter": 1,
+    "section": "1.2.2",
+    "type": "formula",
+    "term": "Moles from volume at STP",
+    "topic_slug": "moles-from-volume-stp",
+    "difficulty": "intermediate",
+    "keywords": [
+      "moles from volume",
+      "gas volume STP",
+      "molar volume",
+      "22.4 dm3",
+      "STP calculation",
+      "volume to moles"
+    ],
+    "definition": "Formula to convert gas volume at STP to moles, or moles to volume. One mole of any gas at STP occupies 22.4 dm3.",
+    "explanation": "STP means Standard Temperature (0 degree C or 273K) and Standard Pressure (1 atm). At STP, 1 mole of any gas = 22.4 dm3. This is called molar volume. Unit conversion: 1 litre = 1 dm3 = 1000 cm3.",
+    "formula": [
+      "n = Volume(dm3) / 22.4",
+      "Volume(dm3) = n x 22.4"
+    ],
+    "example": "For example, burning 15g of sulphur produces 10.51 dm3 of SO2 at STP because 0.469 moles x 22.4 = 10.51 dm3.",
+    "example_q": "S + O2 -> SO2. If 15g of sulphur is burnt, what volume of SO2 is produced at STP?",
+    "example_solution": "Step 1: Find moles of S.\nn = 15 / 32 = 0.469 mol\nStep 2: Use mole ratio from equation.\n1 mol S -> 1 mol SO2\nSo 0.469 mol S -> 0.469 mol SO2\nStep 3: Find volume.\nVolume = n x 22.4\n= 0.469 x 22.4 = 10.51 dm3",
+    "example_answer": "10.51 dm3"
+  },
+  {
+    "id": "concept_mole_mole",
+    "chapter": 1,
+    "section": "1.2.1",
+    "type": "concept",
+    "term": "Mole-Mole Conversion",
+    "topic_slug": "mole-mole-conversion",
+    "difficulty": "intermediate",
+    "keywords": [
+      "mole mole conversion",
+      "mole ratio",
+      "stoichiometry moles",
+      "moles from balanced equation",
+      "coefficient ratio"
+    ],
+    "definition": "If moles of one substance in a reaction are known, moles of another substance can be found using the ratio of coefficients from the balanced equation.",
+    "explanation": "Use the ratio of coefficients from balanced equation directly. Example: 2Mg + O2 -> 2MgO means 2 mol Mg produces 2 mol MgO and 1 mol O2 produces 2 mol MgO. If 10 mol KClO3 decomposes, multiply by the ratio (3/2) to get moles of O2.",
+    "formula": [
+      "Moles required = Moles given x (coefficient of required / coefficient of given)"
+    ],
+    "example": "For example, 10 moles of KClO3 produces 15 moles of O2 because the ratio from 2KClO3 -> 3O2 is 3/2.",
+    "example_q": "2KClO3 -> 2KCl + 3O2. How many moles of O2 from 10 moles of KClO3?",
+    "example_solution": "Step 1: Write the mole ratio from balanced equation.\n2 mol KClO3 produces 3 mol O2\nStep 2: Set up conversion.\n10 mol KClO3 x (3/2)\nStep 3: Calculate.\n= 10 x 3/2 = 15 moles of O2",
+    "example_answer": "15 moles"
+  },
+  {
+    "id": "concept_mass_mass",
+    "chapter": 1,
+    "section": "1.2.1",
+    "type": "concept",
+    "term": "Mass-Mass Conversion",
+    "topic_slug": "mass-mass-conversion",
+    "difficulty": "intermediate",
+    "keywords": [
+      "mass mass conversion",
+      "mass to mass",
+      "stoichiometry mass",
+      "grams to grams",
+      "mass calculation reaction"
+    ],
+    "definition": "If mass of one substance is given, mass of another substance in the reaction can be calculated. Sequence: Mass -> Moles -> Moles -> Mass.",
+    "explanation": "Three steps: (1) Convert given mass to moles using n = mass/molar mass, (2) Use balanced equation ratio to find moles of required substance, (3) Convert those moles to mass using mass = n x molar mass.",
+    "formula": [
+      "n(A) = mass(A) / MM(A)",
+      "n(B) = n(A) x (coeff B / coeff A)",
+      "mass(B) = n(B) x MM(B)"
+    ],
+    "example": "For example, 14.5g of Al produces 27.54g of Al2O3 by converting mass to moles, applying ratio, then converting back to mass.",
+    "example_q": "4Al + 3O2 -> 2Al2O3. What mass of Al2O3 is produced from 14.5g of Al?",
+    "example_solution": "Step 1: Convert mass of Al to moles.\nn(Al) = 14.5 / 27 = 0.54 mol\nStep 2: Use mole ratio from equation.\n4 mol Al -> 2 mol Al2O3\n0.54 mol Al -> 0.54 x (2/4) = 0.27 mol Al2O3\nStep 3: Convert moles to mass.\nMolar mass Al2O3 = (27x2)+(16x3) = 102g/mol\nMass = 0.27 x 102 = 27.54g",
+    "example_answer": "27.54g"
+  },
+  {
+    "id": "concept_percent_composition",
+    "chapter": 1,
+    "section": "1.3",
+    "type": "concept",
+    "term": "Percentage Composition",
+    "topic_slug": "percentage-composition",
+    "difficulty": "intermediate",
+    "keywords": [
+      "percentage composition",
+      "percent composition",
+      "% of element",
+      "mass percent",
+      "composition of compound",
+      "what is percentage composition"
+    ],
+    "definition": "The percent by mass of each element in a compound. Sum of all percentages of all elements must equal 100.",
+    "explanation": "Two formulas: (1) % = (mass of element / molar mass of compound) x 100. (2) % = (atomic mass x no. of atoms / molar mass) x 100. Both give same result. Always verify: all percentages must add up to 100.",
+    "formula": [
+      "% of element = (mass of element / molar mass of compound) x 100",
+      "% of element = (atomic mass x no. of atoms / molar mass) x 100"
+    ],
+    "example": "For example, H2SO4 contains 2.04% H, 32.65% S and 65.31% O which together add up to 100%.",
+    "example_q": "Calculate the percentage composition of sulphuric acid (H2SO4).",
+    "example_solution": "Step 1: Find molar mass.\nH2SO4 = (1x2)+(32x1)+(16x4) = 98g/mol\nStep 2: Calculate % of each element.\n%H = (2/98) x 100 = 2.04%\n%S = (32/98) x 100 = 32.65%\n%O = (64/98) x 100 = 65.31%\nStep 3: Verify.\n2.04 + 32.65 + 65.31 = 100%",
+    "example_answer": "H=2.04%, S=32.65%, O=65.31%"
+  },
+  {
+    "id": "concept_limiting_reagent",
+    "chapter": 1,
+    "section": "1.4",
+    "type": "concept",
+    "term": "Limiting Reagent",
+    "topic_slug": "limiting-reagent",
+    "difficulty": "intermediate",
+    "keywords": [
+      "limiting reagent",
+      "limiting reactant",
+      "what is limiting reagent",
+      "how to find limiting reagent",
+      "least product",
+      "controls product"
+    ],
+    "definition": "The reactant that is completely consumed first in a chemical reaction. It gives the least amount of product and controls the maximum amount of product formed.",
+    "explanation": "Example: 2H2 + O2 -> 2H2O. If we take 4 mol H2 and 5 mol O2, only 2 mol O2 reacts with 4 mol H2. So H2 is the limiting reagent. Steps to identify: (1) Convert mass to moles, (2) Calculate moles of product from each reactant, (3) Reactant giving fewest moles of product is the limiting reagent.",
+    "formula": [
+      "Moles of product from A = moles(A) x ratio",
+      "Reactant giving fewer moles of product = limiting reagent"
+    ],
+    "example": "For example, 120g CO2 gives 2.727 mol product but 80g H2O gives 4.444 mol. So CO2 is limiting reagent.",
+    "example_q": "CO2 + H2O -> H2CO3. 120g CO2 + 80g H2O. (a) Identify limiting reagent. (b) Find max product.",
+    "example_solution": "Step 1: Convert masses to moles.\nn(CO2) = 120/44 = 2.727 mol\nn(H2O) = 80/18 = 4.444 mol\nStep 2: Find moles of product from each.\n1 mol CO2 -> 1 mol H2CO3, so 2.727 mol CO2 -> 2.727 mol H2CO3\n1 mol H2O -> 1 mol H2CO3, so 4.444 mol H2O -> 4.444 mol H2CO3\nStep 3: CO2 gives fewer moles, so CO2 is limiting reagent.\nStep 4: Max product = 2.727 mol x 62g/mol = 169.07g",
+    "example_answer": "(a) CO2 is limiting reagent  (b) 169.07g H2CO3"
+  },
+  {
+    "id": "concept_excess_reagent",
+    "chapter": 1,
+    "section": "1.4",
+    "type": "concept",
+    "term": "Excess Reagent",
+    "topic_slug": "excess-reagent",
+    "difficulty": "intermediate",
+    "keywords": [
+      "excess reagent",
+      "excess reactant",
+      "what is excess reagent",
+      "unreacted reactant",
+      "leftover reactant"
+    ],
+    "definition": "The reactant that remains unreacted after the completion of the reaction. It is present in more amount than needed.",
+    "explanation": "Excess reagent does not control product formation. After the limiting reagent is fully consumed, the reaction stops and excess reagent is left behind unused. In 2H2 + O2 -> 2H2O, if H2 is limiting then O2 is the excess reagent.",
+    "formula": null,
+    "example": "For example, in 2Al + 3Cl2 -> 2AlCl3, if 0.5 mol Al and 0.6 mol Cl2 are taken, Cl2 is limiting and Al is the excess reagent with 0.400 mol AlCl3 produced.",
+    "example_q": "2Al + 3Cl2 -> 2AlCl3. 0.600 mol Cl2 + 0.500 mol Al. Which is excess? How many moles of AlCl3 produced?",
+    "example_solution": "Step 1: Find moles of product from each reactant.\nFrom Al: 2 mol Al -> 2 mol AlCl3\n0.5 mol Al -> 0.5 mol AlCl3\nFrom Cl2: 3 mol Cl2 -> 2 mol AlCl3\n0.6 mol Cl2 -> 0.6 x (2/3) = 0.400 mol AlCl3\nStep 2: Cl2 gives fewer moles (0.400 < 0.500).\nSo Cl2 is LIMITING and Al is EXCESS reagent.\nStep 3: AlCl3 produced = 0.400 moles",
+    "example_answer": "Al is excess reagent. AlCl3 = 0.400 moles"
+  },
+  {
+    "id": "concept_theoretical_yield",
+    "chapter": 1,
+    "section": "1.5",
+    "type": "concept",
+    "term": "Theoretical Yield",
+    "topic_slug": "theoretical-yield",
+    "difficulty": "intermediate",
+    "keywords": [
+      "theoretical yield",
+      "what is theoretical yield",
+      "maximum yield",
+      "expected yield",
+      "calculated yield"
+    ],
+    "definition": "The maximum amount of product calculated from the balanced chemical equation assuming complete conversion of limiting reagent.",
+    "explanation": "Theoretical yield is always greater than actual yield. It is the ideal or expected yield calculated assuming 100% conversion with no losses.",
+    "formula": [
+      "Theoretical yield = moles of product x molar mass of product"
+    ],
+    "example": "For example, 1.92g of Mg gives theoretical yield of 3.2g MgO because 0.08 mol Mg produces 0.08 mol MgO x 40g/mol = 3.2g.",
+    "example_q": "2Mg + O2 -> 2MgO. 1.92g of Mg heated in excess O2. Find theoretical yield of MgO.",
+    "example_solution": "Step 1: Find moles of Mg.\nn(Mg) = 1.92 / 24 = 0.08 mol\nStep 2: Use mole ratio.\n2 mol Mg -> 2 mol MgO\n0.08 mol Mg -> 0.08 mol MgO\nStep 3: Find theoretical yield.\nMolar mass MgO = 24+16 = 40g/mol\nTheoretical yield = 0.08 x 40 = 3.2g",
+    "example_answer": "3.2g"
+  },
+  {
+    "id": "concept_actual_yield",
+    "chapter": 1,
+    "section": "1.5",
+    "type": "concept",
+    "term": "Actual Yield",
+    "topic_slug": "actual-yield",
+    "difficulty": "intermediate",
+    "keywords": [
+      "actual yield",
+      "experimental yield",
+      "practical yield",
+      "what is actual yield",
+      "why actual yield is less"
+    ],
+    "definition": "The amount of product actually obtained during an experiment. Also called experimental or practical yield. Always less than theoretical yield.",
+    "explanation": "Actual yield is always less than theoretical yield because of: (1) Impurities in reactants, (2) Reversible reactions, (3) By-products from side reactions, (4) Incomplete conversion of reactants, (5) Mechanical loss during filtration or separation, (6) Variation in temperature, pressure or concentration.",
+    "formula": null,
+    "example": "If theoretical yield of Cu is 0.510g but only 0.392g is obtained in the lab, then actual yield = 0.392g.",
+    "example_q": "CuSO4 + Zn -> Cu + ZnSO4. 1.274g CuSO4 + excess Zn gives 0.392g Cu. Find % yield.",
+    "example_solution": "Step 1: Actual yield = 0.392g (given)\nStep 2: Find theoretical yield.\nMolar mass CuSO4 = 64+32+64 = 160g/mol\nn(CuSO4) = 1.274/160 = 0.00796 mol\n1 mol CuSO4 -> 1 mol Cu\nTheoretical yield = 0.00796 x 64 = 0.510g\nStep 3: Apply % yield formula.\n% yield = (0.392/0.510) x 100 = 76.86%",
+    "example_answer": "Actual yield = 0.392g, % yield = 76.86%"
+  },
+  {
+    "id": "concept_percent_yield",
+    "chapter": 1,
+    "section": "1.5",
+    "type": "concept",
+    "term": "Percent Yield",
+    "topic_slug": "percent-yield",
+    "difficulty": "intermediate",
+    "keywords": [
+      "percent yield",
+      "percentage yield",
+      "% yield",
+      "efficiency of reaction",
+      "how to calculate percent yield",
+      "actual vs theoretical"
+    ],
+    "definition": "The efficiency of a chemical reaction. It compares actual yield with theoretical yield as a percentage.",
+    "explanation": "Percent yield tells us how much of the maximum possible product was actually obtained. Reactions giving above 90% yield are considered excellent. If % yield = 100% it means all theoretical product was obtained which is ideal but rare in practice.",
+    "formula": [
+      "% Yield = (Actual Yield / Theoretical Yield) x 100"
+    ],
+    "example": "For example, if theoretical yield is 16g but actual yield is 13.9g then % yield = (13.9/16) x 100 = 86.87%.",
+    "example_q": "CuCO3 -> CuO + CO2. Heating 24.8g CuCO3 produced 13.9g CuO. What is the % yield?",
+    "example_solution": "Step 1: Actual yield = 13.9g (given)\nStep 2: Find theoretical yield.\nMolar mass CuCO3 = 64+12+(16x3) = 124g/mol\nn = 24.8/124 = 0.2 mol\n1 mol CuCO3 -> 1 mol CuO\nMolar mass CuO = 64+16 = 80g/mol\nTheoretical yield = 0.2 x 80 = 16g\nStep 3: Apply formula.\n% yield = (13.9/16) x 100 = 86.87%",
+    "example_answer": "86.87%"
+  }
+]

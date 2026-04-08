@@ -1,99 +1,39 @@
-﻿// @ts-nocheck
+/* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+// @ts-nocheck
 'use client';
 import './chat.css';
-import { useEffect } from 'react';
-/* â•â•â•â•â•â•â•â•â•â•â• CHAPTER DATA â•â•â•â•â•â•â•â•â•â•â• */
-const CHS = [
-  {p:1,n:'01',t:'Basic Concepts', chips:['What is a mole?','Define atomic mass','What are isotopes?','Avogadro\'s number'],
-   followups:['How do you calculate molar mass?','What is the difference between empirical and molecular formula?','Explain Avogadro\'s hypothesis']},
-  {p:1,n:'02',t:'Experimental Techniques', chips:['What is chromatography?','Explain filtration','What is crystallisation?','Types of titration'],
-   followups:['How does paper chromatography work?','What is Rf value?','Difference between filtration and crystallisation']},
-  {p:1,n:'03',t:'Atomic Structure', chips:['What is electronegativity?','Explain Bohr\'s model','Quantum numbers','Hund\'s rule'], on:true,
-   followups:['How do quantum numbers relate to electron configuration?','Compare Bohr\'s model with quantum mechanical model','What is the Pauli Exclusion Principle?']},
-  {p:1,n:'04',t:'Chemical Bonding', chips:['Ionic vs covalent bond','What is hybridisation?','VSEPR theory','Hydrogen bonding'],
-   followups:['How does hybridisation affect bond angles?','Why is water polar?','Explain sigma and pi bonds']},
-  {p:1,n:'05',t:'States of Matter', chips:['Gas laws explained','What is vapor pressure?','Kinetic theory','Intermolecular forces'],
-   followups:['Derive the ideal gas equation','What is Boyle\'s Law?','How does temperature affect vapor pressure?']},
-  {p:1,n:'06',t:'Chemical Equilibrium', chips:['Le Chatelier\'s principle','What is Kc?','Factors affecting equilibrium','Common ion effect'],
-   followups:['How does pressure affect equilibrium?','What is the relationship between Kc and Kp?','Explain the Haber process using Le Chatelier']},
-  {p:2,n:'07',t:'Reaction Kinetics', chips:['Rate of reaction','Order of reaction','Activation energy','Arrhenius equation'],
-   followups:['How does a catalyst affect activation energy?','What is a rate-determining step?','Explain collision theory']},
-  {p:2,n:'08',t:'Thermochemistry', chips:['Hess\'s law','Enthalpy of formation','Bond energy','Entropy and Gibbs'],
-   followups:['How do you apply Hess\'s Law to calculate Î”H?','What is the significance of Î”G?','Explain endothermic vs exothermic reactions']},
-  {p:2,n:'09',t:'Electrochemistry', chips:['Electrolytic cell','Galvanic cell','Faraday\'s laws','Standard electrode potential'],
-   followups:['How does a galvanic cell produce voltage?','What is the standard hydrogen electrode?','Calculate mass deposited using Faraday\'s law']},
-  {p:2,n:'10',t:'Transition Elements', chips:['Properties of transition metals','Complex ions','Colour of compounds','Catalytic properties'],
-   followups:['Why do transition metals form coloured compounds?','What is a ligand?','Explain variable oxidation states']},
-  {p:2,n:'11',t:'Organic Chemistry', chips:['Functional groups','IUPAC naming','Isomerism types','Reaction mechanisms'],
-   followups:['What is the difference between structural and stereoisomerism?','Explain SN1 vs SN2 reactions','How do you name an alkane using IUPAC rules?']},
-  {p:2,n:'12',t:'Macromolecules', chips:['Polymers and monomers','Addition vs condensation','Proteins and amino acids','Carbohydrates'],
-   followups:['What is the difference between addition and condensation polymerisation?','How are proteins structured?','Explain the role of enzymes']},
-];
+import { useEffect, useState, useRef } from 'react';
+import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
+import { getTimeAgo } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import TopNav from '@/components/TopNav';
+// CHAPTER DATA WILL BE LOADED FROM SUPABASE
+const CHS: Array<{p:number; n:string; t:string; chips:string[]; followups:string[]; on?:boolean}> = [];
 
-const ATOMIC_SCOPE_TOPICS = [
-  'Fundamental particles (electron, proton, neutron)',
-  'Atomic number and mass number',
-  'Isotopes and isobars',
-  'Thomson, Rutherford, and Bohr models',
-  "Bohr's postulates and limitations",
-  'Electromagnetic radiation and Planck theory',
-  'Hydrogen emission spectrum',
-  'Quantum mechanical model of atom',
-  'Quantum numbers (n, l, m, s)',
-  'Orbitals and subshells (s, p, d, f)',
-  'Electronic configuration',
-  'Aufbau principle, Pauli exclusion principle, Hund rule',
-  'Ionization energy',
-  'Electron affinity',
-  'Electronegativity and periodic trend',
-];
+// Chapter scope topics per chapter index (0-based)
+const CHAPTER_SCOPE_DATA: Record<number, string[]> = {
+  0: [
+    '1.1 Mole and Avogadro\'s Number (p.1)',
+    '1.2 Mole Calculation (p.5)',
+    '1.2.1 Mole and Chemical Equations (p.8)',
+    '1.2.2 Calculations Involving Gases (p.12)',
+    '1.3 Percentage Composition (p.14)',
+    '1.4 Excess and Limiting Reagents (p.17)',
+    '1.5 Theoretical Yield and Percent Yield (p.19)',
+    'Exercise MCQs — 12 Questions (End of Chapter)',
+  ],
+};
 
-/* â•â•â•â•â•â•â•â•â•â•â• RESPONSE BANK â•â•â•â•â•â•â•â•â•â•â• */
-const BANK = [
-  {
-    text:'Electronegativity is the tendency of an atom to attract a shared pair of electrons towards itself within a covalent bond.',
-    points:['Measured on the Pauling scale - Fluorine has the highest value (4.0)','Increases across a period from left to right','Decreases down a group from top to bottom','Determines bond polarity and bond character'],
-    formula:'Period â†’  Li(1.0)  C(2.5)  N(3.0)  O(3.5)  F(4.0)\nGroup  â†“  F(4.0)  Cl(3.2)  Br(2.8)  I(2.5)',
-    flabel:'PAULING SCALE TREND', dur:38,
-    tip:'<strong>KPK Board Tip:</strong> Electronegativity trend is asked every year in MCQs and 2-mark short questions. Memorise Pauling values: F=4.0, O=3.5, N=3.0, Cl=3.2.',
-  },
-  {
-    text:"Bohr's Atomic Model (1913) proposes that electrons revolve around the nucleus in fixed circular paths called orbits, each with a specific, defined energy level.",
-    points:['Electrons occupy fixed energy levels: n = 1, 2, 3, 4â€¦','Energy is absorbed when an electron jumps to a higher orbit','Energy is emitted as light when an electron returns to a lower orbit','Successfully explained the hydrogen line emission spectrum'],
-    formula:"Energy of nth orbit:  Eâ‚™ = âˆ’13.6 / nÂ²  eV\nRadius of nth orbit:  râ‚™ = 0.529 Ã— nÂ²  Ã…\n\nn=1 (ground state):   Eâ‚ = âˆ’13.6 eV",
-    flabel:"BOHR'S EQUATIONS", dur:42,
-    tip:'<strong>KPK Board Tip:</strong> The formula Eâ‚™ = âˆ’13.6/nÂ² is asked every year in numerical questions. Practice calculations for n = 1, 2, and 3 specifically.',
-  },
-  {
-    text:'Quantum numbers are four numbers that completely describe the energy, shape, orientation, and spin of an electron in an atom. No two electrons can share all four identical values - this is the Pauli Exclusion Principle.',
-    points:['n - Principal: defines the shell (n = 1, 2, 3...)','l - Azimuthal: defines subshell shape (0 to nâˆ’1)','m - Magnetic: defines orbital orientation (âˆ’l to +l)','s - Spin: defines electron spin (+Â½ or âˆ’Â½)'],
-    formula:'For n=3:\n  l=0 â†’ 3s  (1 orbital,   2 electrons)\n  l=1 â†’ 3p  (3 orbitals,  6 electrons)\n  l=2 â†’ 3d  (5 orbitals, 10 electrons)\nTotal max electrons = 2nÂ² = 18',
-    flabel:'QUANTUM NUMBER RULES', dur:46,
-    tip:'<strong>KPK Board Tip:</strong> Pauli Exclusion Principle, Aufbau Principle, and Hund\'s Rule are high-yield. Expect a 3-mark configuration question in every paper.',
-  },
-  {
-    text:"Hund's Rule of Maximum Multiplicity states that when electrons fill degenerate orbitals, each orbital receives one electron before any orbital is doubly occupied. All singly-occupied orbitals must have the same spin.",
-    points:['Applies to p, d, and f subshells which contain multiple orbitals','Each degenerate orbital gets one electron before any pairing','All unpaired electrons must have parallel (same) spin','Minimises electron-electron repulsion and lowers energy'],
-    formula:'C  (Z=6):  1sÂ² 2sÂ² | 2pâ†‘ 2pâ†‘ 2pÂ·  (2 unpaired)\nN  (Z=7):  1sÂ² 2sÂ² | 2pâ†‘ 2pâ†‘ 2pâ†‘ (3 unpaired)\nO  (Z=8):  1sÂ² 2sÂ² | 2pâ†‘â†“ 2pâ†‘ 2pâ†‘ (2 unpaired)',
-    flabel:"HUND'S RULE - CONFIGURATIONS", dur:40,
-    tip:'<strong>KPK Board Tip:</strong> Draw orbital box diagrams with spin arrows for C, N, O. Examiners award full marks for correctly labelled diagrams.',
-  },
-  {
-    text:'A chemical bond is the attractive force that holds two atoms or ions together. The type of bond depends on the electronegativity difference (Î”EN) between the bonded atoms.',
-    points:['Ionic bond: complete electron transfer, Î”EN > 1.7 (e.g. NaCl, KBr)','Covalent bond: electron sharing, Î”EN â‰¤ 1.7 (e.g. Hâ‚‚, HCl)','Coordinate covalent: both electrons from one atom (e.g. NHâ‚„âº)','Metallic bond: delocalised electron sea (e.g. Na, Fe, Cu)'],
-    formula:'Î”EN = 0          â†’ Non-polar covalent  (Hâ‚‚, Clâ‚‚)\n0 < Î”EN â‰¤ 1.7   â†’ Polar covalent      (HCl, Hâ‚‚O)\nÎ”EN > 1.7       â†’ Ionic               (NaCl, MgO)',
-    flabel:'BOND TYPE CLASSIFICATION', dur:44,
-    tip:'<strong>KPK Board Tip:</strong> The Î”EN cutoff of 1.7 is tested almost every year in MCQs. Know examples of all four bond types for short questions.',
-  },
-];
+let _setScopeTopics: ((t: string[]) => void) | null = null;
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    STATE
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 let started=false, busy=false, ri=0, micOn=false;
-let activeCh='Chapter 03 - Atomic Structure';
-let activeChIdx=2;
-const ENABLED_CHAPTERS = new Set([2]); // Chapter 03 only for now
+let activeCh='';
+let activeChIdx=0;
+const ENABLED_CHAPTERS: Set<number> = new Set(); // Populated from Supabase
 const timers={};
 const audioPlayers: any = {};
 const audioUrls: any = {};
@@ -103,11 +43,81 @@ const ttsReady: any = {};
 const audioErrors: any = {};
 const urduSummaries: any = {};
 const voiceSources: any = {};
+const cacheIdForId: any = {};     // DB row UUID for semantic-match cache hits
+const questionForId: any = {};    // original question, sent with mode=audio to enable storage save
 let userScrolled=false;
 let lastQuestion='';
 let sendTimeout: number | null = null;
-const TRIAL_DAYS=5;
+let _currentRequestId = 0;  // incremented on every send; stale responses are dropped
+const TRIAL_DAYS=7;
 const SEND_TIMEOUT_MS=45000;
+let viewerName='Student';
+let viewerInitial='S';
+let viewerEmail='';
+let viewerFocus='Chemistry focus';
+let viewerTrial='Trial active';
+
+/* ─── Supabase session state (set by ChatPage component) ─── */
+let _sbClient: any = null;
+let _currentUserId: string | null = null;
+let _currentSessionId: string | null = null;
+let _sessionHasTitle = false;
+let _setSessions: ((s: any[]) => void) | null = null;
+let _setActiveSessionId: ((id: string | null) => void) | null = null;
+
+function computeViewerInitial(name: string){
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (!parts.length) return 'S';
+  return parts.map((part) => part.charAt(0).toUpperCase()).join('');
+}
+
+function updateViewerUi(){
+  const nameEl = document.getElementById('sbUserName');
+  if (nameEl) nameEl.textContent = viewerName;
+
+  const avatarEl = document.getElementById('sbUserAvatar');
+  if (avatarEl) avatarEl.textContent = viewerInitial;
+
+  const planEl = document.getElementById('planLabel');
+  if (planEl) planEl.textContent = viewerFocus;
+
+  const trialEl = document.getElementById('trialBarSub');
+  if (trialEl) trialEl.textContent = viewerTrial;
+
+  const topbarMetaEl = document.getElementById('tbMeta');
+  if (topbarMetaEl) topbarMetaEl.textContent = viewerEmail || viewerFocus;
+
+  const welcomeEyebrowEl = document.getElementById('wlEyebrow');
+  if (welcomeEyebrowEl) welcomeEyebrowEl.textContent = `Welcome back, ${viewerName}`;
+
+  const welcomeBodyEl = document.getElementById('wlBody');
+  if (welcomeBodyEl) {
+    welcomeBodyEl.textContent =
+      'Ask in English. Get a clear chemistry explanation with optional Urdu audio.';
+  }
+
+  const welcomeMetaEl = document.getElementById('wlMeta');
+  if (welcomeMetaEl) welcomeMetaEl.textContent = `${viewerFocus} - ${viewerTrial}`;
+}
+
+function setViewerContext(next: {
+  name?: string;
+  email?: string;
+  focus?: string;
+  trial?: string;
+}){
+  viewerName = String(next.name || viewerName || 'Student').trim() || 'Student';
+  viewerInitial = computeViewerInitial(viewerName);
+  viewerEmail = String(next.email || '').trim();
+  viewerFocus = String(next.focus || viewerFocus || 'Chemistry focus').trim();
+  viewerTrial = String(next.trial || viewerTrial || 'Trial active').trim();
+  updateViewerUi();
+}
 
 function isChapterAvailable(i: number){
   return ENABLED_CHAPTERS.has(i);
@@ -116,16 +126,13 @@ function isChapterAvailable(i: number){
 function chapterSoonResponse(i: number){
   const ch = CHS[i];
   return {
-    text: `${ch?.t || 'This chapter'} is not available yet. It will be available shortly.`,
-    points: [
-      'AI answers are currently enabled for Chapter 03 (Atomic Structure).',
-      'Please use Chapter 03 for now.',
-      'Other chapters will be added soon.',
-    ],
-    formula: '',
-    flabel: '',
-    dur: 18,
-    tip: '<strong>Update:</strong> More chapters are coming soon.',
+    definition:  `${ch?.t || 'This chapter'} is not available yet.`,
+    explanation: 'This chapter has not been enabled. Please select an available chapter from the sidebar.',
+    example:     '',
+    formula:     '',
+    flabel:      '',
+    dur:         18,
+    urduTtsText: 'Yeh chapter abhi available nahin hai. Sidebar se koi available chapter select karein.',
   };
 }
 
@@ -185,6 +192,49 @@ function putCachedAudio(text: string, audioBase64: string){
   }
   return key;
 }
+
+/**
+ * Clears the browser-side audio blob cache from localStorage.
+ * Exposed as window.clearBrowserAudioCache() for console access.
+ * Also callable via the Clear Cache button in the sidebar (dev mode).
+ */
+function clearBrowserAudioCache(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(AUDIO_CACHE_KEY);
+    console.log('[VoiceUstad] Browser audio cache cleared (localStorage)');
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') {
+  (window as any).clearBrowserAudioCache = clearBrowserAudioCache;
+}
+
+/**
+ * Calls the server-side clear-cache API then clears the browser cache.
+ * Exposed as window.__devClearCache() for console access.
+ */
+async function devClearAllCache(): Promise<void> {
+  try {
+    const key = new URLSearchParams(window.location.search).get('key') || '';
+    const url  = `/api/admin/clear-cache${key ? `?key=${encodeURIComponent(key)}` : ''}`;
+    const res  = await fetch(url, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      clearBrowserAudioCache();
+      const msg = `Cache cleared: ${data.qaCacheAudioFieldsCleared ?? 0} qa_cache rows, ${data.storageFilesDeleted ?? 0} storage files`;
+      console.log('[VoiceUstad]', msg);
+      showToast('Cache cleared', 'TTS audio cache cleared. Re-ask to regenerate.');
+    } else {
+      console.error('[VoiceUstad] clear-cache error:', data.error);
+      showToast('Error', data.error || 'Cache clear failed');
+    }
+  } catch (e) {
+    console.error('[VoiceUstad] devClearAllCache error:', e);
+  }
+}
+if (typeof window !== 'undefined') {
+  (window as any).__devClearCache = devClearAllCache;
+}
 function saveHistory(chIdx: number, msgs: any[]){
   if (typeof window === 'undefined') return;
   try {
@@ -240,6 +290,7 @@ function initApp(){
   w.newChat = newChat;
   w.send = send;
   w.ask = ask;
+  w.viewTopic = viewTopic;
   w.retryLast = retryLast;
   w.editMsg = editMsg;
   w.copyAnswer = copyAnswer;
@@ -248,9 +299,15 @@ function initApp(){
   w.retryAudio = retryAudio;
   w.toggleMic = toggleMic;
   w.selCh = selCh;
+  w.toggleChapterPanel = toggleChapterPanel;
   w.openPrevChat = openPrevChat;
   w.filterChs = filterChs;
   w.scrollDn = scrollDn;
+  w.dbLoadSession = dbLoadSession;
+  w.dbDeleteSession = dbDeleteSession;
+  w.goToSettings = () => {
+    window.location.href = '/settings';
+  };
 
   buildSb();
   buildPrevChats();
@@ -263,14 +320,11 @@ function initApp(){
   const tbSub = document.getElementById('tbSub');
   if (tbSub) tbSub.textContent = tbSub.textContent?.replace('Aú', '•') || '';
 
+  // NOTE: sendBtn click is handled by React onClick in JSX — no addEventListener needed.
+  // Adding another listener here causes the duplicate-response bug (both fire on click).
   const msg = document.getElementById('msg');
   if (msg) {
-    msg.addEventListener('input', () => updateSendBtn());
     msg.addEventListener('keyup', () => updateSendBtn());
-  }
-  const sendBtn = document.getElementById('sendBtn');
-  if (sendBtn) {
-    sendBtn.addEventListener('click', () => send());
   }
 
   const msgs = document.getElementById('msgs') as HTMLElement;
@@ -332,12 +386,16 @@ function buildSb(filter=''){
     if(q && !c.t.toLowerCase().includes(q) && !c.n.includes(q)) return;
     if(c.p!==lp){ h+=`<div class="sb-part">Part ${c.p}</div>`; lp=c.p; }
     const hasSaved = getChHistory(i).length>0;
-    h+=`<div class="sb-ch${c.on?' on':''}" role="button" tabindex="0"
-          aria-label="Chapter ${c.n}: ${c.t}${hasSaved?' - has saved history':''}"
-          onclick="selCh(${i})" onkeydown="if(event.key==='Enter')selCh(${i})">
-      <div class="sb-ch-dot"></div>
-      <div class="sb-ch-label">${esc(c.t)}</div>
-      <div class="sb-ch-n">${c.n}${hasSaved?'<span style="color:var(--brand);margin-left:3px">Â·</span>':''}</div>
+    h+=`<div class="sb-ch-wrap" id="sb-ch-wrap-${i}">
+      <div class="sb-ch${c.on?' on':''}" role="button" tabindex="0"
+            aria-label="Chapter ${c.n}: ${c.t}${hasSaved?' - has saved history':''}"
+            onclick="selCh(${i})" onkeydown="if(event.key==='Enter')selCh(${i})">
+        <div class="sb-ch-dot"></div>
+        <div class="sb-ch-label">${esc(c.t)}</div>
+        <div class="sb-ch-n">${c.n}${hasSaved?'<span style="color:var(--brand);margin-left:3px">·</span>':''}</div>
+        <button class="sb-ch-expand" onclick="event.stopPropagation();toggleChapterPanel(${i},${c.id||0})" aria-label="Show topics for chapter ${c.n}" title="Topics &amp; resources">&#9656;</button>
+      </div>
+      <div class="sb-ch-panel" id="sb-ch-panel-${i}"></div>
     </div>`;
   });
   h = h.replace(
@@ -349,31 +407,70 @@ function buildSb(filter=''){
   if (sbList) sbList.innerHTML = h;
 }
 
-function buildPrevChats(){
-  const el = document.getElementById('sbPrevList');
-  if (!el) return;
+function buildPrevChats(){ /* Sidebar history managed by Supabase — see dbLoadHistory */ }
 
-  const saved = getSavedChatIndexes().slice(0, 8);
-  if (!saved.length) {
-    el.innerHTML = `<div class="sb-prev-empty">No previous chats yet</div>`;
+async function toggleChapterPanel(idx, chId) {
+  const panelEl = document.getElementById('sb-ch-panel-'+idx);
+  const btnEl = document.querySelector('#sb-ch-wrap-'+idx+' .sb-ch-expand');
+  if (!panelEl) return;
+  if (panelEl.dataset.open === '1') {
+    panelEl.innerHTML = '';
+    panelEl.dataset.open = '0';
+    if (btnEl) btnEl.classList.remove('open');
     return;
   }
-
-  const h = loadHistory();
-  el.innerHTML = saved.map((i) => {
-    const ch = CHS[i];
-    const msgs = h[i] || [];
-    const lastUser = [...msgs].reverse().find((m: any) => m?.type === 'user')?.text || 'Saved conversation';
-    const preview = esc(String(lastUser));
-    return `<button class="sb-prev-item" type="button" onclick="openPrevChat(${i})" aria-label="Open previous chat for ${esc(ch?.t || `Chapter ${i+1}`)}">
-      <div class="sb-prev-row">
-        <span class="sb-prev-chip">Ch ${esc(ch?.n || String(i+1))}</span>
-        <span class="sb-prev-meta">${msgs.length} msgs</span>
-      </div>
-      <div class="sb-prev-title">${esc(ch?.t || 'Saved chat')}</div>
-      <div class="sb-prev-preview">${preview.slice(0, 44)}${preview.length > 44 ? '...' : ''}</div>
-    </button>`;
-  }).join('');
+  panelEl.innerHTML = '<div class="sb-panel-loading">Loading topics…</div>';
+  panelEl.dataset.open = '1';
+  if (btnEl) btnEl.classList.add('open');
+  if (!_sbClient || !chId) {
+    panelEl.innerHTML = '<div class="sb-panel-err">Not available</div>';
+    return;
+  }
+  try {
+    const [topicsRes, mcqRes, exRes, sqRes, nqRes, dqRes] = await Promise.all([
+      _sbClient.from('topics').select('section, title').eq('chapter_id', chId).order('section'),
+      _sbClient.from('mcqs').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
+      _sbClient.from('examples').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
+      _sbClient.from('short_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
+      _sbClient.from('numerical_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
+      _sbClient.from('descriptive_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
+    ]);
+    const topics = topicsRes.data || [];
+    const mcqCount = mcqRes.count || 0;
+    const exCount = exRes.count || 0;
+    const exerciseCount = (sqRes.count || 0) + (nqRes.count || 0) + (dqRes.count || 0);
+    const chN = CHS[idx]?.n || String(idx + 1);
+    let html = '<div class="sb-panel">';
+    if (topics.length > 0) {
+      html += '<div class="sb-panel-topics">';
+      window.__topicData = window.__topicData || {};
+      topics.forEach(function(t, ti) {
+        const key = 'tp_'+idx+'_'+ti;
+        window.__topicData[key] = { title: String(t.title || '').replace(/\s+/g, ' ').trim(), chN: Number(CHS[idx]?.n ?? 0) };
+        html += '<div class="sb-panel-topic" role="button" tabindex="0"'
+          +' onclick="viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN);closeSb()"'
+          +' onkeydown="if(event.key===\'Enter\'){viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN);closeSb()}">'
+          +'<span class="sb-panel-sec">'+esc(t.section)+'</span>'
+          +'<span class="sb-panel-ttl">'+esc(t.title)+'</span>'
+          +'</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="sb-panel-loading">No topics found</div>';
+    }
+    if (mcqCount || exCount || exerciseCount) {
+      html += '<div class="sb-panel-badges">';
+      if (mcqCount) html += '<span class="sb-panel-badge">'+mcqCount+' MCQs</span>';
+      if (exCount) html += '<span class="sb-panel-badge">'+exCount+' Examples</span>';
+      if (exerciseCount) html += '<span class="sb-panel-badge">'+exerciseCount+' Exercises</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+    panelEl.innerHTML = html;
+  } catch (e) {
+    panelEl.innerHTML = '<div class="sb-panel-err">Failed to load</div>';
+    console.error('toggleChapterPanel error:', e);
+  }
 }
 
 function openPrevChat(i: number){
@@ -384,15 +481,35 @@ function filterChs(val: string){ buildSb(val); }
 
 function selCh(i: number){
   if(!isChapterAvailable(i)){
-    showToast('Soon', `${CHS[i].t} will be available shortly`);
+    showToast('Soon', `${CHS[i]?.t || 'This chapter'} will be available shortly`);
     return;
   }
   CHS.forEach((c,j)=>c.on=j===i);
   activeChIdx=i;
   ri=0;
+  // Immediately populate scope from static data (may be empty for most chapters)
+  if (_setScopeTopics) _setScopeTopics(CHAPTER_SCOPE_DATA[i] || []);
+  // Fire-and-forget: load topics from DB and refresh scope modal for this chapter
+  const _scopeChId = (CHS[i] as any)?.id;
+  if (_sbClient && _scopeChId && _setScopeTopics) {
+    _sbClient
+      .from('topics')
+      .select('section, title')
+      .eq('chapter_id', _scopeChId)
+      .order('section')
+      .then(({ data }: { data: Array<{ section: string; title: string }> | null }) => {
+        if (data && data.length > 0 && _setScopeTopics) {
+          const dbTopics = data.map((t) =>
+            t.section ? `${t.section} ${t.title}` : t.title,
+          );
+          _setScopeTopics(dbTopics);
+        }
+      })
+      .catch(() => {/* non-fatal */});
+  }
   const sbSearch = document.getElementById('sbSearch') as HTMLInputElement;
   buildSb(sbSearch?.value || '');
-  activeCh=`Chapter ${CHS[i].n} - ${CHS[i].t}`;
+  activeCh=`Chapter ${CHS[i]?.n || String(i+1)} - ${CHS[i]?.t || ''}`;
   const tbTitle = document.getElementById('tbTitle');
   if (tbTitle) tbTitle.textContent=activeCh;
   updateTopbarSub(i);
@@ -407,14 +524,14 @@ function selCh(i: number){
   if(chatHistory.length>0){
     restoreHistory();
   } else {
-    if(started) appendDivider('Switched to '+CHS[i].t);
+    if(started) appendDivider('Switched to '+(CHS[i]?.t || 'chapter'));
   }
 }
 
 function updateTopbarSub(i: number){
-  const part=CHS[i].p;
+  const part = CHS[i]?.p;
   const tbSub = document.getElementById('tbSub');
-  if (tbSub) tbSub.textContent=`FSc Chemistry Â· Part ${part}`;
+  if (tbSub) tbSub.textContent = part ? `FSc Chemistry · Part ${part}` : 'FSc Chemistry';
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -436,27 +553,7 @@ function restoreHistory(){
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CHIPS
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-function buildChips(i: number){
-  const ch=CHS[i];
-  const el=document.getElementById('chips') as HTMLElement;
-  if (el) {
-    el.innerHTML=`<span class="c-lbl">Try:</span>`;
-    const scopeBtn=document.createElement('button');
-    scopeBtn.className='chip chip-scope';
-    scopeBtn.textContent='What can I ask?';
-    scopeBtn.setAttribute('aria-label','Show chapter scope topics');
-    scopeBtn.addEventListener('click',()=>openScope());
-    el.appendChild(scopeBtn);
-    ch.chips.forEach((q: string)=>{
-    const btn=document.createElement('button');
-    btn.className='chip';
-    btn.textContent=q;
-    btn.setAttribute('aria-label','Ask: '+q);
-    btn.addEventListener('click',()=>ask(q));
-    el.appendChild(btn);
-  });
-  }
-}
+function buildChips(_i: number){ /* chips removed */ }
 
 function openSb(){
   const sb=document.getElementById('sb') as HTMLElement;
@@ -501,19 +598,231 @@ function closeScope(){
 }
 
 function askScopeTopic(topic: string){
-  const q = `Explain ${String(topic || '').trim()} with a short exam-focused answer.`;
+  // Strip section number (e.g. "1.1 ") and page ref (e.g. " (p.1)")
+  const clean = String(topic || '')
+    .replace(/^\d+\.\d+\s+/, '')           // strip leading "1.1 "
+    .replace(/\s*[\((]p\.\d+[)\)].*$/i, '') // strip "(p.5)" suffix
+    .replace(/\s*—.*$/, '')                 // strip " — ..." suffix
+    .trim();
   closeScope();
-  ask(q);
+  viewTopic(clean, Number(CHS[activeChIdx]?.n ?? 0));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOPIC VIEW MODE
+   Called when a topic is clicked in sidebar panel or scope modal.
+   Uses /api/topic-view — completely separate from question mode.
+═══════════════════════════════════════════════════════════════ */
+async function viewTopic(topicTitle: string, chN: number){
+  if (busy) return;
+  const title = String(topicTitle || '').replace(/\s+/g, ' ').trim();
+  console.log("VIEW TOPIC CALLED:", title);
+  if (!title) return;
+
+  if (!started){
+    const m = document.getElementById('msgs') as HTMLElement;
+    if (m) m.innerHTML = '<div class="msgs-inner" id="msgsInner"></div>';
+    appendDivider('Today');
+    started = true;
+    userScrolled = false;
+  }
+
+  if (!_currentSessionId) { await dbCreateSession(); }
+
+  appendUser('\uD83D\uDCCB Topic: ' + title, ts(), true);
+  if (_currentSessionId) {
+    dbSaveMessage(_currentSessionId, 'user', '\uD83D\uDCCB Topic: ' + title).catch(console.error);
+  }
+
+  busy = true; setSpin(true); showTyping();
+
+  let timedOut = false;
+  const controller = new AbortController();
+  sendTimeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+    hideTyping(); busy = false; setSpin(false); updateSendBtn();
+    clearTimeout(sendTimeout);
+    appendError();
+  }, SEND_TIMEOUT_MS);
+
+  try {
+    const apiRes = await fetch('/api/topic-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({ topicTitle: title, chapterNumber: chN }),
+    });
+
+    if (timedOut) return;
+    clearTimeout(sendTimeout);
+    hideTyping(); busy = false; setSpin(false); updateSendBtn();
+
+    if (!apiRes.ok) {
+      let errData: any = null;
+      try { errData = await apiRes.json(); } catch {}
+      appendError('Topic error', String(errData?.error || 'Could not load topic'));
+      return;
+    }
+
+    const data = await apiRes.json();
+    if (!data?.ok || !data?.result) {
+      appendError('Topic not found', 'Content for this topic is not yet available in the database.');
+      return;
+    }
+
+    appendTopicView(data.result);
+    if (_currentSessionId) {
+      dbSaveMessage(
+        _currentSessionId,
+        'assistant',
+        JSON.stringify(data.result),
+        String(data.result?.urduTtsText || ''),
+      ).catch(console.error);
+    }
+  } catch (e: any) {
+    if (timedOut) return;
+    clearTimeout(sendTimeout);
+    hideTyping(); busy = false; setSpin(false); updateSendBtn();
+    appendError('AI error', e?.message || 'AI provider unavailable');
+  }
+}
+
+function appendTopicView(r: any){
+  const id = 'v' + Date.now();
+
+  const urduSummary = String(r?.urduTtsText || '').trim();
+  urduSummaries[id] = urduSummary;
+
+  if (r?.audioBase64) {
+    audioUrls[id] = `data:audio/mpeg;base64,${r.audioBase64}`;
+    audioCacheKeys[id] = putCachedAudio(urduSummary, String(r.audioBase64));
+    ttsReady[id] = true;
+    setVoiceSource(id, 'openai');
+  } else {
+    const cached = getCachedAudio(urduSummary);
+    if (cached) {
+      audioUrls[id] = `data:audio/mpeg;base64,${cached.audioBase64}`;
+      audioCacheKeys[id] = cached.key;
+      ttsReady[id] = true;
+      setVoiceSource(id, 'openai');
+    } else {
+      setVoiceSource(id, 'unknown');
+    }
+  }
+
+  // Page label
+  const pageLabel = (() => {
+    if (r.page_start && r.page_end && r.page_start !== r.page_end)
+      return `Pages \u00A0${r.page_start}\u2013${r.page_end}`;
+    if (r.page_start) return `Page\u00A0${r.page_start}`;
+    return '';
+  })();
+
+  // Duration
+  const allText = [r.definition, r.explanation, r.example].filter(Boolean).join(' ');
+  const wordCount = allText.split(/\s+/).filter(Boolean).length;
+  const dur = Math.max(r.dur || 0, Math.round(wordCount / 2.8), 30);
+  const mm = Math.floor(dur / 60);
+  const ss = String(dur % 60).padStart(2, '0');
+  const ttsUrText = encodeURIComponent(urduSummary);
+
+  // Content sections
+  let sectionsHtml = '';
+  if (r.definition)
+    sectionsHtml += `<div class="tv-section tv-section--definition"><div class="tv-sec-lbl">Definition</div><div class="tv-sec-body">${esc(r.definition)}</div></div>`;
+  if (r.explanation)
+    sectionsHtml += `<div class="tv-section tv-section--explanation"><div class="tv-sec-lbl">Explanation</div><div class="tv-sec-body">${esc(r.explanation)}</div></div>`;
+  if (r.formula)
+    sectionsHtml += `<div class="tv-section tv-formula-sec"><div class="tv-sec-lbl">${esc(r.flabel || 'Formula')}</div><div class="tv-formula-body">${fmtBody(r.formula)}</div></div>`;
+  if (r.example)
+    sectionsHtml += `<div class="tv-section tv-section--example"><div class="tv-sec-lbl">Example</div><div class="tv-sec-body">${fmtExample(r.example)}</div></div>`;
+  if (!sectionsHtml)
+    sectionsHtml = '<div class="tv-empty">No textbook content available for this topic yet.</div>';
+
+  const copyText = [r.definition, r.explanation, r.formula, r.example]
+    .filter(Boolean).join('\n\n');
+
+  // Store copy text out of band — avoids JSON.stringify double-quotes breaking onclick="..."
+  const w2 = (window as any);
+  w2.__copyData = w2.__copyData || {};
+  w2.__copyData[id] = copyText;
+
+  const voiceHtml = urduSummary ? `
+    <div class="voice-card" role="region" aria-label="Urdu voice explanation">
+      <div class="vc-top-row">
+        <div class="vc-icon" aria-hidden="true">&#128266;</div>
+        <div class="vc-info">
+          <div class="vc-label">Urdu audio</div>
+          <div class="vc-sub" lang="ur" dir="ltr">Play &#8212; ${dur}s</div>
+          <div class="vc-loading" id="vcload_${id}" aria-live="polite">
+            <span class="vc-dot"></span><span class="vc-dot"></span><span class="vc-dot"></span>
+            Preparing audio...
+          </div>
+        </div>
+        <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu</span>
+        <div class="vc-wave" id="wv_${id}" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="vc-timer" id="tm_${id}" aria-live="polite">${mm}:${ss}</div>
+        <button class="vc-play" id="btn_${id}" data-dur="${dur}" data-tts="" data-tts-ur="${ttsUrText}"
+          aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay('${id}')">
+          <svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 9L5 21V3z"/></svg>
+          <svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+        </button>
+        <button class="vc-retry" id="retry_${id}" type="button" aria-label="Retry Urdu voice" onclick="retryAudio('${id}')">
+          Retry audio
+        </button>
+      </div>
+      <div class="vc-progress" id="prog_${id}" role="progressbar" aria-valuemin="0" aria-valuemax="${dur}" aria-valuenow="0">
+        <div class="vc-progress-bar" id="progbar_${id}"></div>
+      </div>
+    </div>` : '';
+
+  const w = document.createElement('div');
+  w.innerHTML = `
+    <div class="msg-ai msg-topic-view" role="log" aria-label="Topic view: ${esc(r.topic || '')}">
+      <div class="ai-av tv-av" aria-hidden="true">T</div>
+      <div class="ai-col">
+
+        <div class="tv-header">
+          <div class="tv-mode-badge">Topic View</div>
+          <div class="tv-title">${esc(r.topic || r.chapter || '')}</div>
+          <div class="tv-meta-row">
+            <span class="tv-chapter-lbl">${esc(r.chapter || '')}</span>
+            ${pageLabel ? `<span class="tv-page-badge">${esc(pageLabel)}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="tv-sections">${sectionsHtml}</div>
+
+        ${voiceHtml}
+
+        <div class="ai-actions" role="toolbar" aria-label="Topic actions">
+          <button class="ai-action-btn" id="copy_${id}" aria-label="Copy topic content"
+            onclick="copyAnswer('${id}')">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy
+          </button>
+        </div>
+
+        <div class="ai-time">${ts()}</div>
+      </div>
+    </div>`;
+
+  getInner().appendChild(w);
+  scrollDn();
+  setVoiceSource(id, voiceSources[id] || 'unknown');
+  prefetchUrduAudio(id);
+  const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
+  if (retryBtn) retryBtn.style.display = audioUrls[id] ? 'none' : 'inline-flex';
 }
 
 function updateInputPlaceholder(chIdx: number){
   const msg = document.getElementById('msg') as HTMLTextAreaElement | null;
   if (!msg) return;
-  if (chIdx === 2) {
-    msg.placeholder = 'Ask Atomic Structure only (Bohr model, quantum numbers, electron configuration...)';
-    return;
-  }
-  msg.placeholder = 'Ask any FSc Chemistry question...';
+  const ch = CHS[chIdx];
+  msg.placeholder = ch ? `Ask anything from ${ch.t}...` : 'Ask your chemistry question...';
 }
 
 function isOutOfScopeAtomicResponse(text: string){
@@ -523,18 +832,13 @@ function isOutOfScopeAtomicResponse(text: string){
 
 function scopeGuardResponse(userText: string){
   return {
-    text: 'This question is outside Chapter 03 (Atomic Structure). Please ask from the listed Atomic Structure topics.',
-    points: [
-      'Use the "What can I ask?" button to view allowed topics.',
-      'Try asking: Bohr model, quantum numbers, electron configuration, or isotopes.',
-      `Your question: ${String(userText || '').slice(0, 90)}`,
-    ],
-    formula: '',
-    flabel: '',
-    dur: 24,
-    tip: '<strong>Chapter Scope:</strong> Current AI support is limited to Atomic Structure topics only.',
-    urduTtsText:
-      'Yeh sawal Chapter 03 Atomic Structure se bahar hai. Meherbani kar ke isi chapter ke topics poochain, jaise Bohr model, quantum numbers, electron configuration, ya isotopes.',
+    definition:  'This question is outside the current chapter scope.',
+    explanation: 'AI answers are limited to the current chapter topics. Use the "What can I ask?" button to see allowed topics.',
+    example:     `Your question: "${String(userText || '').slice(0, 90)}"`,
+    formula:     '',
+    flabel:      '',
+    dur:         24,
+    urduTtsText: 'Yeh sawal is chapter ki scope se bahar hai. Meherbani kar ke allowed topics mein se poochhein.',
   };
 }
 
@@ -633,37 +937,18 @@ function showToast(icon: string, msg: string, duration: number = 2400){
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function showWelcome(){
   started=false; ri=0; chatHistory=[];
-  const STARTERS=[
-    {icon:'\u269B', q:"Explain Bohr's atomic model and its postulates", label:'Atomic Structure · Ch 3'},
-    {icon:'\uD83D\uDD2C', q:'Explain the four quantum numbers with examples', label:'Atomic Structure · Ch 3'},
-    {icon:'\u269B', q:'What is electronegativity? Is it related to atomic structure?', label:'Atomic Structure · Ch 3'},
-    {icon:'\u269B', q:'What are isotopes and how do they relate to atomic mass?', label:'Atomic Structure · Ch 3'},
-  ];
   const m=document.getElementById('msgs') as HTMLElement;
   if (m) m.innerHTML=`<div class="msgs-inner" id="msgsInner">
     <div class="welcome">
+      <div class="wl-eyebrow" id="wlEyebrow">Welcome back, ${esc(viewerName)}</div>
       <div class="wl-logo" aria-hidden="true">V</div>
-      <h2 class="wl-h">Your <span>Chemistry</span> Tutor</h2>
-      <p class="wl-p">Type any FSc Chemistry question in English. You&#39;ll get a clear textbook explanation - then tap Play to hear it in Urdu.</p>
-      <button class="wl-scope-btn" type="button" aria-label="Show allowed Chapter 03 topics" onclick="openScope()">What can I ask in Chapter 03?</button>
+      <h2 class="wl-h"><span>Welcome to VoiceUstad</span></h2>
+      <p class="wl-p" id="wlBody">Ask in English. Get a clear explanation with optional Urdu audio.</p>
+      <div class="wl-meta" id="wlMeta">${esc(viewerFocus)} - ${esc(viewerTrial)}</div>
+      <button class="wl-scope-btn" type="button" aria-label="Show current chapter topics" onclick="openScope()">What can I ask?</button>
       <div class="wl-grid" id="wlGrid" role="list"></div>
     </div>
   </div>`;
-  const grid=document.getElementById('wlGrid') as HTMLElement;
-  if (grid) {
-    STARTERS.forEach(s=>{
-      const card=document.createElement('div');
-      card.className='wl-card';
-      card.setAttribute('role','listitem button');
-      card.setAttribute('tabindex','0');
-      card.setAttribute('aria-label','Ask: '+s.q);
-      const hintLabel = String(s.label).replace(/\s+ú\s+/g, ' - ');
-      card.innerHTML=`<span class="wl-icon" aria-hidden="true">${s.icon}</span><div class="wl-q">${esc(s.q)}</div><div class="wl-hint">${esc(hintLabel)}</div>`;
-      card.addEventListener('click',()=>ask(s.q));
-      card.addEventListener('keydown',e=>{ if(e.key==='Enter') ask(s.q); });
-      grid.appendChild(card);
-    });
-  }
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -674,6 +959,13 @@ async function send(){
   if (!inp) return;
   const txt=inp.value.trim();
   if(!txt||busy) return;
+
+  // ── Lock immediately (before any await) ──────────────────────────────────────
+  // This prevents double-sends from the double-wired button click and from rapid
+  // Enter key + button click combinations.
+  busy=true;
+  const reqId = ++_currentRequestId;
+  console.log('[send] start reqId:', reqId);
 
   if(!isChapterAvailable(activeChIdx)){
     if(!started){
@@ -687,6 +979,7 @@ async function send(){
     inp.value=''; resize(inp); updateSendBtn();
     appendUser(txt, ts(), true);
     appendAI(chapterSoonResponse(activeChIdx), ts(), true);
+    busy=false;  // sync-only path: release lock here
     return;
   }
 
@@ -698,21 +991,29 @@ async function send(){
     userScrolled=false;
   }
 
+  // Session creation is async — check reqId after it resolves so a stale concurrent
+  // call (which should never happen now that busy=true is set first) is still dropped.
+  if (!_currentSessionId) { await dbCreateSession(); }
+  if (reqId !== _currentRequestId) { busy=false; return; }  // stale: newer send started
+
   lastQuestion=txt;
   inp.value=''; resize(inp); updateSendBtn();
   appendUser(txt, ts(), true);
-  busy=true; setSpin(true); showTyping();
+  if (_currentSessionId) { dbSaveMessage(_currentSessionId, 'user', txt).catch(console.error); }
+  setSpin(true); showTyping();
 
-  // Error timeout (item 10)
+  // ── Timeout — use a local variable so concurrent stale timers can't cross-cancel ──
   let timedOut=false;
   const controller = new AbortController();
-  sendTimeout=setTimeout(()=>{
+  const localTimeout = window.setTimeout(()=>{
+    if (reqId !== _currentRequestId) return;  // stale timer, ignore
     timedOut=true;
     controller.abort();
     hideTyping(); busy=false; setSpin(false); updateSendBtn();
-    clearTimeout(sendTimeout);
+    console.log('[send] timeout reqId:', reqId);
     appendError();
   }, SEND_TIMEOUT_MS);
+  sendTimeout = localTimeout;  // keep global reference so newChat() can cancel it
 
   let resp: any = null;
   let rateLimitMsg = '';
@@ -725,6 +1026,7 @@ async function send(){
       body: JSON.stringify({
         message: txt,
         chapter: CHS[activeChIdx]?.t ?? '',
+        chapterNumber: Number(CHS[activeChIdx]?.n ?? 0),
         history: chatHistory.slice(-6),
       }),
     });
@@ -748,41 +1050,55 @@ async function send(){
     }
     resp = data?.answer ?? null;
     if (resp) {
-      if (data?.urduSummary) resp.urduSummary = data.urduSummary;
-      if (data?.audioBase64) resp.audioBase64 = data.audioBase64;
-      if (data?.audioError) resp.audioError = data.audioError;
+      if (data?.urduSummary)    resp.urduSummary = data.urduSummary;
+      if (data?.audioBase64)    resp.audioBase64 = data.audioBase64;
+      if (data?.audioError)     resp.audioError  = data.audioError;
+      if (data?.audioUrl)       resp.audioUrl    = data.audioUrl;
+      if (data?.cacheId)        resp.cacheId     = data.cacheId;
+      if (data?.responseSource) resp._source     = data.responseSource;
     }
+    console.log('[send] response reqId:', reqId, '| source:', data?.responseSource || 'unknown', '| cacheHit:', !!data?.cacheHit);
   } catch (e) {
+    // Stale request — a newer send already owns the UI
+    if (reqId !== _currentRequestId) { clearTimeout(localTimeout); busy=false; return; }
     if (rateLimitMsg) {
       if(timedOut) return;
-      clearTimeout(sendTimeout);
+      clearTimeout(localTimeout);
       hideTyping(); busy=false; setSpin(false); updateSendBtn();
       appendError('Rate limit reached', rateLimitMsg, rateLimitRetryMs);
       return;
     }
     if(timedOut) return;
-    clearTimeout(sendTimeout);
+    clearTimeout(localTimeout);
     hideTyping(); busy=false; setSpin(false); updateSendBtn();
     appendError('AI error', (e as any)?.message || 'AI provider unavailable');
     return;
   }
 
+  // ── Drop stale response (reqId mismatch means a newer request already rendered) ──
+  if (reqId !== _currentRequestId) { clearTimeout(localTimeout); busy=false; return; }
+  // ── Cancel timeout — response arrived successfully ────────────────────────────
   if(timedOut) return;
-  clearTimeout(sendTimeout);
+  clearTimeout(localTimeout);
   hideTyping(); busy=false; setSpin(false); updateSendBtn();
+  console.log('[send] appending response reqId:', reqId);
 
-  if(!resp || !resp.text || !Array.isArray(resp.points)){
+  // New structured format: at least one of definition/explanation/example must be set.
+  // Legacy {text,points} format still accepted for old stored history items.
+  const hasNewFormat    = resp && (resp.definition || resp.explanation || resp.example);
+  const hasLegacyFormat = resp && resp.text && Array.isArray(resp.points);
+  if (!resp || (!hasNewFormat && !hasLegacyFormat)) {
     appendError('AI error', 'Invalid AI response');
     return;
   }
 
+  // Legacy fallback for very old stored responses where the AI returned labelled text
   const defaultPoints =
     Array.isArray(resp.points) &&
     resp.points.length === 3 &&
     String(resp.points[0]) === 'Key idea' &&
     String(resp.points[1]) === 'Important detail' &&
     String(resp.points[2]) === 'Example';
-
   if (defaultPoints && /\btext\s*:/.test(String(resp.text || ''))) {
     const recovered = recoverLabelledResponse(resp.text);
     if (recovered) {
@@ -791,10 +1107,16 @@ async function send(){
     }
   }
 
-  if (isOutOfScopeAtomicResponse(resp.text)) {
+  // Out-of-scope guard
+  if (isOutOfScopeAtomicResponse(resp.definition || resp.text || '')) {
     resp = { ...scopeGuardResponse(txt), refPageNo: resp.refPageNo, refLabel: resp.refLabel };
   }
   appendAI(resp, ts(), true);
+  if (_currentSessionId) {
+    const aiContent = JSON.stringify(resp);
+    const urduText = String(resp.urduSummary || resp.urduTtsText || '');
+    dbSaveMessage(_currentSessionId, 'assistant', aiContent, urduText).catch(console.error);
+  }
 }
 
 function ask(q){
@@ -844,17 +1166,27 @@ function appendAI(r, time, save=true){
   const id='v'+Date.now();
   const dur=r.dur;
   // Dynamic duration based on text length (item 16)
-  const wordCount=(r.text+' '+r.points.join(' ')).split(/\s+/).length;
+  const allText = [r.definition, r.explanation, r.example, r.text, ...(Array.isArray(r.points)?r.points:[])].filter(Boolean).join(' ');
+  const wordCount = allText.split(/\s+/).length;
   const computedDur = Math.round(wordCount / 2.8); // ~2.8 Urdu words/sec
   const actualDur = Math.max(dur, computedDur);
   const mm=Math.floor(actualDur/60), ss=String(actualDur%60).padStart(2,'0');
 
   const urduSummary = String(r?.urduSummary || r?.urduTtsText || '').trim();
   urduSummaries[id] = urduSummary;
+  cacheIdForId[id]  = r?.cacheId  || null;
+  questionForId[id] = r?.question || lastQuestion || '';
 
   if (r?.audioBase64) {
     audioUrls[id] = `data:audio/mpeg;base64,${r.audioBase64}`;
     audioCacheKeys[id] = putCachedAudio(urduSummary, String(r.audioBase64));
+    ttsReady[id] = true;
+    setVoiceSource(id, 'openai');
+  } else if (r?.audioUrl) {
+    // Cached audio served directly from Supabase Storage CDN.
+    // Append ?v= timestamp so the browser re-fetches after a cache clear + re-upload.
+    const sep = String(r.audioUrl).includes('?') ? '&' : '?';
+    audioUrls[id] = `${r.audioUrl}${sep}v=${Date.now()}`;
     ttsReady[id] = true;
     setVoiceSource(id, 'openai');
   } else {
@@ -872,6 +1204,30 @@ function appendAI(r, time, save=true){
     audioErrors[id] = String(r.audioError);
   }
 
+  const _pageRefVal = String(r.refPageNo || '').trim();
+  const topPageRefHtml = (_pageRefVal && _pageRefVal !== 'TBD')
+    ? `<span class="ai-page-ref" aria-label="Book page reference">Page ${esc(_pageRefVal)}</span>`
+    : '';
+
+  // ── New strict format: definition / explanation / example as clean text blocks ──
+  const hasNewFormat = !!(r.definition || r.explanation || r.example);
+
+  const contentHtml = hasNewFormat ? (() => {
+    let html = '';
+    if (r.definition) html += `<div class="ai-field"><div class="ai-field-lbl">Definition</div><div class="ai-field-body">${esc(r.definition)}</div></div>`;
+    if (r.explanation) html += `<div class="ai-field"><div class="ai-field-lbl">Explanation</div><div class="ai-field-body">${esc(r.explanation)}</div></div>`;
+    if (r.example) html += `<div class="ai-field"><div class="ai-field-lbl">Example</div><div class="ai-field-body">${esc(r.example)}</div></div>`;
+    return `<div class="ai-card">${html}</div>`;
+  })() : (() => {
+    // Legacy format fallback for stored history
+    const kp = (Array.isArray(r.points) ? r.points : []).map((p, i) => {
+      const m = String(p).match(/^([A-Za-z][^:]{1,25}):\s*([\s\S]*)$/);
+      const html = m ? '<strong>' + esc(m[1]) + ':</strong> ' + esc(m[2]) : esc(p);
+      return `<div class="ai-pt"><div class="pt-num" aria-hidden="true">${i+1}</div><span>${html}</span></div>`;
+    }).join('');
+    return `<div class="ai-card"><div class="ai-intro">${esc(r.text||'')}</div><div class="ai-pts">${kp}</div></div>`;
+  })();
+
   const formulaHtml = (r.formula??'') ? `
     <div class="ai-formula" lang="en">
       <div class="formula-lbl">${esc(r.flabel??'FORMULA')}</div>
@@ -882,7 +1238,7 @@ function appendAI(r, time, save=true){
   const mcqOptions = Array.isArray(mcq?.options) ? mcq.options : [];
   const mcqHtml = (mcq?.question && mcqOptions.length >= 2) ? `
     <div class="ai-mcq" role="group" aria-label="Related MCQ">
-      <div class="mcq-title">Related MCQ</div>
+      <div class="mcq-title">Quick MCQ</div>
       <div class="mcq-q">${esc(mcq.question)}</div>
       <div class="mcq-opts">
         ${mcqOptions.map((o, i)=>`<div class="mcq-opt"><span class="mcq-opt-key">${String.fromCharCode(65+i)}</span><span>${esc(o)}</span></div>`).join('')}
@@ -890,32 +1246,16 @@ function appendAI(r, time, save=true){
       ${mcq?.correct ? `<div class="mcq-ans">Correct: ${esc(mcq.correct)}</div>` : ''}
     </div>` : '';
 
-  const tipHtml = r.tip ? `<div class="ai-tip" role="note" aria-label="Exam tip">
-    <span class="tip-star" aria-hidden="true">â˜…</span>
-    <span class="tip-txt">${r.tip}</span>
-  </div>` : '';
-
-  const topPageRefHtml = r.refPageNo
-    ? `<span class="ai-page-ref" aria-label="Board page reference">Page ${esc(String(r.refPageNo))}</span>`
-    : '';
-
-  // Contextual follow-up suggestions (item 8)
-  const chFollowups = CHS[activeChIdx]?.followups ?? [];
-  const followupHtml = chFollowups.length ? `
-    <div class="ai-followups" role="list" aria-label="Follow-up questions">
-      ${chFollowups.map(q=>`<button class="followup-btn" role="listitem" aria-label="Ask: ${esc(q)}" data-q="${esc(q)}" onclick="ask(this.dataset.q)">${esc(q)}</button>`).join('')}
-    </div>` : '';
-
-  const kp=r.points.map((p,i)=>`
-    <div class="ai-pt">
-      <div class="pt-num" aria-hidden="true">${i+1}</div>
-      <span>${esc(p)}</span>
-    </div>`).join('');
-
-  // Plain text for copy (strips HTML)
-  const copyText=[r.text, ...r.points, r.formula??''].filter(Boolean).join('\n');
-  const ttsText = encodeURIComponent([r.text, ...r.points].filter(Boolean).join('. '));
+  // Plain text for copy
+  const copyText = [r.definition, r.explanation, r.example, r.formula??'']
+    .filter(Boolean).join('\n') || [r.text, ...(Array.isArray(r.points)?r.points:[]), r.formula??''].filter(Boolean).join('\n');
+  const ttsText = encodeURIComponent([r.text, ...(Array.isArray(r.points)?r.points:[])].filter(Boolean).join('. '));
   const ttsUrText = encodeURIComponent(r.urduTtsText || '');
+
+  // Store copy text out of band — same fix as appendTopicView
+  const _wcd = (window as any);
+  _wcd.__copyData = _wcd.__copyData || {};
+  _wcd.__copyData[id] = copyText;
 
   const w=document.createElement('div');
   w.innerHTML=`
@@ -926,10 +1266,7 @@ function appendAI(r, time, save=true){
           <span class="ai-ch-dot" aria-hidden="true"></span>${esc(activeCh)}${topPageRefHtml}
         </div>
 
-        <div class="ai-card">
-          <div class="ai-intro">${esc(r.text)}</div>
-          <div class="ai-pts">${kp}</div>
-        </div>
+        ${contentHtml}
 
         ${formulaHtml}
         ${mcqHtml}
@@ -938,16 +1275,16 @@ function appendAI(r, time, save=true){
           <div class="vc-top-row">
             <div class="vc-icon" aria-hidden="true">ðŸ”Š</div>
             <div class="vc-info">
-              <div class="vc-label">Urdu Voice Explanation</div>
-              <div class="vc-sub" lang="ur" dir="ltr">Tap play to listen - ${actualDur}s</div>
+              <div class="vc-label">Urdu audio</div>
+              <div class="vc-sub" lang="ur" dir="ltr">Play - ${actualDur}s</div>
               <div class="vc-loading" id="vcload_${id}" aria-live="polite">
                 <span class="vc-dot"></span>
                 <span class="vc-dot"></span>
                 <span class="vc-dot"></span>
-                Preparing Urdu audio...
+                Preparing audio...
               </div>
             </div>
-            <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu Voice</span>
+            <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu</span>
             <div class="vc-wave" id="wv_${id}" aria-hidden="true">
               <span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
@@ -958,7 +1295,7 @@ function appendAI(r, time, save=true){
               <svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
             </button>
             <button class="vc-retry" id="retry_${id}" type="button" aria-label="Retry Urdu voice" onclick="retryAudio('${id}')">
-              Voice unavailable — Retry
+              Retry audio
             </button>
           </div>
           <div class="vc-progress" id="prog_${id}" role="progressbar" aria-valuemin="0" aria-valuemax="${actualDur}" aria-valuenow="0">
@@ -966,27 +1303,24 @@ function appendAI(r, time, save=true){
           </div>
         </div>
 
-        ${tipHtml}
-        ${followupHtml}
-
         <div class="ai-actions" role="toolbar" aria-label="Response actions">
-          <button class="ai-action-btn" id="copy_${id}" aria-label="Copy answer to clipboard" onclick="copyAnswer('${id}', ${JSON.stringify(copyText)})">
+          <button class="ai-action-btn" id="copy_${id}" aria-label="Copy answer to clipboard" onclick="copyAnswer('${id}')">
             <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
             Copy
           </button>
           <div class="ai-action-sep" aria-hidden="true"></div>
           <button class="ai-action-btn thumb-up" id="up_${id}" aria-label="This answer was helpful" onclick="feedback('${id}','up')">
             <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path stroke-linecap="round" d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
-            Helpful
+            Good
           </button>
           <button class="ai-action-btn thumb-down" id="dn_${id}" aria-label="This answer was not helpful" onclick="feedback('${id}','down')">
             <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z"/><path stroke-linecap="round" d="M17 2h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/></svg>
-            Not helpful
+            Weak
           </button>
           <div class="ai-action-sep" aria-hidden="true"></div>
           <button class="ai-action-btn" aria-label="Regenerate this answer" onclick="retryLast()">
             <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M1 4v6h6"/><path stroke-linecap="round" d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-            Regenerate
+            Retry
           </button>
         </div>
 
@@ -1093,7 +1427,8 @@ async function prefetchUrduAudio(id){
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    COPY ANSWER (item 5)
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-function copyAnswer(id, text){
+function copyAnswer(id: string){
+  const text: string = (window as any).__copyData?.[id] ?? "";
   const btn=document.getElementById('copy_'+id);
   navigator.clipboard.writeText(text).then(()=>{
     btn.classList.add('copied');
@@ -1339,7 +1674,13 @@ async function retryAudio(id, silent=false){
         const res = await fetch('/api/chat2', {
           method:'POST',
           headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify({ mode:'audio', urduSummary: summary }),
+          body: JSON.stringify({
+            mode: 'audio',
+            urduSummary: summary,
+            cacheId: cacheIdForId[id] || null,
+            question: questionForId[id] || lastQuestion || '',
+            chapterNumber: Number((CHS as any)[activeChIdx]?.n ?? 0),
+          }),
         });
         data = await res.json();
         if(!res.ok || data?.ok === false){
@@ -1372,6 +1713,7 @@ async function retryAudio(id, silent=false){
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    TYPING INDICATOR
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+let typingProgressTimer: ReturnType<typeof setInterval> | null = null;
 function showTyping(){
   const w=document.createElement('div'); w.id='typi';
   w.innerHTML=`
@@ -1379,12 +1721,22 @@ function showTyping(){
       <div class="ai-av" aria-hidden="true">V</div>
       <div>
         <div class="typing-bub" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div class="typing-note">Generating answer...</div>
+        <div class="typing-note" id="typingNote">Generating answer...</div>
       </div>
     </div>`;
   getInner().appendChild(w); scrollDn();
+  const msgs = ['Generating answer...', 'Still thinking...', 'Almost ready...', 'Hang tight...'];
+  let idx = 0;
+  typingProgressTimer = setInterval(() => {
+    idx = Math.min(idx + 1, msgs.length - 1);
+    const note = document.getElementById('typingNote');
+    if (note) note.textContent = msgs[idx];
+  }, 5000);
 }
-function hideTyping(){ const e=document.getElementById('typi'); if(e)e.remove(); }
+function hideTyping(){
+  if (typingProgressTimer) { clearInterval(typingProgressTimer); typingProgressTimer = null; }
+  const e=document.getElementById('typi'); if(e)e.remove();
+}
 
 function appendDivider(label){
   const w=document.createElement('div');
@@ -1409,7 +1761,7 @@ function toggleMic(){
         micOn=false;
         micBtn.classList.remove('rec');
         micBtn.setAttribute('aria-pressed','false');
-        inp.value='Explain the periodic trend of electronegativity';
+        inp.value='';
         resize(inp); updateSendBtn();
       },3000);
     }
@@ -1452,7 +1804,163 @@ function toggleMic(){
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    NEW CHAT
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ═══════════════════════════════════════════════
+   SUPABASE — Session & History helpers
+═══════════════════════════════════════════════ */
+
+function formatTime(isoStr: string): string {
+  try {
+    return new Date(isoStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  } catch { return ''; }
+}
+
+async function dbLoadHistory() {
+  if (!_sbClient || !_currentUserId) return;
+  try {
+    const { data, error } = await _sbClient
+      .from('chat_sessions')
+      .select('*')
+      .eq('user_id', _currentUserId)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+    if (error) { console.error('History load error:', error); return; }
+    if (_setSessions) _setSessions(data || []);
+  } catch (e) { console.error('dbLoadHistory error:', e); }
+}
+
+async function dbCreateSession(): Promise<string | null> {
+  if (!_sbClient || !_currentUserId) return null;
+  try {
+    const { data, error } = await _sbClient
+      .from('chat_sessions')
+      .insert({
+        user_id: _currentUserId,
+        title: 'New Conversation',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    if (error || !data) { console.error('Session create error:', error); return null; }
+    _currentSessionId = data.id;
+    _sessionHasTitle = false;
+    if (_setActiveSessionId) _setActiveSessionId(data.id);
+    if (typeof window !== 'undefined')
+      window.history.pushState({}, '', '/chat?session=' + data.id);
+    return data.id;
+  } catch (e) { console.error('dbCreateSession error:', e); return null; }
+}
+
+async function dbSaveMessage(
+  sessionId: string,
+  role: 'user' | 'assistant',
+  content: string,
+  urduAudioText?: string
+) {
+  if (!_sbClient || !_currentUserId || !sessionId) return;
+  try {
+    await _sbClient.from('chat_messages').insert({
+      session_id: sessionId,
+      user_id: _currentUserId,
+      role,
+      content,
+      urdu_audio_text: urduAudioText || null,
+    });
+    const isFirstUserMsg = role === 'user' && !_sessionHasTitle;
+    if (isFirstUserMsg) _sessionHasTitle = true;
+    await _sbClient.from('chat_sessions').update({
+      last_message: content.slice(0, 100),
+      updated_at: new Date().toISOString(),
+      ...(isFirstUserMsg ? { title: content.slice(0, 50) } : {}),
+    }).eq('id', sessionId);
+    try { await _sbClient.rpc('increment_message_count', { session_id: sessionId }); } catch {}
+    await dbLoadHistory();
+  } catch (e) { console.error('dbSaveMessage error:', e); }
+}
+
+async function dbLoadSession(sessionId: string) {
+  if (!_sbClient) return;
+  try {
+    const { data, error } = await _sbClient
+      .from('chat_messages')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
+    if (error) { console.error('Load session error:', error); return; }
+    started = false; chatHistory = [];
+    const m = document.getElementById('msgs') as HTMLElement;
+    if (m) m.innerHTML = '<div class="msgs-inner" id="msgsInner"></div>';
+    const msgs = data || [];
+    if (msgs.length > 0) {
+      started = true;
+      appendDivider('Restored conversation');
+      for (const msg of msgs) {
+        if (msg.role === 'user') {
+          appendUser(msg.content, formatTime(msg.created_at), false);
+        } else {
+          let resp: any;
+          try { resp = JSON.parse(msg.content); } catch { resp = { text: msg.content, points: [] }; }
+          if (!resp.urduTtsText && msg.urdu_audio_text) resp.urduTtsText = msg.urdu_audio_text;
+          appendAI(resp, formatTime(msg.created_at), false);
+        }
+      }
+      scrollDn(true);
+    } else {
+      showWelcome();
+    }
+    _currentSessionId = sessionId;
+    _sessionHasTitle = true;
+    if (_setActiveSessionId) _setActiveSessionId(sessionId);
+    if (typeof window !== 'undefined')
+      window.history.pushState({}, '', '/chat?session=' + sessionId);
+    closeSb();
+  } catch (e) { console.error('dbLoadSession error:', e); }
+}
+
+async function dbDeleteSession(sessionId: string, e: any) {
+  e?.stopPropagation?.();
+  if (!window.confirm('Delete this conversation? This cannot be undone.')) return;
+  if (!_sbClient) return;
+  try {
+    await _sbClient.from('chat_messages').delete().eq('session_id', sessionId);
+    await _sbClient.from('chat_sessions').delete().eq('id', sessionId);
+    if (_currentSessionId === sessionId) {
+      _currentSessionId = null;
+      if (_setActiveSessionId) _setActiveSessionId(null);
+      showWelcome();
+      if (typeof window !== 'undefined') window.history.pushState({}, '', '/chat');
+    }
+    await dbLoadHistory();
+  } catch (err) { console.error('dbDeleteSession error:', err); }
+}
+
+async function fetchChapters() {
+  if (!_sbClient) return;
+  try {
+    const { data, error } = await _sbClient
+      .from('chapters')
+      .select('id, unit_number, title')
+      .eq('subject', 'Chemistry')
+      .eq('class', 11)
+      .eq('board', 'KPK')
+      .order('unit_number', { ascending: true });
+    if (error) { console.error('fetchChapters error:', error.message); return; }
+    if (!data?.length) { console.warn('fetchChapters: no chapters returned (check RLS or filters)'); return; }
+    CHS.length = 0;
+    ENABLED_CHAPTERS.clear();
+    data.forEach((ch: any, idx: number) => {
+      CHS.push({ p: 1, n: String(ch.unit_number), t: ch.title, chips: [], followups: [], on: false, id: ch.id });
+      ENABLED_CHAPTERS.add(idx);
+    });
+    buildSb();
+  } catch (e) { console.error('fetchChapters error:', e); }
+}
+
 function newChat(){
+  _currentSessionId = null;
+  _sessionHasTitle = false;
+  if (_setActiveSessionId) _setActiveSessionId(null);
+  if (typeof window !== 'undefined') window.history.pushState({}, '', '/chat');
   if(sendTimeout){ clearTimeout(sendTimeout); sendTimeout=null; }
   Object.keys(timers).forEach(k=>{ if(timers[k]) stopPlay(k); });
   if(window.speechSynthesis) window.speechSynthesis.cancel();
@@ -1515,6 +2023,49 @@ function esc(s=''){
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+/** Like esc() but also renders scientific notation superscripts and Avogadro Nₐ */
+function fmtBody(s=''){
+  return esc(s)
+    // 1.204x10^22 → 1.204×10<sup>22</sup>
+    .replace(/(\d[\d.]*)[xX×]10\^(\d+)/g, '$1×10<sup>$2</sup>')
+    // standalone ^N not caught above (e.g. 10^23 without leading ×)
+    .replace(/10\^(\d+)/g, '10<sup>$1</sup>')
+    // Avogadro's number symbol: " Na" or "/Na" in formula context → Nₐ
+    .replace(/\bNa\b(?=\s*$|\s*\n|\s*[=\/*])/gm, 'N\u2090');
+}
+
+/**
+ * Renders an example field as numbered steps when "Step N:" patterns are found.
+ * Falls back to fmtBody() for non-stepped content.
+ */
+function fmtExample(s=''){
+  const raw = String(s ?? '').trim();
+  if (!raw) return '';
+
+  // Detect stepped format: "Step 1:", "Step 2:", etc.
+  const stepRe = /(?:^|\n)\s*(Step\s+\d+\s*:)/i;
+  if (!stepRe.test(raw)) return fmtBody(raw);
+
+  // Split into: intro (before Step 1) + step chunks
+  const parts = raw.split(/\n(?=\s*Step\s+\d+\s*:)/i);
+  let html = '';
+
+  for (const part of parts) {
+    const m = part.match(/^(\s*Step\s+(\d+)\s*:)([\s\S]*)$/i);
+    if (m) {
+      const num   = esc(m[2]);
+      const label = esc(m[1].trim());
+      const body  = fmtBody(m[3].trim());
+      html += `<div class="tv-step"><span class="tv-step-num">${num}</span><div class="tv-step-body"><span class="tv-step-lbl">${label}</span> ${body}</div></div>`;
+    } else {
+      // Intro line (question, "Solution:", etc.)
+      const intro = part.trim();
+      if (intro) html += `<div class="tv-step-intro">${fmtBody(intro)}</div>`;
+    }
+  }
+
+  return `<div class="tv-steps">${html}</div>`;
+}
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MOBILE ENHANCEMENTS
@@ -1565,7 +2116,51 @@ function setupMobileEnhancements(){
 }
 
 export default function ChatPage() {
+  const router = useRouter();
+  const { user, profile } = useAuth();
+  const supabaseRef = useRef(
+    createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  );
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [scopeTopics, setScopeTopics] = useState<string[]>([]);
+
+  const displayName =
+    profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Student';
+  const email = profile?.email || user?.email || '';
+  const focus = [profile?.board, profile?.goal]
+    .filter(Boolean)
+    .join(' - ') || 'Chemistry focus';
+  const trialStatus = (() => {
+    if (!profile?.trial_ends_at) {
+      return 'Trial pending';
+    }
+
+    const expiresAt = new Date(profile.trial_ends_at);
+    const diffMs = expiresAt.getTime() - Date.now();
+    const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+    if (daysLeft > 0) {
+      return `${daysLeft} day${daysLeft === 1 ? '' : 's'} left in trial`;
+    }
+
+    return 'Trial period ended';
+  })();
+
   useEffect(() => {
+    _sbClient = supabaseRef.current;
+    _currentUserId = user?.id || null;
+    _setSessions = setSessions;
+    _setActiveSessionId = setActiveSessionId;
+    _setScopeTopics = setScopeTopics;
+    dbLoadHistory();
+    fetchChapters();
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session');
+    if (sessionId) {
+      _currentSessionId = sessionId;
+      dbLoadSession(sessionId);
+    }
     initApp();
     const onOrientationChange = () => {
       setTimeout(()=>scrollDn(true), 350);
@@ -1576,8 +2171,18 @@ export default function ChatPage() {
     };
   }, []);
 
+  useEffect(() => {
+    setViewerContext({
+      name: displayName,
+      email,
+      focus,
+      trial: trialStatus,
+    });
+  }, [displayName, email, focus, trialStatus]);
+
   return (
-    <div className="app">
+    <div className="app" style={{ paddingTop: '62px' }}>
+      <TopNav user={user} profile={profile} />
       <div className="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
 
       <div className="modal-bg" id="upgradeBg" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -1585,7 +2190,7 @@ export default function ChatPage() {
           <button className="modal-close" aria-label="Close upgrade dialog" onClick={() => closeUpgrade()}>×</button>
           <div className="modal-badge">★ Upgrade</div>
           <h3 id="modalTitle">Unlock Full Access</h3>
-          <p>Your free trial ends in <strong id="trialDaysLeft">5 days</strong>. Upgrade to VoiceUstad Pro to keep learning without limits.</p>
+          <p>Your free trial ends in <strong id="trialDaysLeft">7 days</strong>. Upgrade to VoiceUstad Pro to keep learning without limits.</p>
           <ul className="modal-features">
             <li>Unlimited questions across all 12 chapters</li>
             <li>Full Urdu voice explanations for every answer</li>
@@ -1602,10 +2207,10 @@ export default function ChatPage() {
         <div className="modal scope-modal">
           <button className="modal-close" aria-label="Close chapter scope dialog" onClick={() => closeScope()}>×</button>
           <div className="modal-badge">Chapter Scope</div>
-          <h3 id="scopeTitle">Ask Only These Atomic Structure Topics</h3>
-          <p>Chapter 03 AI is focused on these topics. For best answers, ask directly from this list.</p>
+          <h3 id="scopeTitle">Current Chapter Topics</h3>
+          <p>This chapter's AI is focused on the following topics. For best answers, ask directly from this list.</p>
           <ul className="scope-list">
-            {ATOMIC_SCOPE_TOPICS.map((topic) => (
+            {scopeTopics.map((topic) => (
               <li key={topic}>
                 <button type="button" className="scope-item-btn" onClick={() => askScopeTopic(topic)}>
                   {topic}
@@ -1632,23 +2237,60 @@ export default function ChatPage() {
           New Conversation
         </button>
 
-        <div className="sb-sec">Previous Chats</div>
-        <div className="sb-prev-list" id="sbPrevList"></div>
+        <div className="sb-sec">Chats</div>
+        <div className="sb-prev-list" id="sbPrevList">
+          {sessions.length === 0 ? (
+            <div className="sb-prev-empty">No previous chats yet</div>
+          ) : (
+            sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`session-item${activeSessionId === s.id ? ' active' : ''}`}
+                onClick={() => (window as any).dbLoadSession(s.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (window as any).dbLoadSession(s.id)}
+                aria-label={`Open conversation: ${s.title || 'Untitled'}`}
+                aria-current={activeSessionId === s.id ? 'true' : undefined}
+              >
+                <div className="session-title">{s.title || 'Untitled conversation'}</div>
+                <div className="session-meta">
+                  <span className="session-last-msg">{s.last_message || 'No messages yet'}</span>
+                  <span className="session-time">{getTimeAgo(s.updated_at)}</span>
+                </div>
+                <button
+                  className="session-delete-btn"
+                  onClick={(e) => (window as any).dbDeleteSession(s.id, e)}
+                  aria-label="Delete conversation"
+                  title="Delete"
+                >×</button>
+              </div>
+            ))
+          )}
+        </div>
 
         <div className="sb-sec">Chapters</div>
 
         <div className="sb-search">
           <div className="sb-search-box">
-            <svg className="sb-search-ico" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" />
-              <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
-            </svg>
+            <button
+              type="button"
+              className="sb-search-ico-btn"
+              aria-label="Search"
+              onClick={() => document.getElementById('sbSearch')?.focus()}
+            >
+              <svg className="sb-search-ico" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+              </svg>
+            </button>
             <input
               className="sb-search-inp"
               id="sbSearch"
               type="text"
               placeholder="Search chapters..."
               onInput={(e) => filterChs((e.currentTarget as HTMLInputElement).value)}
+              onChange={(e) => filterChs(e.currentTarget.value)}
               aria-label="Search chapters"
             />
           </div>
@@ -1657,11 +2299,27 @@ export default function ChatPage() {
         <div className="sb-list" id="sbList"></div>
 
         <div className="sb-foot">
-          <div className="sb-user" role="button" tabIndex={0} aria-label="User settings">
-            <div className="sb-av">{'\uD83D\uDC68\u200D\uD83C\uDF93'}</div>
+          {process.env.NODE_ENV === 'development' && (
+            <button
+              className="sb-dev-clear-btn"
+              title="Clear TTS audio cache (dev only)"
+              onClick={() => (window as any).__devClearCache?.()}
+            >
+              ⚡ Clear TTS Cache
+            </button>
+          )}
+          <div
+            className="sb-user"
+            role="button"
+            tabIndex={0}
+            aria-label="Open account settings"
+            onClick={() => router.push('/settings')}
+            onKeyDown={(e) => { if (e.key === 'Enter') router.push('/settings'); }}
+          >
+            <div className="sb-av" id="sbUserAvatar">S</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="sb-uname">Ahmed Raza</div>
-              <div className="sb-uplan" id="planLabel">Free Trial · 5 days left</div>
+              <div className="sb-uname" id="sbUserName">Student</div>
+              <div className="sb-uplan" id="planLabel">Chemistry focus</div>
             </div>
             <span className="sb-cog" aria-hidden="true">Settings</span>
           </div>
@@ -1674,8 +2332,8 @@ export default function ChatPage() {
             onKeyDown={(e) => { if (e.key === 'Enter') openUpgrade(); }}
           >
             <div className="trial-info">
-              <div className="trial-label">{'\u23F3'} Trial ending soon</div>
-              <div className="trial-sub" id="trialBarSub">5 days remaining</div>
+              <div className="trial-label">{'\u23F3'} Trial</div>
+              <div className="trial-sub" id="trialBarSub">7 days left</div>
             </div>
             <div className="trial-cta">Upgrade {'\u2192'}</div>
           </div>
@@ -1692,8 +2350,9 @@ export default function ChatPage() {
             </svg>
           </button>
           <div className="tb-topic">
-            <div className="tb-sub" id="tbSub">FSc Chemistry - Part 1</div>
-            <div className="tb-title" id="tbTitle">Chapter 03 - Atomic Structure</div>
+            <div className="tb-sub" id="tbSub">FSc Chemistry</div>
+            <div className="tb-title" id="tbTitle">Select a Chapter</div>
+            <div className="tb-meta" id="tbMeta">Chemistry focus</div>
           </div>
           <div className="tb-right">
             <button className="tb-btn tb-scope" title="What can I ask?" aria-label="Show chapter scope topics" onClick={() => openScope()}>
@@ -1729,7 +2388,7 @@ export default function ChatPage() {
             <div className="input-box">
               <textarea
                 id="msg"
-                placeholder="Ask Atomic Structure only (Bohr model, quantum numbers, electron configuration...)"
+                placeholder="Ask your chemistry question..."
                 rows={1}
                 onInput={(e) => onInput(e.currentTarget as HTMLTextAreaElement)}
                 onKeyDown={(e) => onKey(e)}
@@ -1748,18 +2407,21 @@ export default function ChatPage() {
                     <path strokeLinecap="round" d="M19 10v2a7 7 0 01-14 0v-2M12 19v3M8 22h8" />
                   </svg>
                 </button>
-                <button className="send-btn" id="sendBtn" aria-label="Send message" onClick={() => send()} disabled>
+                <button className="send-btn" id="sendBtn" aria-label="Send message" onClick={() => send()}>
                   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </button>
               </div>
             </div>
-            <div className="chips-wrap">
-              <div className="chips" id="chips">
-                <span className="c-lbl">Try:</span>
-              </div>
-            </div>
+          </div>
+          <div style={{
+            textAlign: 'center',
+            padding: '6px 16px 10px',
+            fontSize: '11.5px',
+            color: '#64748b',
+          }}>
+            ⚠️ VoiceUstad AI can make mistakes. Always verify with your textbook.
           </div>
         </div>
       </main>

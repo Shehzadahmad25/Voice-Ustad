@@ -2,32 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-const faqItems = [
-  {
-    q: "Which boards are supported?",
-    a: "VoiceUstad is fully aligned with the KPK Board FSc (Part 1 & Part 2) curriculum. Punjab Board and Federal Board support is in development and coming in Q2 2026.",
-  },
-  {
-    q: "Is the Urdu explanation real spoken audio or robot TTS?",
-    a: "Real, natural-sounding Urdu audio — not robotic text-to-speech. You get an English text explanation alongside a clear Urdu voice-over. You can read and listen at the same time.",
-  },
-  {
-    q: "How do I pay? EasyPaisa / JazzCash?",
-    a: "Yes — EasyPaisa, JazzCash, and direct bank transfer all accepted. No international credit card needed. Full payment instructions appear right after you create your free account.",
-  },
-  {
-    q: "Can I use VoiceUstad on my Android phone?",
-    a: "Absolutely. It runs in your browser — no app download needed. Works on Android, iPhone, and desktop. A native Android app is coming in Q4 2026.",
-  },
-  {
-    q: "Can I ask questions in Urdu?",
-    a: "Yes — Roman Urdu, Nastaliq Urdu, English, or a mix. Type however you naturally communicate and VoiceUstad will understand.",
-  },
-  {
-    q: "What happens after the free week?",
-    a: "After your 7-day free trial, it's Rs. 499/month. Cancel anytime — no lock-in, no questions asked. You keep full access until the end of your billing period.",
-  },
-];
+// FAQ CONTENT WILL BE ADDED HERE
+const faqItems: { q: string; a: string }[] = [];
 
 export default function Home() {
   const [mobOpen, setMobOpen] = useState(false);
@@ -104,7 +80,7 @@ export default function Home() {
           <a href="#faq">FAQ</a>
           <a href="#pricing">Pricing</a>
         </div>
-        <a href="/chat" className="nav-cta">Try 7 Days Free →</a>
+        <a href="/auth/signup" className="nav-cta">Try 7 Days Free →</a>
         <button className="hbg" type="button" onClick={() => setMobOpen(true)} aria-label="Open menu">
           <span></span><span></span><span></span>
         </button>
@@ -118,7 +94,7 @@ export default function Home() {
         <a href="#reviews" onClick={() => setMobOpen(false)}>Reviews</a>
         <a href="#faq" onClick={() => setMobOpen(false)}>FAQ</a>
         <a href="#pricing" onClick={() => setMobOpen(false)}>Pricing</a>
-        <a href="/chat" className="mob-cta" onClick={() => setMobOpen(false)}>→ Try 7 Days Free</a>
+        <a href="/auth/signup" className="mob-cta" onClick={() => setMobOpen(false)}>→ Try 7 Days Free</a>
       </div>
 
       <section className="hero">
@@ -154,18 +130,8 @@ export default function Home() {
             </div>
             <div className="phone-body">
               <div className="bubble-row right">
-                <div className="bbl bbl-s">Electronegativity kya hoti hai? 😕</div>
+                <div className="bbl bbl-s">Ask your chemistry question... 📚</div>
                 <div className="bbl-av">👨‍🎓</div>
-              </div>
-              <div className="bubble-row">
-                <div className="bbl-av">🤖</div>
-                <div className="bbl bbl-a">Electronegativity ek atom ki woh khasiyat hai jis se woh electrons ko apni taraf kheenchta hai. Pauling scale pe fluorine (4.0) sab se zyada electronegative hai! ⚡</div>
-              </div>
-              <div className="voice-row">
-                <div className="voice-wave">
-                  <span></span><span></span><span></span><span></span><span></span>
-                </div>
-                🔊 Urdu explanation playing...
               </div>
               <div className="bubble-row">
                 <div className="bbl-av">🤖</div>
@@ -173,13 +139,19 @@ export default function Home() {
                   <div className="typing-dots"><span></span><span></span><span></span></div>
                 </div>
               </div>
+              <div className="voice-row">
+                <div className="voice-wave">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                🔊 Urdu explanation playing...
+              </div>
             </div>
           </div>
         </div>
 
         <div className="hero-cta rv d1">
           <div className="urgency">🔥 First week completely FREE — no card needed</div>
-          <a href="/chat" className="btn-cta">
+          <a href="/auth/signup" className="btn-cta">
             Try 7 Days Free
             <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -218,7 +190,7 @@ export default function Home() {
       <div className="opp-strip rv">
         <div className="opp-inner">
           <div className="opp-left">
-            <h3>A massive, underserved market<br />in Pakistan's education sector</h3>
+            <h3>A massive, underserved market<br />in Pakistan&apos;s education sector</h3>
             <p>Over 2.8 million students sit FSc exams each year. Most rely on expensive private tutors or free YouTube videos with no guidance. VoiceUstad bridges that gap at a price every family can afford.</p>
           </div>
           <div className="opp-stats">
@@ -251,7 +223,7 @@ export default function Home() {
             <ul>
               <li><span className="ic">❌</span> Rs. 3,000 — 8,000 per month</li>
               <li><span className="ic">❌</span> Fixed schedule — miss a class, lose the lesson</li>
-              <li><span className="ic">❌</span> Can't replay or re-listen to explanations</li>
+              <li><span className="ic">❌</span> Can&apos;t replay or re-listen to explanations</li>
               <li><span className="ic">❌</span> One topic per session only</li>
               <li><span className="ic">❌</span> No structured past-paper support</li>
               <li><span className="ic">❌</span> Travel time &amp; transport cost</li>
@@ -313,7 +285,7 @@ export default function Home() {
         <div className="test-grid">
           <div className="tc rv d1">
             <div className="tc-stars">⭐⭐⭐⭐⭐</div>
-            <p className="tc-quote">"Pehlay chemistry mein bohot mushkil hoti thi. VoiceUstad ki Urdu explanations ne sab clear kar diya. Board exam mein A grade aaya — bilkul expect nahi tha!"</p>
+            <p className="tc-quote">&quot;Pehlay chemistry mein bohot mushkil hoti thi. VoiceUstad ki Urdu explanations ne sab clear kar diya. Board exam mein A grade aaya — bilkul expect nahi tha!&quot;</p>
             <div className="tc-author">
               <div className="tc-av">👦</div>
               <div><div className="tc-name">Ahmed Raza</div><div className="tc-meta">FSc Part 2 · Peshawar · Grade A</div></div>
@@ -321,15 +293,15 @@ export default function Home() {
           </div>
           <div className="tc rv d2">
             <div className="tc-stars">⭐⭐⭐⭐⭐</div>
-            <p className="tc-quote">"My daughter struggled with organic chemistry for months. Two weeks on VoiceUstad and she was explaining reactions to me. Worth every single rupee."</p>
+            <p className="tc-quote">&quot;My daughter struggled with organic chemistry for months. Two weeks on VoiceUstad and she was explaining reactions to me. Worth every single rupee.&quot;</p>
             <div className="tc-author">
               <div className="tc-av">👩</div>
-              <div><div className="tc-name">Fatima's Father</div><div className="tc-meta">Parent · Mardan</div></div>
+              <div><div className="tc-name">Fatima&apos;s Father</div><div className="tc-meta">Parent · Mardan</div></div>
             </div>
           </div>
           <div className="tc rv d3">
             <div className="tc-stars">⭐⭐⭐⭐⭐</div>
-            <p className="tc-quote">"Rs. 499 mein itna zyada content! Main raat 12 baje bhi padh sakta hoon. Kisi private tutor ki zaroorat nahi rahi — yeh ustad 24/7 available hai."</p>
+            <p className="tc-quote">&quot;Rs. 499 mein itna zyada content! Main raat 12 baje bhi padh sakta hoon. Kisi private tutor ki zaroorat nahi rahi — yeh ustad 24/7 available hai.&quot;</p>
             <div className="tc-author">
               <div className="tc-av">🧑</div>
               <div><div className="tc-name">Bilal Khan</div><div className="tc-meta">FSc Part 1 · Abbottabad</div></div>
@@ -344,8 +316,8 @@ export default function Home() {
         <div className="road-inner">
           <div className="road-head">
             <div className="sh-eye">Product Roadmap</div>
-            <div className="sh-title" style={{ fontSize: "1.7rem" }}>Where We're Going</div>
-            <p className="sh-sub">VoiceUstad is just getting started. Here's what's coming.</p>
+            <div className="sh-title" style={{ fontSize: "1.7rem" }}>Where We&apos;re Going</div>
+            <p className="sh-sub">VoiceUstad is just getting started. Here&apos;s what&apos;s coming.</p>
           </div>
           <div className="road-grid">
             <div className="road-item live">
@@ -405,7 +377,7 @@ export default function Home() {
         </div>
         <div className="price-wrap">
           <div className="vc rv">
-            <h4>💡 What you'd pay elsewhere</h4>
+            <h4>💡 What you&apos;d pay elsewhere</h4>
             <div className="vr"><span className="vl">Private tutor<br /><small style={{ opacity: ".55" }}>4 sessions/month</small></span><span className="vp x">Rs. 4,000+</span></div>
             <div className="vr"><span className="vl">Coaching academy<br /><small style={{ opacity: ".55" }}>monthly</small></span><span className="vp x">Rs. 2,500+</span></div>
             <div className="vr"><span className="vl">YouTube + textbooks<br /><small style={{ opacity: ".55" }}>no personalised help</small></span><span className="vp" style={{ color: "rgba(255,255,255,.25)", fontWeight: "400" }}>Free but unguided</span></div>
@@ -427,7 +399,7 @@ export default function Home() {
               <li><span className="chk">✅</span> EasyPaisa / JazzCash / bank transfer</li>
               <li><span className="chk">✅</span> Cancel anytime — zero lock-in</li>
             </ul>
-            <a href="/chat" className="btn-pay">Try 7 Days Free → Then Rs. 499/mo</a>
+            <a href="/auth/signup" className="btn-pay">Try 7 Days Free → Then Rs. 499/mo</a>
             <p className="pay-note">First 7 days completely free · No credit card required</p>
           </div>
         </div>
@@ -452,7 +424,7 @@ export default function Home() {
       <div className="final">
         <h2>Ready to ace your <span className="g">Chemistry exam?</span></h2>
         <p>Join 487 KPK Board students already learning smarter with VoiceUstad. Your first week is free.</p>
-        <a href="/chat" className="btn-cta" style={{ fontSize: "1.05rem", padding: "17px 48px" }}>
+        <a href="/auth/signup" className="btn-cta" style={{ fontSize: "1.05rem", padding: "17px 48px" }}>
           Try 7 Days Free
           <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -465,7 +437,7 @@ export default function Home() {
         <div className="fg">
           <div>
             <div className="fbr">📚 VoiceUstad</div>
-            <p className="ft">Pakistan's AI-powered FSc Chemistry tutor. English text, Urdu voice, KPK Board aligned.</p>
+            <p className="ft">Pakistan&apos;s AI-powered FSc Chemistry tutor. English text, Urdu voice, KPK Board aligned.</p>
             <p style={{ marginTop: "14px", fontSize: ".76rem", color: "rgba(160,120,255,0.45)" }}>Made with ❤️ in Peshawar, Pakistan 🇵🇰</p>
           </div>
           <div className="fc-col">
@@ -473,7 +445,7 @@ export default function Home() {
             <a href="#features">Features</a>
             <a href="#compare">Compare</a>
             <a href="#pricing">Pricing</a>
-            <a href="/chat">Start Free Trial</a>
+            <a href="/auth/signup">Start Free Trial</a>
           </div>
           <div className="fc-col">
             <h5>Support</h5>

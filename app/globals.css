@@ -1,8 +1,76 @@
+/* ===== VoiceUstad Design System ===== */
+:root {
+  --bg: #0a0e1a;
+  --surface: #0f1420;
+  --card: #141929;
+  --card2: #1a2035;
+  --border: rgba(255,255,255,0.08);
+  --bord2: rgba(255,255,255,0.14);
+  --green: #22c55e;
+  --green2: #16a34a;
+  --gg: rgba(34,197,94,0.13);
+  --teal: #0ea5e9;
+  --tg: rgba(14,165,233,0.12);
+  --violet: #7c3aed;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --text: #f1f5f9;
+  --text2: #64748b;
+  --text3: #94a3b8;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%           { transform: translateY(-6px); }
+}
+
+.session-item { position: relative; }
+.session-item .delete-btn { opacity: 0; transition: opacity 0.15s; }
+.session-item:hover .delete-btn { opacity: 1 !important; }
+
+.skeleton {
+  background: linear-gradient(
+    90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .dash-stats   { grid-template-columns: repeat(2,1fr) !important; }
+  .dash-twocol  { grid-template-columns: 1fr !important; }
+  .dash-bottom  { grid-template-columns: 1fr !important; }
+  .dash-topbar  { flex-direction:column; align-items:flex-start; }
+  .upgrade-wrap { flex-direction:column; align-items:flex-start; }
+  .upgrade-wrap button { width:100%; }
+  .plan-bar     { flex-direction:column; align-items:flex-start; }
+  .plan-bar button { width:100%; }
+  .fg           { grid-template-columns:1fr !important; }
+  .auth-box     { padding:26px 18px !important; border-radius:18px !important; }
+}
+@media (max-width: 480px) {
+  .dash-stats { grid-template-columns: 1fr !important; }
+  .otp-inp    { width:42px !important; height:48px !important; }
+}
+
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-dm: "Segoe UI";
+  --font-sora: "Trebuchet MS";
+  --font-urdu: "Noto Nastaliq Urdu";
 }
 
 @theme inline {
@@ -253,6 +321,242 @@ nav.scrolled {
 
 .mob a:hover {
   color: #fff;
+}
+
+.vu-app-shell,
+.vu-top-nav,
+.vu-bottom-nav {
+  --bg: #0a0e1a;
+  --surface: #0f1420;
+  --card: #141929;
+  --card2: #1a2035;
+  --border: rgba(255, 255, 255, 0.08);
+  --bord2: rgba(255, 255, 255, 0.14);
+  --green: #22c55e;
+  --green2: #16a34a;
+  --greenglow: rgba(34, 197, 94, 0.15);
+  --teal: #0ea5e9;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --text: #f1f5f9;
+  --text2: #64748b;
+  --text3: #94a3b8;
+}
+
+.vu-app-shell {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.05), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.05), transparent 38%),
+    var(--bg);
+  color: var(--text);
+}
+
+.vu-app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.055), transparent 28%),
+    radial-gradient(circle at 90% 100%, rgba(14, 165, 233, 0.05), transparent 30%);
+  z-index: 0;
+}
+
+.vu-app-main {
+  position: relative;
+  z-index: 1;
+  padding-top: 62px;
+}
+
+.vu-page {
+  width: 100%;
+  padding: 40px 28px 96px;
+}
+
+.vu-page.dashboard {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.vu-page.settings {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 40px 28px 100px;
+}
+
+.fade-up {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: fadeUp 0.4s ease forwards;
+}
+
+.fade-up-delay-1 {
+  animation-delay: 60ms;
+}
+
+.fade-up-delay-2 {
+  animation-delay: 120ms;
+}
+
+.fade-up-delay-3 {
+  animation-delay: 180ms;
+}
+
+.fade-up-delay-4 {
+  animation-delay: 240ms;
+}
+
+.trial-blink {
+  animation: trialBlink 1.8s infinite;
+}
+
+.vu-card-hover {
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vu-card-hover:hover {
+  transform: translateY(-1px);
+}
+
+.vu-button {
+  transition: all 0.15s ease;
+}
+
+.vu-field {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--bord2);
+  background: var(--card2);
+  color: var(--text);
+  padding: 12px 14px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vu-field:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.vu-field:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.vu-select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.vu-top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: 62px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10, 14, 26, 0.94);
+  backdrop-filter: blur(20px);
+}
+
+.vu-bottom-nav {
+  display: none;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes trialBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (max-width: 768px) {
+  .vu-page {
+    padding-bottom: 104px;
+  }
+
+  .dash-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .dash-twocol {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dash-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dash-topbar button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dash-upgrade {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dash-upgrade button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .vu-page {
+    padding: 32px 16px 108px;
+  }
+
+  .vu-bottom-nav {
+    display: block;
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 14px;
+    z-index: 45;
+  }
+
+  .vu-field {
+    padding: 13px 14px;
+    font-size: 15px;
+  }
+
+  .dash-stats {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 .mob a.mob-cta {
