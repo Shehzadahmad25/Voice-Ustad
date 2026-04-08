@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /.next_dev/
+/.next_local/
 /out/
 
 # production
@@ -31,6 +32,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 dev.log
+dev.out.log
+dev.err.log
 
 # env files (can opt-in for committing if needed)
 .env*
