@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic';
 // ── AUTH BYPASS — development mode ──────────────────────────────────────────
 // To re-enable auth: delete this file and restore the original signin page.
 // Original is preserved in git history.

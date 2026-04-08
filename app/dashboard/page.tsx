@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 'use client'
 // ── AUTH BYPASS — development mode ──────────────────────────────────────────
 // Auth guard (router.push('/auth/signin')) is disabled.
