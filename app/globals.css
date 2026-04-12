@@ -59,8 +59,12 @@
   .auth-box     { padding:26px 18px !important; border-radius:18px !important; }
 }
 @media (max-width: 480px) {
-  .dash-stats { grid-template-columns: 1fr !important; }
-  .otp-inp    { width:42px !important; height:48px !important; }
+  .dash-stats  { grid-template-columns: 1fr !important; }
+  .otp-inp     { width:42px !important; height:48px !important; }
+  .topnav-links { display: none !important; }
+}
+@media (max-width: 600px) {
+  .dash-upgrade-btn { white-space: normal !important; text-align: center; }
 }
 
 @import "tailwindcss";
@@ -114,6 +118,8 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {

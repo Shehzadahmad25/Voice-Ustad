@@ -41,7 +41,7 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
         <span style={{ fontSize:'15px', fontWeight:'800', color:'white' }}>VoiceUstad</span>
       </div>
 
-      <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', display:'flex', gap:'4px' }}>
+      <div className="topnav-links" style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', display:'flex', gap:'4px' }}>
         {navLinks.map(link => (
           <button key={link.href} onClick={() => router.push(link.href)} style={{
             padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500',

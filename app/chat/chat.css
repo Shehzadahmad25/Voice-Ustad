@@ -131,6 +131,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   flex-direction: column;
   overflow: hidden;
   z-index: 100;
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
 }
 
 .sb-brand {
@@ -476,6 +477,8 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   position: absolute; inset: 0;
   overflow-y: auto; padding: 28px 0 24px;
   scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.08) transparent;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 .msgs-inner { max-width: 740px; margin: 0 auto; padding: 0 24px; }
 
@@ -1125,6 +1128,8 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   display: flex; align-items: center; gap: 5px;
   flex-wrap: nowrap; overflow-x: auto; min-width: 0;
   scrollbar-width: none; padding-bottom: 1px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 .chips::-webkit-scrollbar { display: none; }
 .c-lbl { font-size:.62rem; color:var(--t3); flex-shrink:0; font-weight:500; }
@@ -1384,4 +1389,41 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   .voice-card { gap: 7px; }
   .vc-wave { display: none; }
   .sb-prev-list { max-height: 15vh; }
+}
+
+/* ═══════════════════════════════════════
+   MID-MOBILE — 391–480px (fills gap)
+═══════════════════════════════════════ */
+@media (max-width: 480px) {
+  .msgs-inner  { padding: 0 12px; }
+  .input-inner { padding: 0 12px 10px; }
+  .topbar      { padding: 8px 14px; min-height: 48px; }
+  .u-bub       { max-width: 90%; }
+  .tv-card     { padding: 14px; }
+}
+
+/* ═══════════════════════════════════════
+   TOUCH TARGETS — min 44px on mobile
+═══════════════════════════════════════ */
+@media (max-width: 720px) {
+  .send-btn, .mic-btn, .sb-toggle { min-height: 44px; min-width: 44px; }
+  .chip { min-height: 34px; padding: 6px 12px; }
+}
+
+/* ═══════════════════════════════════════
+   MODAL — very small screens ≤ 400px
+═══════════════════════════════════════ */
+@media (max-width: 400px) {
+  .modal { max-width: calc(100vw - 24px); max-height: 88dvh; overflow-y: auto; }
+}
+
+/* ═══════════════════════════════════════
+   REDUCED MOTION — respect user prefs
+═══════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .msgs { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
