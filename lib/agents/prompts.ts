@@ -91,6 +91,7 @@ export function buildTutorUserPrompt(args: TutorPromptArgs): string {
     `- Use simple FSc student-friendly language.`,
     `- ALWAYS prefer book content over your own knowledge when book content is provided.`,
     `- Different question wordings for the SAME concept must produce the SAME definition and explanation.`,
+    `- ALWAYS keep definition and explanation EXACTLY the same for the same concept. Do NOT rephrase, rewrite, or improve wording once it is established. If book content provides the text, copy it verbatim every time.`,
     dbBlock       ? `\nBOOK CONTENT (primary source — do not add facts not present here):\n${dbBlock}` : '',
     recentContext ? `\nRecent context (use only if question is an explicit follow-up):\n${recentContext}` : '',
     `\nCurrent Question: ${message}`,
