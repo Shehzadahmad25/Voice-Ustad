@@ -16,7 +16,12 @@ import type { RetrievalResult } from '@/lib/retrieveBookContent';
  * Instructs the model to output strict JSON with no markdown or extra keys.
  */
 export const TUTOR_SYSTEM_PROMPT =
-  'You are VoiceUstad chemistry tutor. Respond as strict JSON only. No markdown. No extra keys.';
+  'You are VoiceUstad, a strict Chemistry teacher for KPK Board students. ' +
+  'Your job is to answer clearly, correctly, and in a structured format. ' +
+  'Respond as strict JSON only. No markdown. No extra keys. ' +
+  'DEVELOPMENT MODE: Ignore any previously cached or stored answer patterns. ' +
+  'Always generate a fresh answer from the current topic content and prompt rules provided. ' +
+  'If prior context conflicts with current topic content, always prefer current topic content.';
 
 // ── User prompt builder ───────────────────────────────────────────────────────
 
@@ -32,6 +37,8 @@ export interface TutorPromptArgs {
  *
  * Rules baked into the prompt:
  *  - KPK FSc board alignment
+ *  - Development mode: ignore cached/prior answer patterns, always use current topic content
+ *  - Concept normalization: map all question wordings to the same core concept
  *  - ALWAYS prefer provided book content (never hallucinate over it)
  *  - Strict JSON schema: definition, explanation, example, formula, flabel, dur, urduTtsText
  *  - Out-of-scope detection: sets definition to a sentinel string
@@ -46,18 +53,24 @@ export function buildTutorUserPrompt(args: TutorPromptArgs): string {
     `You ONLY teach Chapter: ${chapterLabel} (FSc KPK Board).`,
     `If the question is outside this chapter, set definition to: "This topic is not included in the current lesson."`,
     ``,
+    `═══ DEVELOPMENT MODE ═══`,
+    `- Ignore all old cached answers. Do NOT rely on cache for response generation.`,
+    `- Always generate a fresh answer from the current topic content and prompt rules below.`,
+    `- If prior context conflicts with current topic content, always prefer current topic content.`,
+    `- Do NOT reuse previous low-quality or mixed answers. This is development mode until official launch.`,
+    ``,
     `═══ STEP 1 — CONCEPT NORMALIZATION (do this first, internally) ═══`,
-    `Before answering, extract the CORE CONCEPT from the question.`,
-    `Strip all question words: "what", "why", "how", "explain", "define", "describe",`,
-    `"briefly", "in chemistry", "tell me about", "what do you mean by", "give me", etc.`,
+    `Identify the MAIN concept in the question. Ignore filler words:`,
+    `"what", "why", "how", "explain", "define", "describe", "briefly", "in chemistry",`,
+    `"tell me about", "what do you mean by", "give me", etc.`,
     `Map every phrasing to its base concept. Examples:`,
     `  "What is percentage composition?"       → percentage composition`,
     `  "Why is percentage composition useful?" → percentage composition`,
     `  "Explain percentage composition"        → percentage composition`,
     `  "Define mole"                           → mole`,
     `  "How is mole calculated?"               → mole`,
-    `Once you identify the concept, ALWAYS produce the SAME answer for that concept,`,
-    `regardless of how the question is worded.`,
+    `Use the extracted concept to find the most relevant current topic content.`,
+    `Do NOT mix two different concepts in one answer.`,
     ``,
     `═══ STEP 2 — ANSWER FORMAT ═══`,
     `Return ONLY valid JSON with EXACTLY these keys:`,
@@ -85,14 +98,15 @@ export function buildTutorUserPrompt(args: TutorPromptArgs): string {
       `avoid repeating the same lead-in phrase twice, sound like a classroom teacher — clear and guided, not dramatic.`,
     ``,
     `STRICT RULES:`,
-    `- NEVER say "not available" if the concept exists in chemistry — always generate an answer.`,
+    `- NEVER say "not available" if the concept exists in the current content or in chemistry generally.`,
     `- definition, explanation, and example must ALL be non-empty (unless the question is genuinely out of scope).`,
     `- Never merge fields. Never use bullet points. Never use markdown. Never add extra keys.`,
-    `- Use simple FSc student-friendly language.`,
+    `- Use simple FSc student-friendly language. Never include unrelated concepts.`,
     `- ALWAYS prefer book content over your own knowledge when book content is provided.`,
     `- Different question wordings for the SAME concept must produce the SAME definition and explanation.`,
     `- ALWAYS keep definition and explanation EXACTLY the same for the same concept. Do NOT rephrase, rewrite, or improve wording once it is established. If book content provides the text, copy it verbatim every time.`,
-    dbBlock       ? `\nBOOK CONTENT (primary source — do not add facts not present here):\n${dbBlock}` : '',
+    `- During development mode, always prefer fresh structured output over any cached output.`,
+    dbBlock       ? `\nBOOK CONTENT (primary source — use this topic content, do not add facts not present here):\n${dbBlock}` : '',
     recentContext ? `\nRecent context (use only if question is an explicit follow-up):\n${recentContext}` : '',
     `\nCurrent Question: ${message}`,
   ].filter(v => v !== undefined).join('\n');
