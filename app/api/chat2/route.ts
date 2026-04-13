@@ -27,6 +27,7 @@ import { saveAudioToCache, saveAudioToCacheById, logCacheEvent } from '@/lib/qaC
 import { generateSpeech, VOICE_MAP }          from '@/lib/tts';
 import { sanitizeUrduTtsText, MAX_TTS_CHARS } from '@/lib/agents/tools';
 import { runTutorAgent }                      from '@/lib/agents/tutorAgent';
+import { runDebugMode }                       from '@/lib/agents/debugMode';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // never serve stale cached responses for chat/audio
@@ -176,6 +177,14 @@ export async function POST(request: NextRequest) {
           { status: 500 },
         );
       }
+    }
+
+    // ── Debug mode ─────────────────────────────────────────────────────────────
+    if (mode === 'debug') {
+      const chapterNumber = Number(body?.chapterNumber ?? 1);
+      const topicFilter   = body?.topic ? String(body.topic).trim() : undefined;
+      const debugResult   = await runDebugMode(chapterNumber, topicFilter);
+      return NextResponse.json({ ok: true, ...debugResult }, { status: 200 });
     }
 
     // ── Chat mode ──────────────────────────────────────────────────────────────

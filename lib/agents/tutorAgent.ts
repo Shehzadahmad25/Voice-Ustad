@@ -38,6 +38,7 @@ import {
   type RetrievalResult,
 }                                       from './tools';
 import { postProcessUrduTts }           from '@/lib/tts/teacherUrdu';
+import { runDebugMode, parseDebugCommand } from './debugMode';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,35 @@ const FORCE_REFRESH_TTS = process.env.TTS_FORCE_REFRESH === 'true';
  */
 export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentResult> {
   const { message, chapter, chapterNumber, recentContext } = input;
+
+  // ── Step 0: Debug mode intercept ────────────────────────────────────────────
+  if (/^\/debug(\s|$)/i.test(message.trim())) {
+    console.log('[agent] DEBUG MODE triggered');
+    const { chapterNumber: debugCh, topicFilter } = parseDebugCommand(message.trim());
+    const ch = debugCh || chapterNumber || 1;
+    const dbg = await runDebugMode(ch, topicFilter);
+    // Return debug output as a structured answer so the frontend renders it
+    return {
+      answer: {
+        definition:   dbg.output,
+        explanation:  '',
+        example:      '',
+        formula:      '',
+        flabel:       '',
+        refPageNo:    '',
+        refChapterNo: '',
+        urduTtsText:  '',
+      },
+      urduSummary:     null,
+      audioBase64:     null,
+      audioError:      null,
+      audioUrl:        null,
+      cacheId:         null,
+      cacheHit:        false,
+      cacheSimilarity: 0,
+      responseSource:  'db' as const,
+    };
+  }
 
   // ── Step 1: Normalize ───────────────────────────────────────────────────────
   const question = message.trim();
