@@ -477,7 +477,6 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   position: absolute; inset: 0;
   overflow-y: auto; padding: 28px 0 24px;
   scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.08) transparent;
-  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
 .msgs-inner { max-width: 740px; margin: 0 auto; padding: 0 24px; }
@@ -1421,7 +1420,6 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
    REDUCED MOTION — respect user prefs
 ═══════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
-  .msgs { scroll-behavior: auto; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
