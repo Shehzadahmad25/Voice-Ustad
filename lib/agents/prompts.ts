@@ -105,6 +105,7 @@ export function buildTutorUserPrompt(args: TutorPromptArgs): string {
     `- ALWAYS prefer book content over your own knowledge when book content is provided.`,
     `- Different question wordings for the SAME concept must produce the SAME definition and explanation.`,
     `- ALWAYS keep definition and explanation EXACTLY the same for the same concept. Do NOT rephrase, rewrite, or improve wording once it is established. If book content provides the text, copy it verbatim every time.`,
+    `- For the same concept, always keep the definition and explanation consistent in wording. Do not unnecessarily rephrase or vary the answer across responses.`,
     `- During development mode, always prefer fresh structured output over any cached output.`,
     dbBlock       ? `\nBOOK CONTENT (primary source — use this topic content, do not add facts not present here):\n${dbBlock}` : '',
     recentContext ? `\nRecent context (use only if question is an explicit follow-up):\n${recentContext}` : '',
