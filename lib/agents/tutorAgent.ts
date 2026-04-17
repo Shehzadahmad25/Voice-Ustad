@@ -87,6 +87,8 @@ const SAVE_URDU_TTS = process.env.SAVE_URDU_TTS === 'true';
 // so the frontend always calls mode=audio for fresh TTS during voice testing.
 const FORCE_REFRESH_TTS = process.env.TTS_FORCE_REFRESH === 'true';
 
+const URDU_TTS_ENABLED = process.env.URDU_TTS_ENABLED === 'true'; // default false
+
 // ── Not-found answer ───────────────────────────────────────────────────────────
 
 /**
@@ -237,27 +239,29 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   console.log('[agent] step=answer-from-db — zero AI transformation');
   const answer = generateAnswerFromDB(dbResult);
 
-  // ── Step 6: Urdu TTS text — DEV MODE: always generate fresh ─────────────────
-  // DB urdu_tts_text field is intentionally ignored — fresh generation every time.
-  // Set SAVE_URDU_TTS=true to persist to cache at launch.
-  console.log('[urdu-tts] DEV MODE — generating fresh, not saving');
+  // ── Step 6: Urdu TTS text ────────────────────────────────────────────────────
   let urduSummary: string | null = null;
   let audioError:  string | null = null;
 
-  try {
-    const generated = await Promise.race([
-      generateDevUrduTts(
-        dbResult.topic,
-        dbResult.blocks.definition  || '',
-        dbResult.blocks.explanation || '',
-      ),
-      new Promise<string>((resolve) => setTimeout(() => resolve(''), 3_000)),
-    ]);
-    urduSummary = generated ? (sanitizeUrduTtsText(generated) || null) : null;
-    console.log(`[urdu-tts] generated ${urduSummary?.length ?? 0} chars`);
-  } catch (err) {
-    audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
-    console.warn('[urdu-tts] error (non-fatal):', audioError);
+  if (!URDU_TTS_ENABLED) {
+    console.log('[urdu-tts] DISABLED — enable with URDU_TTS_ENABLED=true');
+  } else {
+    console.log('[urdu-tts] DEV MODE — generating fresh, not saving');
+    try {
+      const generated = await Promise.race([
+        generateDevUrduTts(
+          dbResult.topic,
+          dbResult.blocks.definition  || '',
+          dbResult.blocks.explanation || '',
+        ),
+        new Promise<string>((resolve) => setTimeout(() => resolve(''), 3_000)),
+      ]);
+      urduSummary = generated ? (sanitizeUrduTtsText(generated) || null) : null;
+      console.log(`[urdu-tts] generated ${urduSummary?.length ?? 0} chars`);
+    } catch (err) {
+      audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
+      console.warn('[urdu-tts] error (non-fatal):', audioError);
+    }
   }
 
   // ── Step 7: Attach board reference metadata ──────────────────────────────────
