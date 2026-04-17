@@ -1,8 +1,9 @@
 /**
  * /api/topic-view — database-driven topic overview, NO LLM
  * ---------------------------------------------------------
- * Reads from the unified `topics` table (new schema).
- * No multi-table joins. No concepts / formulas / examples tables.
+ * STRICT DATABASE MODE: queries ONLY the `topics` table.
+ * Returns { ok: false, error: "Topic not found in database" } on miss.
+ * Never calls any AI model.
  *
  * POST { topicTitle: string, chapterNumber: number }
  */
@@ -25,9 +26,9 @@ export async function POST(request: NextRequest) {
 
     const result = await retrieveTopicContent(topicTitle, chapterNumber);
 
-    if (!result.found) {
+    if (!result) {
       return NextResponse.json(
-        { ok: false, error: 'No content found for this topic' },
+        { ok: false, error: 'Topic not found in database' },
         { status: 200 },
       );
     }
@@ -41,16 +42,17 @@ export async function POST(request: NextRequest) {
         section:     result.section,
         page_start:  result.page_start,
         page_end:    result.page_end,
-        definition:  result.blocks.definition,
-        explanation: result.blocks.explanation,
-        formula:     result.blocks.formula,
-        flabel:      result.blocks.flabel,
-        example:     result.blocks.example,
+        definition:  result.definition,
+        explanation: result.explanation,
+        formula:     result.formula,
+        flabel:      result.flabel,
+        example:     result.example,
+        urduTtsText: result.urduTtsText,
       },
     });
 
   } catch (err) {
-    console.error('[topic-view] unhandled error:', err);
+    console.error('[topic-view] error:', err);
     return NextResponse.json(
       { ok: false, error: err instanceof Error ? err.message : 'Server error' },
       { status: 500 },

@@ -1,54 +1,34 @@
 /**
  * retrieveTopicContent
  * --------------------
- * Topic-View mode retrieval — distinct from question-mode retrieval.
+ * Topic-View mode retrieval — used when a student clicks a topic in the sidebar.
  *
- * Fetches ALL content blocks for a topic from the unified `topics` table
- * (new schema). No multi-table joins. No concepts / formulas / examples tables.
- *
- * Match strategy (tried in order):
- *   1. topic_title ILIKE '%full title%'
- *   2. topic_title ILIKE '%term%'        — per extracted term
- *   3. keywords array contains term
- *   4. definition ILIKE '%term%'         — full-text fallback
- *
- * Used ONLY when a user clicks a topic from the sidebar or scope modal.
- * Never used for typed questions.
+ * STRICT DATABASE MODE:
+ *   Queries ONLY the `topics` table.
+ *   Matches via topic_title ILIKE '%query%' OR keywords @> ARRAY[query].
+ *   Returns null if no row is found — caller must NOT fall back to AI.
+ *   Returns raw DB column values with no modification.
  */
 
 import { createClient } from '@supabase/supabase-js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface TopicViewBlocks {
-  definition:  string;
-  explanation: string;
-  formula:     string;
-  flabel:      string;
-  example:     string;
-}
-
 export interface TopicViewResult {
-  found:         boolean;
+  found:         true;
   chapter:       string;
-  chapterNumber: number | null;
+  chapterNumber: number;
   topic:         string;
   section:       string;
   page_start:    number | null;
   page_end:      number | null;
-  blocks:        TopicViewBlocks;
+  definition:    string;
+  explanation:   string;
+  formula:       string;
+  flabel:        string;
+  example:       string;
+  urduTtsText:   string;
 }
-
-const EMPTY: TopicViewResult = {
-  found:         false,
-  chapter:       '',
-  chapterNumber: null,
-  topic:         '',
-  section:       '',
-  page_start:    null,
-  page_end:      null,
-  blocks: { definition: '', explanation: '', formula: '', flabel: '', example: '' },
-};
 
 // ── Supabase client ───────────────────────────────────────────────────────────
 
@@ -60,7 +40,7 @@ function getClient() {
   return createClient(url, key);
 }
 
-// ── Topic row type (new schema) ───────────────────────────────────────────────
+// ── Topic row type ────────────────────────────────────────────────────────────
 
 interface TopicRow {
   id:             string;
@@ -77,132 +57,106 @@ interface TopicRow {
   keywords:       string[] | null;
 }
 
-const SELECT_COLS = 'id,chapter_number,chapter_title,topic_code,topic_title,page,definition,explanation,example,formula,urdu_tts_text,keywords';
+const SELECT_COLS =
+  'id,chapter_number,chapter_title,topic_code,topic_title,page,' +
+  'definition,explanation,example,formula,urdu_tts_text,keywords';
 
-// ── Search term extraction ────────────────────────────────────────────────────
+// ── Core lookup ───────────────────────────────────────────────────────────────
 
-const STOP_WORDS = new Set([
-  'a','an','the','of','in','on','at','to','and','or','is','are','was','were',
-  'be','been','by','for','with','this','that','from','have','has','had',
-  'not','but','what','how','why','when','where','which','its','it',
-]);
-
-function extractTopicTerms(title: string): string[] {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, ' ')
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
-    .slice(0, 4);
-}
-
-// ── Topic row lookup ──────────────────────────────────────────────────────────
-
+/**
+ * Queries topics table with two strategies only:
+ *   1. topic_title ILIKE '%query%'
+ *   2. keywords @> ARRAY[query]  (exact keyword match)
+ *
+ * No definition/content text search — that causes false positives.
+ * Returns null when no row matches.
+ */
 async function fetchTopicRow(
   chapterNumber: number,
-  topicTitle:   string,
-  terms:        string[],
+  query:         string,
 ): Promise<TopicRow | null> {
   const db = getClient();
+  const q  = query.toLowerCase().trim();
 
-  // Strategy 1: exact topic title match
-  {
-    const { data } = await db
-      .from('topics')
-      .select(SELECT_COLS)
-      .eq('chapter_number', chapterNumber)
-      .ilike('topic_title', `%${topicTitle}%`)
-      .limit(1);
-    if (data?.[0]) return data[0] as TopicRow;
+  // Strategy 1: topic_title ILIKE '%query%'
+  const { data: titleData } = await db
+    .from('topics')
+    .select(SELECT_COLS)
+    .eq('chapter_number', chapterNumber)
+    .ilike('topic_title', `%${q}%`)
+    .limit(1);
+
+  if (titleData?.[0]) {
+    console.log(`[retrieveTopicContent] MATCH via topic_title="${(titleData[0] as TopicRow).topic_title}" for query="${q}"`);
+    return titleData[0] as TopicRow;
   }
 
-  // Strategy 2: per-term topic_title match
-  for (const term of terms) {
-    const { data } = await db
-      .from('topics')
-      .select(SELECT_COLS)
-      .eq('chapter_number', chapterNumber)
-      .ilike('topic_title', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0] as TopicRow;
+  // Strategy 2: keywords @> ARRAY[query]
+  const { data: kwData } = await db
+    .from('topics')
+    .select(SELECT_COLS)
+    .eq('chapter_number', chapterNumber)
+    .contains('keywords', [q])
+    .limit(1);
+
+  if (kwData?.[0]) {
+    console.log(`[retrieveTopicContent] MATCH via keywords topic_title="${(kwData[0] as TopicRow).topic_title}" for query="${q}"`);
+    return kwData[0] as TopicRow;
   }
 
-  // Strategy 3: keywords array overlap
-  for (const term of terms) {
-    const { data } = await db
-      .from('topics')
-      .select(SELECT_COLS)
-      .eq('chapter_number', chapterNumber)
-      .contains('keywords', [term])
-      .limit(1);
-    if (data?.[0]) return data[0] as TopicRow;
-  }
-
-  // Strategy 4: definition full-text fallback
-  for (const term of terms) {
-    const { data } = await db
-      .from('topics')
-      .select(SELECT_COLS)
-      .eq('chapter_number', chapterNumber)
-      .ilike('definition', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0] as TopicRow;
-  }
-
+  console.log(`[retrieveTopicContent] NO MATCH — query="${q}" chapter=${chapterNumber}`);
   return null;
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
- * Retrieves ALL content for a topic (not question-targeted).
+ * Retrieves all content for a topic by title or keyword match.
  * Used exclusively for topic_view_mode (sidebar/scope topic clicks).
  *
- * @param topicTitle    - Clean topic title (e.g. "Mole and Avogadro's Number")
- * @param chapterNumber - 1-based unit number
+ * Returns null when no matching topic exists in the database.
+ * Caller must treat null as "not found" — no AI fallback permitted.
+ *
+ * All returned field values are exactly as stored in the database.
+ * No reformatting, no AI enrichment, no text generation.
+ *
+ * @param query         - Topic title or search term from the user
+ * @param chapterNumber - 1-based chapter number
  */
 export async function retrieveTopicContent(
-  topicTitle:    string,
+  query:         string,
   chapterNumber: number,
-): Promise<TopicViewResult> {
-  if (!topicTitle || !chapterNumber || chapterNumber <= 0) return { ...EMPTY };
+): Promise<TopicViewResult | null> {
+  console.log(`[retrieveTopicContent] query="${query}" chapter=${chapterNumber}`);
 
-  const terms = extractTopicTerms(topicTitle);
-  if (terms.length === 0) return { ...EMPTY };
+  if (!query?.trim() || !chapterNumber || chapterNumber <= 0) {
+    console.log(`[retrieveTopicContent] SKIP — missing query or chapterNumber`);
+    return null;
+  }
 
-  const row = await fetchTopicRow(chapterNumber, topicTitle, terms);
-  if (!row) return { ...EMPTY };
+  const row = await fetchTopicRow(chapterNumber, query.trim());
+  if (!row) return null;
 
-  const formula = (row.formula ?? '').trim();
-
-  const hasAny =
-    (row.definition ?? '').trim() ||
-    (row.explanation ?? '').trim() ||
-    formula ||
-    (row.example ?? '').trim();
-
-  if (!hasAny) return { ...EMPTY };
-
-  const chTitle = row.chapter_title
+  const formula  = (row.formula      ?? '').trim();
+  const chTitle  = row.chapter_title
     ? `Unit ${row.chapter_number} — ${row.chapter_title}`
     : `Chapter ${row.chapter_number}`;
-
-  const page = row.page ?? null;
+  const page     = row.page ?? null;
 
   return {
     found:         true,
     chapter:       chTitle,
     chapterNumber: row.chapter_number,
     topic:         row.topic_title,
-    section:       row.topic_code || '',
+    section:       row.topic_code    ?? '',
     page_start:    page,
     page_end:      page,
-    blocks: {
-      definition:  (row.definition  ?? '').trim(),
-      explanation: (row.explanation ?? '').trim(),
-      formula,
-      flabel:      formula ? row.topic_title.toUpperCase() : '',
-      example:     (row.example     ?? '').trim(),
-    },
+    // Raw DB values — zero modification
+    definition:    row.definition    ?? '',
+    explanation:   row.explanation   ?? '',
+    formula,
+    flabel:        formula ? row.topic_title.toUpperCase() : '',
+    example:       row.example       ?? '',
+    urduTtsText:   row.urdu_tts_text ?? '',
   };
 }
