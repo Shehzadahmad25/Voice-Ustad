@@ -57,7 +57,7 @@ export async function generateSpeech(
 
   // ── OpenAI TTS — primary ───────────────────────────────────────────────────
   const model = 'tts-1';
-  const voice = 'onyx';
+  const voice = 'nova';
   console.log(`[tts] using OpenAI TTS — model=${model} voice=${voice}`);
 
   const apiKey = process.env.OPENAI_API_KEY;
