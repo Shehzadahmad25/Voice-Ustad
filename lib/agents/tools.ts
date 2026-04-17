@@ -459,7 +459,16 @@ STRICT RULES:
 - Keep English only for chemistry terms (stoichiometry, reactants, products, etc.)
 - Do NOT translate chemistry terms — keep them in English
 - Total length: 6 to 8 sentences maximum
-- Start with: "Aaj hum [topic name] parhein gay."`;
+- Start with: "Aaj hum [topic name] parhein gay."
+- Write English terms exactly as they sound in Pakistani accent:
+  - "chemistry" → write as "kemistry"
+  - "chemical" → write as "kemical"
+  - "reaction" → write as "reaction" (keep as is)
+  - "reactants" → write as "reactants" (keep as is)
+  - "stoichiometry" → write as "stoikiometry"
+  - "equation" → write as "equation" (keep as is)
+  - "substances" → write as "substances" (keep as is)
+- Always spell English words phonetically for Pakistani pronunciation`;
 
 export async function generateDevUrduTts(
   topicTitle:  string,
