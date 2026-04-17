@@ -1694,6 +1694,7 @@ async function retryAudio(id, silent=false){
         lastErr = (e as any)?.message || 'TTS generation failed';
       }
     }
+    if(data?.ok === true && !data?.audioBase64) return false; // TTS disabled server-side — silent skip
     if(!data?.audioBase64) throw new Error(lastErr || 'Empty audio response');
     audioUrls[id] = `data:audio/mpeg;base64,${data.audioBase64}`;
     audioCacheKeys[id] = putCachedAudio(summary, String(data.audioBase64 || ''));

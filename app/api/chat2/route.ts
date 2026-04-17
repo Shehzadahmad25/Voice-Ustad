@@ -38,6 +38,8 @@ export const dynamic = 'force-dynamic'; // never serve stale cached responses fo
  */
 const CACHE_ENABLED = process.env.CACHE_ENABLED === 'true';
 
+const URDU_TTS_ENABLED = process.env.URDU_TTS_ENABLED === 'true'; // default false
+
 // ── Request auth ───────────────────────────────────────────────────────────────
 
 function checkDemoKey(request: NextRequest): boolean {
@@ -151,6 +153,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      if (!URDU_TTS_ENABLED) {
+        console.log('[tts] DISABLED — enable with URDU_TTS_ENABLED=true');
+        return NextResponse.json({ ok: true, audioBase64: null }, { status: 200 });
+      }
+
       try {
         // Optional voice override for testing: voice="asad"|"uzma"|"english"
         const voiceKey      = String(body?.voice ?? '').trim().toLowerCase();
@@ -159,8 +166,11 @@ export async function POST(request: NextRequest) {
           console.log('[tts] voice override:', voiceKey, '→', voiceOverride);
         }
 
-        const { audioBuffer, voice: ttsVoice, model: ttsModel } =
-          await generateSpeech(urduSummary, voiceOverride);
+        const speechResult = await generateSpeech(urduSummary, voiceOverride);
+        if (!speechResult) {
+          return NextResponse.json({ ok: true, audioBase64: null }, { status: 200 });
+        }
+        const { audioBuffer, voice: ttsVoice, model: ttsModel } = speechResult;
         const audioBase64 = bufferToBase64(audioBuffer);
 
         // Fire-and-forget: upload to Supabase Storage + patch cache row

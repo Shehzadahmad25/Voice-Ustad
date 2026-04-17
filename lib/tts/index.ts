@@ -27,18 +27,25 @@ export interface SpeechResult {
 }
 
 const OPENAI_TTS_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 25_000);
+const URDU_TTS_ENABLED = process.env.URDU_TTS_ENABLED === 'true'; // default false
 
 /**
  * Generates MP3 audio from text using OpenAI TTS.
+ * Returns null when URDU_TTS_ENABLED=false.
  *
  * @param text      — TTS input text (Urdu or mixed)
  * @param voiceName — Reserved for future use (voice switching). Currently ignored;
- *                    all requests use onyx. Re-enable Azure block to activate.
+ *                    all requests use nova. Re-enable Azure block to activate.
  */
 export async function generateSpeech(
   text:       string,
   voiceName?: string,
-): Promise<SpeechResult> {
+): Promise<SpeechResult | null> {
+
+  if (!URDU_TTS_ENABLED) {
+    console.log('[tts] DISABLED — enable with URDU_TTS_ENABLED=true');
+    return null;
+  }
 
   // AZURE TTS — disabled, keeping for reference
   // console.log('[tts] provider=azure');
