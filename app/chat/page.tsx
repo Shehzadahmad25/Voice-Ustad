@@ -11,6 +11,9 @@ import TopNav from '@/components/TopNav';
 // CHAPTER DATA WILL BE LOADED FROM SUPABASE
 const CHS: Array<{p:number; n:string; t:string; chips:string[]; followups:string[]; on?:boolean}> = [];
 
+// TODO: Re-enable after all chapter topics are added to DB
+const SHOW_CHAPTER_SCOPE = false;
+
 // Chapter scope topics per chapter index (0-based)
 const CHAPTER_SCOPE_DATA: Record<number, string[]> = {
   0: [
@@ -2203,6 +2206,8 @@ export default function ChatPage() {
         </div>
       </div>
 
+      {/* TODO: Re-enable after all chapter topics are added to DB */}
+      {SHOW_CHAPTER_SCOPE && (
       <div className="modal-bg" id="scopeBg" role="dialog" aria-modal="true" aria-labelledby="scopeTitle">
         <div className="modal scope-modal">
           <button className="modal-close" aria-label="Close chapter scope dialog" onClick={() => closeScope()}>×</button>
@@ -2222,6 +2227,7 @@ export default function ChatPage() {
           <button className="modal-skip" onClick={() => closeScope()}>Close</button>
         </div>
       </div>
+      )}
 
       <aside className="sidebar" id="sb">
         <div className="sb-brand">
@@ -2355,6 +2361,8 @@ export default function ChatPage() {
             <div className="tb-meta" id="tbMeta">Chemistry focus</div>
           </div>
           <div className="tb-right">
+            {/* TODO: Re-enable after all chapter topics are added to DB */}
+            {SHOW_CHAPTER_SCOPE && (
             <button className="tb-btn tb-scope" title="What can I ask?" aria-label="Show chapter scope topics" onClick={() => openScope()}>
               <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" />
@@ -2362,6 +2370,7 @@ export default function ChatPage() {
                 <circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none" />
               </svg>
             </button>
+            )}
             <div className="tb-status" aria-label="AI status: ready">
               <span className="blink-dot" aria-hidden="true"></span>AI Ready
             </div>
