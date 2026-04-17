@@ -32,6 +32,12 @@ import { runDebugMode }                       from '@/lib/agents/debugMode';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // never serve stale cached responses for chat/audio
 
+/**
+ * Cache kill-switch for development.
+ * Default: OFF — set CACHE_ENABLED=true in .env.local to re-enable at launch.
+ */
+const CACHE_ENABLED = process.env.CACHE_ENABLED === 'true';
+
 // ── Request auth ───────────────────────────────────────────────────────────────
 
 function checkDemoKey(request: NextRequest): boolean {
@@ -158,16 +164,18 @@ export async function POST(request: NextRequest) {
         const audioBase64 = bufferToBase64(audioBuffer);
 
         // Fire-and-forget: upload to Supabase Storage + patch cache row
-        if (audioCacheId && audioQuestion && audioChapterNo > 0) {
-          saveAudioToCacheById(audioCacheId, audioQuestion, audioChapterNo, audioBuffer, ttsVoice, ttsModel)
-            .catch(() => {});
-          logCacheEvent({
-            question: audioQuestion, chapterNumber: audioChapterNo,
-            resultType: 'audio_generated', similarity: 0, hadAudio: false,
-          }).catch(() => {});
-        } else if (audioQuestion && audioChapterNo > 0) {
-          saveAudioToCache(audioQuestion, audioChapterNo, audioBuffer, ttsVoice, ttsModel)
-            .catch(() => {});
+        if (CACHE_ENABLED) {
+          if (audioCacheId && audioQuestion && audioChapterNo > 0) {
+            saveAudioToCacheById(audioCacheId, audioQuestion, audioChapterNo, audioBuffer, ttsVoice, ttsModel)
+              .catch(() => {});
+            logCacheEvent({
+              question: audioQuestion, chapterNumber: audioChapterNo,
+              resultType: 'audio_generated', similarity: 0, hadAudio: false,
+            }).catch(() => {});
+          } else if (audioQuestion && audioChapterNo > 0) {
+            saveAudioToCache(audioQuestion, audioChapterNo, audioBuffer, ttsVoice, ttsModel)
+              .catch(() => {});
+          }
         }
 
         return NextResponse.json({ ok: true, audioBase64 }, { status: 200 });

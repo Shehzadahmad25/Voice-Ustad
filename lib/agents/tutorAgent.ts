@@ -11,13 +11,13 @@
  * Pipeline:
  *   Step 0 — Debug mode intercept (/debug command)
  *   Step 1 — Normalize input
- *   Step 2 — Cache lookup (exact → semantic → miss)
+ *   Step 2 — Cache lookup  [skipped when CACHE_ENABLED=false]
  *   Step 3 — Retrieve from DB (title/keyword match only)
  *   Step 4 — DB miss → return NOT FOUND (no AI fallback)
  *   Step 5 — Build structured answer from DB blocks (zero transformation)
  *   Step 6 — Attach Urdu TTS text (from DB field or generated from DB content)
  *   Step 7 — Attach board reference metadata
- *   Step 8 — Save to cache (fire-and-forget, DB answers only)
+ *   Step 8 — Save to cache  [skipped when CACHE_ENABLED=false]
  *   Step 9 — Return TutorAgentResult
  */
 
@@ -49,7 +49,7 @@ export interface TutorAgentInput {
   message:       string;
   chapter:       string;       // full chapter label (e.g. "Chapter 1: Stoichiometry")
   chapterNumber: number;       // 1-based chapter index; 0 = no chapter context
-  recentContext: string;       // pre-built conversation context string
+  recentContext: string;       // reserved — not used in strict DB mode
 }
 
 /**
@@ -69,6 +69,12 @@ export interface TutorAgentResult {
 }
 
 // ── Config ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Cache kill-switch for development.
+ * Default: OFF — set CACHE_ENABLED=true in .env.local to re-enable at launch.
+ */
+const CACHE_ENABLED = process.env.CACHE_ENABLED === 'true';
 
 // Set TTS_FORCE_REFRESH=true in .env.local to suppress cached audio URLs
 // so the frontend always calls mode=audio for fresh TTS during voice testing.
@@ -113,7 +119,7 @@ const NOT_FOUND_RESULT: TutorAgentResult = {
  * No AI model is ever called to generate an answer.
  */
 export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentResult> {
-  const { message, chapter, chapterNumber, recentContext } = input;
+  const { message, chapter, chapterNumber } = input;
 
   // ── Step 0: Debug mode intercept ────────────────────────────────────────────
   if (/^\/debug(\s|$)/i.test(message.trim())) {
@@ -146,47 +152,53 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   const question = message.trim();
   console.log(`[agent] START — query="${question.slice(0, 80)}" chapter=${chapterNumber}`);
 
+  if (!CACHE_ENABLED) {
+    console.log('[cache] DISABLED — development mode');
+  }
+
   // ── Step 2: Cache lookup ────────────────────────────────────────────────────
-  console.log('[agent] step=cache-lookup');
-  const cacheResult = await lookupCache(question, chapterNumber);
+  if (CACHE_ENABLED) {
+    console.log('[agent] step=cache-lookup');
+    const cacheResult = await lookupCache(question, chapterNumber);
 
-  if (cacheResult.hit && cacheResult.entry) {
-    const { entry } = cacheResult;
+    if (cacheResult.hit && cacheResult.entry) {
+      const { entry } = cacheResult;
 
-    const cachedAnswer = repairStructuredAnswer(normalizeStructuredAnswer(entry.answer_json));
-    Object.assign(cachedAnswer, inferBoardRef(question, chapter));
+      const cachedAnswer = repairStructuredAnswer(normalizeStructuredAnswer(entry.answer_json));
+      Object.assign(cachedAnswer, inferBoardRef(question, chapter));
 
-    const cachedUrdu = entry.urdu_tts_text
-      ? (postProcessUrduTts(sanitizeUrduTtsText(entry.urdu_tts_text)) || null)
-      : null;
+      const cachedUrdu = entry.urdu_tts_text
+        ? (postProcessUrduTts(sanitizeUrduTtsText(entry.urdu_tts_text)) || null)
+        : null;
 
-    const matchType = cacheResult.exact
-      ? 'exact'
-      : `semantic(${(cacheResult.similarity * 100).toFixed(0)}%)`;
-    console.log(`[agent] cache-${matchType} hit — returning cached DB answer`);
+      const matchType = cacheResult.exact
+        ? 'exact'
+        : `semantic(${(cacheResult.similarity * 100).toFixed(0)}%)`;
+      console.log(`[agent] cache-${matchType} hit — returning cached DB answer`);
 
-    const cachedAudioUrl = (FORCE_REFRESH_TTS ? null : entry.audio_url) || null;
-    const cacheId        = cachedAudioUrl ? null : entry.id;
+      const cachedAudioUrl = (FORCE_REFRESH_TTS ? null : entry.audio_url) || null;
+      const cacheId        = cachedAudioUrl ? null : entry.id;
 
-    logCacheEvent({
-      question:      question,
-      chapterNumber,
-      resultType:    cacheResult.exact ? 'exact' : 'semantic',
-      similarity:    cacheResult.similarity,
-      hadAudio:      !!cachedAudioUrl,
-    }).catch(() => {});
+      logCacheEvent({
+        question:      question,
+        chapterNumber,
+        resultType:    cacheResult.exact ? 'exact' : 'semantic',
+        similarity:    cacheResult.similarity,
+        hadAudio:      !!cachedAudioUrl,
+      }).catch(() => {});
 
-    return {
-      answer:          cachedAnswer,
-      urduSummary:     cachedUrdu,
-      audioBase64:     null,
-      audioError:      null,
-      audioUrl:        cachedAudioUrl,
-      cacheId,
-      cacheHit:        true,
-      cacheSimilarity: cacheResult.similarity,
-      responseSource:  'cache',
-    };
+      return {
+        answer:          cachedAnswer,
+        urduSummary:     cachedUrdu,
+        audioBase64:     null,
+        audioError:      null,
+        audioUrl:        cachedAudioUrl,
+        cacheId,
+        cacheHit:        true,
+        cacheSimilarity: cacheResult.similarity,
+        responseSource:  'cache',
+      };
+    }
   }
 
   // ── Step 3: Retrieve from DB ────────────────────────────────────────────────
@@ -201,13 +213,15 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   // ── Step 4: DB miss → hard stop, no AI fallback ─────────────────────────────
   if (!dbResult) {
     console.log(`[agent] NO MATCH — query="${question.slice(0, 80)}" is not in the database. Returning not-found. No AI fallback.`);
-    logCacheEvent({
-      question:      question,
-      chapterNumber,
-      resultType:    'miss',
-      similarity:    0,
-      hadAudio:      false,
-    }).catch(() => {});
+    if (CACHE_ENABLED) {
+      logCacheEvent({
+        question:      question,
+        chapterNumber,
+        resultType:    'miss',
+        similarity:    0,
+        hadAudio:      false,
+      }).catch(() => {});
+    }
     return { ...NOT_FOUND_RESULT };
   }
 
@@ -253,27 +267,29 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   if (dbResult.page != null) answer.refPageNo = String(dbResult.page);
 
   // ── Step 8: Persist to cache (fire-and-forget) ───────────────────────────────
-  console.log('[agent] step=save-cache');
-  const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+  if (CACHE_ENABLED) {
+    console.log('[agent] step=save-cache');
+    const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
 
-  logCacheEvent({
-    question:      question,
-    chapterNumber,
-    resultType:    'miss',
-    similarity:    0,
-    hadAudio:      false,
-  }).catch(() => {});
+    logCacheEvent({
+      question:      question,
+      chapterNumber,
+      resultType:    'miss',
+      similarity:    0,
+      hadAudio:      false,
+    }).catch(() => {});
 
-  saveToCache({
-    originalQuestion: question,
-    chapter,
-    chapterNumber,
-    topic:       dbResult.topic,
-    answerJson:  answer as unknown as StructuredAnswerJson,
-    urduTtsText: urduSummary ?? '',
-    modelText:   'db',
-    modelTts:    process.env.OPENAI_TTS_TEXT_MODEL || model,
-  }).catch(() => {});
+    saveToCache({
+      originalQuestion: question,
+      chapter,
+      chapterNumber,
+      topic:       dbResult.topic,
+      answerJson:  answer as unknown as StructuredAnswerJson,
+      urduTtsText: urduSummary ?? '',
+      modelText:   'db',
+      modelTts:    process.env.OPENAI_TTS_TEXT_MODEL || model,
+    }).catch(() => {});
+  }
 
   // ── Step 9: Return result ────────────────────────────────────────────────────
   console.log(`[agent] DONE — source=db topic="${dbResult.topic}"`);
