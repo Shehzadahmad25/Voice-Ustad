@@ -185,7 +185,10 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
         : `semantic(${(cacheResult.similarity * 100).toFixed(0)}%)`;
       console.log(`[agent] cache-${matchType} hit — returning cached DB answer`);
 
-      const cachedAudioUrl = (FORCE_REFRESH_TTS ? null : entry.audio_url) || null;
+      if (!URDU_TTS_ENABLED && entry.audio_url) {
+        console.log('[tts] DISABLED — skipping audio URL from storage also');
+      }
+      const cachedAudioUrl = (!URDU_TTS_ENABLED || FORCE_REFRESH_TTS) ? null : (entry.audio_url || null);
       const cacheId        = cachedAudioUrl ? null : entry.id;
 
       logCacheEvent({
