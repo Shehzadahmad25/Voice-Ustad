@@ -21,7 +21,15 @@
       "Read(//c/Users/hp/AppData/Local/Temp/claude/c--Users-hp-Desktop-Voice-Ustad/525ef8c4-e0a4-42b3-a5cf-911b602b6025/tasks/**)",
       "Bash(node scripts/clearCache.js)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git rm:*)",
+      "Bash(git push:*)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/next/package.json'\\).version\\)\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(npm show:*)",
+      "Bash(taskkill /F /IM \"next-router-worker.exe\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/eslint-config-next/package.json'\\).version\\)\")"
     ]
   }
 }
