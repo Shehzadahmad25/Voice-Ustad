@@ -1,21 +1,24 @@
 /**
  * lib/agents/tutorAgent.ts
  * ------------------------
- * Tutor Agent — main orchestrator for the VoiceUstad chat-mode pipeline.
+ * Tutor Agent — STRICT DATABASE MODE.
  *
- * Replaces the inline chat-mode logic in app/api/chat2/route.ts.
- * The route now calls runTutorAgent() and gets back a fully-formed result
- * that maps 1:1 to the existing JSON response shape (frontend unchanged).
+ * The database is the ONLY source of truth.
+ * If a topic is not found in the `topics` table → the agent returns
+ * a "not found" response. There is NO AI fallback, NO general-knowledge
+ * generation, and NO content mixing.
  *
  * Pipeline:
+ *   Step 0 — Debug mode intercept (/debug command)
  *   Step 1 — Normalize input
  *   Step 2 — Cache lookup (exact → semantic → miss)
- *   Step 3 — Retrieve from DB (if chapterNumber > 0)
- *   Step 4 — Build structured answer (DB blocks OR AI)
- *   Step 5 — Generate Urdu TTS text
- *   Step 6 — Attach board reference metadata
- *   Step 7 — Save to cache (fire-and-forget)
- *   Step 8 — Return TutorAgentResult
+ *   Step 3 — Retrieve from DB (title/keyword match only)
+ *   Step 4 — DB miss → return NOT FOUND (no AI fallback)
+ *   Step 5 — Build structured answer from DB blocks (zero transformation)
+ *   Step 6 — Attach Urdu TTS text (from DB field or generated from DB content)
+ *   Step 7 — Attach board reference metadata
+ *   Step 8 — Save to cache (fire-and-forget, DB answers only)
+ *   Step 9 — Return TutorAgentResult
  */
 
 import { inferBoardRef }               from '@/app/api/chat2/boardRefs';
@@ -28,12 +31,10 @@ import {
 import {
   retrieveContent,
   generateAnswerFromDB,
-  generateStructuredAnswer,
   generateUrduSummary,
   normalizeStructuredAnswer,
   repairStructuredAnswer,
   sanitizeUrduTtsText,
-  buildDbContentBlock,
   type StructuredAnswer,
   type RetrievalResult,
 }                                       from './tools';
@@ -64,7 +65,7 @@ export interface TutorAgentResult {
   cacheId:         string | null;   // passed to mode=audio to patch the cache row
   cacheHit:        boolean;
   cacheSimilarity: number;
-  responseSource:  'cache' | 'db' | 'ai';
+  responseSource:  'cache' | 'db' | 'not_found';
 }
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -73,11 +74,43 @@ export interface TutorAgentResult {
 // so the frontend always calls mode=audio for fresh TTS during voice testing.
 const FORCE_REFRESH_TTS = process.env.TTS_FORCE_REFRESH === 'true';
 
+// ── Not-found answer ───────────────────────────────────────────────────────────
+
+/**
+ * Returned when no matching topic exists in the database.
+ * No AI generation — this is the hard stop for out-of-scope queries.
+ */
+const NOT_FOUND_ANSWER: StructuredAnswer = {
+  definition:  'This topic is not available in the database. Please ask about a topic covered in your textbook.',
+  explanation: '',
+  example:     '',
+  formula:     '',
+  flabel:      '',
+  dur:         0,
+  urduTtsText: '',
+};
+
+const NOT_FOUND_RESULT: TutorAgentResult = {
+  answer:          NOT_FOUND_ANSWER,
+  urduSummary:     null,
+  audioBase64:     null,
+  audioError:      null,
+  audioUrl:        null,
+  cacheId:         null,
+  cacheHit:        false,
+  cacheSimilarity: 0,
+  responseSource:  'not_found',
+};
+
 // ── Main export ────────────────────────────────────────────────────────────────
 
 /**
- * Runs the full Tutor Agent pipeline for a single chat-mode request.
+ * Runs the Tutor Agent pipeline for a single chat-mode request.
  * Never throws — catches all errors internally and surfaces them in the result.
+ *
+ * STRICT DATABASE MODE: returns NOT_FOUND_RESULT for any question whose
+ * topic cannot be matched in the `topics` table by title or keyword.
+ * No AI model is ever called to generate an answer.
  */
 export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentResult> {
   const { message, chapter, chapterNumber, recentContext } = input;
@@ -86,9 +119,8 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   if (/^\/debug(\s|$)/i.test(message.trim())) {
     console.log('[agent] DEBUG MODE triggered');
     const { chapterNumber: debugCh, topicFilter } = parseDebugCommand(message.trim());
-    const ch = debugCh || chapterNumber || 1;
+    const ch  = debugCh || chapterNumber || 1;
     const dbg = await runDebugMode(ch, topicFilter);
-    // Return debug output as a structured answer so the frontend renders it
     return {
       answer: {
         definition:   dbg.output,
@@ -96,8 +128,7 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
         example:      '',
         formula:      '',
         flabel:       '',
-        refPageNo:    '',
-        refChapterNo: '',
+        dur:          0,
         urduTtsText:  '',
       },
       urduSummary:     null,
@@ -113,7 +144,7 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
 
   // ── Step 1: Normalize ───────────────────────────────────────────────────────
   const question = message.trim();
-  console.log(`[agent] start — question="${question.slice(0, 80)}" chapter=${chapterNumber}`);
+  console.log(`[agent] START — query="${question.slice(0, 80)}" chapter=${chapterNumber}`);
 
   // ── Step 2: Cache lookup ────────────────────────────────────────────────────
   console.log('[agent] step=cache-lookup');
@@ -122,7 +153,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   if (cacheResult.hit && cacheResult.entry) {
     const { entry } = cacheResult;
 
-    // Normalize cached answer (handles legacy {text,points} format)
     const cachedAnswer = repairStructuredAnswer(normalizeStructuredAnswer(entry.answer_json));
     Object.assign(cachedAnswer, inferBoardRef(question, chapter));
 
@@ -133,11 +163,8 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
     const matchType = cacheResult.exact
       ? 'exact'
       : `semantic(${(cacheResult.similarity * 100).toFixed(0)}%)`;
-    console.log(`[agent] cache-${matchType} hit — skipping RAG+AI`);
+    console.log(`[agent] cache-${matchType} hit — returning cached DB answer`);
 
-    if (FORCE_REFRESH_TTS && entry.audio_url) {
-      console.log('[agent] FORCE_REFRESH_TTS — suppressing cached audio_url');
-    }
     const cachedAudioUrl = (FORCE_REFRESH_TTS ? null : entry.audio_url) || null;
     const cacheId        = cachedAudioUrl ? null : entry.id;
 
@@ -162,95 +189,70 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
     };
   }
 
-  console.log('[agent] cache-miss — proceeding to RAG+AI');
-
   // ── Step 3: Retrieve from DB ────────────────────────────────────────────────
-  console.log('[agent] step=retrieve');
+  console.log('[agent] step=retrieve — strict title/keyword match only');
   let dbResult: RetrievalResult | null = null;
   try {
     dbResult = await retrieveContent(question, chapterNumber);
   } catch (err) {
-    console.warn('[agent] retrieve error (non-fatal):', (err as Error).message);
+    console.warn('[agent] retrieve error:', (err as Error).message);
   }
 
-  // ── Step 4: Build structured answer ────────────────────────────────────────
-  let answer: StructuredAnswer;
-  let responseSource: 'db' | 'ai';
-
-  if (dbResult) {
-    console.log('[agent] step=answer-from-db');
-    answer = generateAnswerFromDB(dbResult);
-    responseSource = 'db';
-
-    // Enrich with Urdu TTS text from DB content
-    try {
-      const urduText = await generateUrduSummary({
-        definition:  dbResult.blocks.definition  || '',
-        explanation: dbResult.blocks.explanation || '',
-        example:     dbResult.blocks.example     || '',
-        formula:     dbResult.blocks.formula,
-        flabel:      dbResult.blocks.flabel,
-      });
-      if (urduText) answer.urduTtsText = urduText;
-    } catch { /* Urdu is optional — non-fatal */ }
-
-  } else {
-    console.log('[agent] step=answer-from-ai');
-    try {
-      answer = await generateStructuredAnswer(question, chapter, recentContext);
-    } catch (err) {
-      console.error('[agent] generateStructuredAnswer failed:', (err as Error).message);
-      throw err; // re-throw — route.ts will return 500
-    }
-
-    // Retry once if all required fields came back empty
-    if (!answer.definition && !answer.explanation && !answer.example) {
-      console.warn('[agent] AI returned empty fields — retrying once');
-      try {
-        answer = await generateStructuredAnswer(question, chapter, recentContext);
-      } catch { /* keep whatever we have */ }
-    }
-
-    responseSource = 'ai';
+  // ── Step 4: DB miss → hard stop, no AI fallback ─────────────────────────────
+  if (!dbResult) {
+    console.log(`[agent] NO MATCH — query="${question.slice(0, 80)}" is not in the database. Returning not-found. No AI fallback.`);
+    logCacheEvent({
+      question:      question,
+      chapterNumber,
+      resultType:    'miss',
+      similarity:    0,
+      hadAudio:      false,
+    }).catch(() => {});
+    return { ...NOT_FOUND_RESULT };
   }
 
-  // ── Step 5: Build Urdu TTS summary ─────────────────────────────────────────
-  console.log('[agent] step=urdu-summary');
+  // ── Step 5: Build structured answer from DB blocks ──────────────────────────
+  console.log(`[agent] FOUND — topic="${dbResult.topic}" page=${dbResult.page}`);
+  console.log('[agent] step=answer-from-db — zero AI transformation');
+  const answer = generateAnswerFromDB(dbResult);
+
+  // ── Step 6: Urdu TTS text ────────────────────────────────────────────────────
+  console.log('[agent] step=urdu-tts');
   let urduSummary: string | null = null;
   let audioError:  string | null = null;
 
-  // First try: urduTtsText embedded in the AI answer
+  // Priority 1: use pre-stored urdu_tts_text from DB (zero AI calls)
   if (answer.urduTtsText) {
     urduSummary = postProcessUrduTts(sanitizeUrduTtsText(answer.urduTtsText)) || null;
+    console.log(`[agent] urdu-tts: using DB field (${urduSummary?.length ?? 0} chars)`);
   }
 
-  // Second try: generate independently from the answer fields
+  // Priority 2: generate from DB content fields (only if DB field is empty)
   if (!urduSummary) {
     try {
       const generated = await Promise.race([
         generateUrduSummary({
-          definition:  answer.definition,
-          explanation: answer.explanation,
-          example:     answer.example,
-          formula:     answer.formula || undefined,
-          flabel:      answer.flabel  || undefined,
+          definition:  dbResult.blocks.definition  || '',
+          explanation: dbResult.blocks.explanation || '',
+          example:     dbResult.blocks.example     || '',
+          formula:     dbResult.blocks.formula     || undefined,
+          flabel:      dbResult.blocks.flabel      || undefined,
         }),
-        // 1.2s soft timeout — Urdu is optional, don't hold the response
         new Promise<string>((resolve) => setTimeout(() => resolve(''), 1_200)),
       ]);
       urduSummary = generated || null;
-      console.log('[agent] urdu-summary length:', urduSummary?.length ?? 0);
+      console.log(`[agent] urdu-tts: generated (${urduSummary?.length ?? 0} chars)`);
     } catch (err) {
-      audioError = err instanceof Error ? err.message : 'Urdu summary generation failed';
-      console.warn('[agent] urdu-summary error (non-fatal):', audioError);
+      audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
+      console.warn('[agent] urdu-tts error (non-fatal):', audioError);
     }
   }
 
-  // ── Step 6: Attach board reference metadata ─────────────────────────────────
+  // ── Step 7: Attach board reference metadata ──────────────────────────────────
   Object.assign(answer, inferBoardRef(question, chapter));
-  if (dbResult?.page != null) answer.refPageNo = String(dbResult.page);
+  if (dbResult.page != null) answer.refPageNo = String(dbResult.page);
 
-  // ── Step 7: Persist to cache (fire-and-forget) ──────────────────────────────
+  // ── Step 8: Persist to cache (fire-and-forget) ───────────────────────────────
   console.log('[agent] step=save-cache');
   const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
 
@@ -266,24 +268,24 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
     originalQuestion: question,
     chapter,
     chapterNumber,
-    topic:       dbResult?.topic      ?? '',
-    answerJson:  answer               as unknown as StructuredAnswerJson,
-    urduTtsText: urduSummary          ?? '',
-    modelText:   dbResult ? 'db' : model,
+    topic:       dbResult.topic,
+    answerJson:  answer as unknown as StructuredAnswerJson,
+    urduTtsText: urduSummary ?? '',
+    modelText:   'db',
     modelTts:    process.env.OPENAI_TTS_TEXT_MODEL || model,
   }).catch(() => {});
 
-  // ── Step 8: Return result ───────────────────────────────────────────────────
-  console.log(`[agent] done — source=${responseSource}`);
+  // ── Step 9: Return result ────────────────────────────────────────────────────
+  console.log(`[agent] DONE — source=db topic="${dbResult.topic}"`);
   return {
     answer,
     urduSummary,
     audioBase64:     null,
     audioError,
-    audioUrl:        null,   // fresh answers never have a cached audio URL yet
-    cacheId:         null,   // no UUID yet (row just saved — mode=audio will look it up by question)
+    audioUrl:        null,
+    cacheId:         null,
     cacheHit:        false,
     cacheSimilarity: 0,
-    responseSource,
+    responseSource:  'db',
   };
 }

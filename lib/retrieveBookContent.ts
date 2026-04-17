@@ -3,17 +3,20 @@
  * -------------------
  * PIPELINE STEP 2: User Question → DB (book content)
  *
- * Retrieves ONLY the content block(s) that match the question type.
- * Never returns unrelated topic content.
- * Never fallbacks to full chapter dumps.
+ * STRICT DATABASE MODE — queries ONLY the unified `topics` table.
+ * No AI generation. No fallback. No content mixing.
  *
- * Maps question types to real Supabase tables:
- *   definition  → concepts      (term, definition)
- *   explanation → key_points    (text)
- *   formula     → formulas      (name, formula, description)
- *   example     → examples      (question, solution, answer, page_number)
- *   numerical   → examples + numerical_questions
- *   general     → one block from each table for the same matched topic
+ * Match strategy (tried in order):
+ *   1. topic_title ILIKE '%term%'      — title must contain the search term
+ *   2. keywords array contains term    — exact keyword array match
+ *
+ * Strategy 3 (definition ILIKE) is intentionally removed.
+ * It caused false positives: a Stoichiometry row whose definition
+ * mentions "mole" would match a query about "mole concept", returning
+ * the wrong topic. Title/keyword matching is strict and correct.
+ *
+ * If no topic matches → returns EMPTY_RESULT (found: false).
+ * The caller (tutorAgent) must NOT fall back to AI on a miss.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -22,28 +25,29 @@ import type { QuestionType } from './classifyQuestionType';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface RetrievedBlocks {
-  definition: string;
-  explanation: string;
-  formula: string;
-  flabel: string;
-  example: string;
+  definition:   string;
+  explanation:  string;
+  formula:      string;
+  flabel:       string;
+  example:      string;
+  urduTtsText?: string;   // pre-stored Urdu TTS text from topics table
 }
 
 export interface RetrievalResult {
-  found: boolean;
-  chapter: string;
+  found:         boolean;
+  chapter:       string;
   chapterNumber: number | null;
-  topic: string;
-  page: number | null;
-  blocks: RetrievedBlocks;
+  topic:         string;
+  page:          number | null;
+  blocks:        RetrievedBlocks;
 }
 
 const EMPTY_RESULT: RetrievalResult = {
-  found: false,
-  chapter: '',
+  found:         false,
+  chapter:       '',
   chapterNumber: null,
-  topic: '',
-  page: null,
+  topic:         '',
+  page:          null,
   blocks: { definition: '', explanation: '', formula: '', flabel: '', example: '' },
 };
 
@@ -57,36 +61,55 @@ function getClient() {
   return createClient(url, key);
 }
 
+// ── Topic row type (new schema) ───────────────────────────────────────────────
+
+interface TopicRow {
+  id:             string;
+  chapter_number: number;
+  chapter_title:  string;
+  topic_code:     string;
+  topic_title:    string;
+  page:           number | null;
+  definition:     string | null;
+  explanation:    string | null;
+  example:        string | null;
+  formula:        string | null;
+  urdu_tts_text:  string | null;
+  keywords:       string[] | null;
+}
+
+const SELECT_COLS = 'id,chapter_number,chapter_title,topic_code,topic_title,page,definition,explanation,example,formula,urdu_tts_text,keywords';
+
 // ── Keyword extraction ────────────────────────────────────────────────────────
 
 const CHEMISTRY_TERM_MAP: Record<string, string> = {
-  'mole': 'mole',
-  'mol': 'mole',
-  'moles': 'mole',
-  'avogadro': 'avogadro',
-  'avagadro': 'avogadro',
-  'atomic mass': 'atomic mass',
-  'atomic weight': 'atomic mass',
-  'molecular mass': 'molecular mass',
-  'molecular weight': 'molecular mass',
-  'formula mass': 'formula mass',
-  'molar mass': 'molar mass',
-  'gram atom': 'gram atom',
-  'gram-atom': 'gram atom',
-  'stoichiometry': 'stoichiometry',
-  'stoichiometric': 'stoichiometry',
-  'limiting reagent': 'limiting reagent',
-  'limiting reactant': 'limiting reagent',
-  'excess reagent': 'excess reagent',
-  'excess reactant': 'excess reagent',
-  'percentage composition': 'percentage composition',
-  'percent composition': 'percentage composition',
-  'theoretical yield': 'theoretical yield',
-  'actual yield': 'actual yield',
-  'percent yield': 'percent yield',
-  'percentage yield': 'percent yield',
-  'stp': 'STP',
-  'molar volume': 'molar volume',
+  'mole':                  'mole',
+  'mol':                   'mole',
+  'moles':                 'mole',
+  'avogadro':              'avogadro',
+  'avagadro':              'avogadro',
+  'atomic mass':           'atomic mass',
+  'atomic weight':         'atomic mass',
+  'molecular mass':        'molecular mass',
+  'molecular weight':      'molecular mass',
+  'formula mass':          'formula mass',
+  'molar mass':            'molar mass',
+  'gram atom':             'gram atom',
+  'gram-atom':             'gram atom',
+  'stoichiometry':         'stoichiometry',
+  'stoichiometric':        'stoichiometry',
+  'limiting reagent':      'limiting reagent',
+  'limiting reactant':     'limiting reagent',
+  'excess reagent':        'excess reagent',
+  'excess reactant':       'excess reagent',
+  'percentage composition':'percentage composition',
+  'percent composition':   'percentage composition',
+  'theoretical yield':     'theoretical yield',
+  'actual yield':          'actual yield',
+  'percent yield':         'percent yield',
+  'percentage yield':      'percent yield',
+  'stp':                   'STP',
+  'molar volume':          'molar volume',
 };
 
 function extractSearchTerms(question: string): string[] {
@@ -101,7 +124,7 @@ function extractSearchTerms(question: string): string[] {
     }
   }
 
-  // 2. Add raw tokens as fallback (only if no chemistry term matched)
+  // 2. Raw token fallback — only if no chemistry term matched
   if (found.length === 0) {
     lower
       .replace(/[^a-z0-9 ]/g, ' ')
@@ -113,270 +136,138 @@ function extractSearchTerms(question: string): string[] {
   return [...new Set(found)];
 }
 
-// ── Chapter lookup ────────────────────────────────────────────────────────────
+// ── Core topic lookup — STRICT title/keyword matching only ────────────────────
 
-async function getChapterById(unitNumber: number) {
-  const db = getClient();
-  const { data } = await db
-    .from('chapters')
-    .select('id, unit_number, title, book_pages')
-    .eq('unit_number', unitNumber)
-    .single();
-  return data ?? null;
-}
-
-// ── Per-type retrieval helpers ────────────────────────────────────────────────
-
-async function fetchDefinition(
-  chapterId: string,
+/**
+ * Finds the best matching topic row for the given search terms.
+ *
+ * STRICT MODE — only two strategies:
+ *   1. topic_title ILIKE '%term%'   — the topic title must contain the term
+ *   2. keywords @> [term]           — the term must be an exact keyword on the row
+ *
+ * Strategy 3 (definition ILIKE) is REMOVED because it caused false positives:
+ * e.g. the Stoichiometry topic mentions "mole" in its definition, so querying
+ * "mole concept" would match Stoichiometry — completely wrong behaviour.
+ */
+async function fetchTopicByTerms(
+  chapterNumber: number,
   terms: string[],
-): Promise<{ term: string; definition: string } | null> {
+): Promise<TopicRow | null> {
   const db = getClient();
-  // Try each keyword — return the first exact or partial match
-  for (const term of terms) {
-    const { data } = await db
-      .from('concepts')
-      .select('term, definition')
-      .eq('chapter_id', chapterId)
-      .ilike('term', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  // Fallback: search inside definition text
-  for (const term of terms) {
-    const { data } = await db
-      .from('concepts')
-      .select('term, definition')
-      .eq('chapter_id', chapterId)
-      .ilike('definition', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  return null;
-}
 
-async function fetchExplanation(
-  chapterId: string,
-  terms: string[],
-): Promise<string | null> {
-  const db = getClient();
-  const seen = new Set<string>();
-  const rows: string[] = [];
-
-  // Primary: key_points table
-  for (const term of terms) {
-    const { data } = await db
-      .from('key_points')
-      .select('text')
-      .eq('chapter_id', chapterId)
-      .ilike('text', `%${term}%`)
-      .order('point_number', { ascending: true })
-      .limit(5);
-    for (const row of data ?? []) {
-      const t = String(row.text ?? '').trim();
-      if (t && !seen.has(t)) { seen.add(t); rows.push(t); }
-    }
-  }
-  if (rows.length) return rows.join('\n');
-
-  // Fallback: topics.content — our chunk upload stores explanation here
+  // Strategy 1: topic_title ILIKE match
   for (const term of terms) {
     const { data } = await db
       .from('topics')
-      .select('content')
-      .eq('chapter_id', chapterId)
-      .ilike('title', `%${term}%`)
-      .not('content', 'is', null)
+      .select(SELECT_COLS)
+      .eq('chapter_number', chapterNumber)
+      .ilike('topic_title', `%${term}%`)
       .limit(1);
-    const content = String(data?.[0]?.content ?? '').trim();
-    if (content) return content;
+
+    if (data?.[0]) {
+      console.log(`[retrieveBookContent] MATCH via topic_title — term="${term}" matched topic="${(data[0] as TopicRow).topic_title}"`);
+      return data[0] as TopicRow;
+    }
   }
 
+  // Strategy 2: keywords array exact match
+  for (const term of terms) {
+    const { data } = await db
+      .from('topics')
+      .select(SELECT_COLS)
+      .eq('chapter_number', chapterNumber)
+      .contains('keywords', [term])
+      .limit(1);
+
+    if (data?.[0]) {
+      console.log(`[retrieveBookContent] MATCH via keywords — term="${term}" matched topic="${(data[0] as TopicRow).topic_title}"`);
+      return data[0] as TopicRow;
+    }
+  }
+
+  // No match in title or keywords — do NOT fall back to definition search
+  console.log(`[retrieveBookContent] NO MATCH — terms=${JSON.stringify(terms)} chapter=${chapterNumber}`);
   return null;
 }
 
-async function fetchFormula(
-  chapterId: string,
-  terms: string[],
-): Promise<{ name: string; formula: string; description: string } | null> {
-  const db = getClient();
-  for (const term of terms) {
-    // Search formula name
-    const { data: byName } = await db
-      .from('formulas')
-      .select('name, formula, description')
-      .eq('chapter_id', chapterId)
-      .ilike('name', `%${term}%`)
-      .limit(1);
-    if (byName?.[0]) return byName[0];
+/** Maps a raw topic row to RetrievedBlocks. Zero transformation — DB values only. */
+function topicToBlocks(row: TopicRow): RetrievedBlocks {
+  const formula = (row.formula ?? '').trim();
+  const flabel  = formula ? row.topic_title.toUpperCase() : '';
 
-    // Search formula expression
-    const { data: byFormula } = await db
-      .from('formulas')
-      .select('name, formula, description')
-      .eq('chapter_id', chapterId)
-      .ilike('formula', `%${term}%`)
-      .limit(1);
-    if (byFormula?.[0]) return byFormula[0];
-  }
-  return null;
-}
-
-async function fetchExample(
-  chapterId: string,
-  terms: string[],
-): Promise<{ question: string; solution: string; answer: string; page_number: number } | null> {
-  const db = getClient();
-  for (const term of terms) {
-    const { data } = await db
-      .from('examples')
-      .select('question, solution, answer, page_number')
-      .eq('chapter_id', chapterId)
-      .ilike('question', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  // Fallback: search solution text
-  for (const term of terms) {
-    const { data } = await db
-      .from('examples')
-      .select('question, solution, answer, page_number')
-      .eq('chapter_id', chapterId)
-      .ilike('solution', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  return null;
-}
-
-async function fetchNumerical(
-  chapterId: string,
-  terms: string[],
-): Promise<{ question: string; answer: string; page_number: number | null } | null> {
-  const db = getClient();
-  // First try worked examples (they have page numbers)
-  const ex = await fetchExample(chapterId, terms);
-  if (ex) return { question: ex.question, answer: `${ex.solution} Answer: ${ex.answer}`, page_number: ex.page_number };
-
-  // Then try numerical_questions table
-  for (const term of terms) {
-    const { data } = await db
-      .from('numerical_questions')
-      .select('question, answer')
-      .eq('chapter_id', chapterId)
-      .ilike('question', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return { question: data[0].question, answer: data[0].answer, page_number: null };
-  }
-  return null;
+  return {
+    definition:  (row.definition    ?? '').trim(),
+    explanation: (row.explanation   ?? '').trim(),
+    formula,
+    flabel,
+    example:     (row.example       ?? '').trim(),
+    urduTtsText: (row.urdu_tts_text ?? '').trim() || undefined,
+  };
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
- * Retrieves only the content block(s) relevant to the question type.
+ * Retrieves the content block(s) for the given question.
+ *
+ * STRICT DATABASE MODE:
+ * - Only queries `topics` table (title + keyword match)
+ * - Returns EMPTY_RESULT (found: false) when no match — never returns partial data
+ * - Caller must treat found=false as "no answer available" and NOT invoke AI
  *
  * @param question      - Raw student question string
  * @param questionType  - Output of classifyQuestionType()
- * @param chapterNumber - 1-based unit number (e.g. 1 for Stoichiometry)
+ * @param chapterNumber - 1-based chapter number
  */
 export async function retrieveBookContent(
-  question: string,
-  questionType: QuestionType,
+  question:      string,
+  questionType:  QuestionType,
   chapterNumber: number,
 ): Promise<RetrievalResult> {
-  if (!chapterNumber || chapterNumber <= 0) return { ...EMPTY_RESULT };
-
-  const chapter = await getChapterById(chapterNumber);
-  if (!chapter) return { ...EMPTY_RESULT };
+  if (!chapterNumber || chapterNumber <= 0) {
+    console.log(`[retrieveBookContent] SKIP — no chapter number`);
+    return { ...EMPTY_RESULT };
+  }
 
   const terms = extractSearchTerms(question);
-  if (terms.length === 0) return { ...EMPTY_RESULT };
-
-  const chId = chapter.id;
-  const chTitle = `Unit ${chapter.unit_number} — ${chapter.title}`;
-
-  const blocks: RetrievedBlocks = {
-    definition: '',
-    explanation: '',
-    formula: '',
-    flabel: '',
-    example: '',
-  };
-
-  let topic = '';
-  let page: number | null = null;
-
-  // ── Retrieve by question type (strict — no cross-type mixing) ──────────────
-
-  if (questionType === 'definition') {
-    const def = await fetchDefinition(chId, terms);
-    if (!def) return { ...EMPTY_RESULT };
-    blocks.definition = def.definition;
-    topic = def.term;
+  if (terms.length === 0) {
+    console.log(`[retrieveBookContent] SKIP — could not extract search terms from: "${question}"`);
+    return { ...EMPTY_RESULT };
   }
 
-  else if (questionType === 'explanation') {
-    const exp = await fetchExplanation(chId, terms);
-    if (!exp) return { ...EMPTY_RESULT };
-    blocks.explanation = exp;
-    topic = terms[0] ?? '';
-  }
+  console.log(`[retrieveBookContent] query="${question.slice(0, 80)}" terms=${JSON.stringify(terms)} type=${questionType} chapter=${chapterNumber}`);
 
-  else if (questionType === 'formula') {
-    const frm = await fetchFormula(chId, terms);
-    if (!frm) return { ...EMPTY_RESULT };
-    blocks.formula = frm.formula;
-    blocks.flabel = frm.name.toUpperCase();
-    topic = frm.name;
-  }
+  const row = await fetchTopicByTerms(chapterNumber, terms);
+  if (!row) return { ...EMPTY_RESULT };
 
-  else if (questionType === 'example') {
-    const ex = await fetchExample(chId, terms);
-    if (!ex) return { ...EMPTY_RESULT };
-    blocks.example = `${ex.question} → ${ex.answer}`;
-    page = ex.page_number ?? null;
-    topic = terms[0] ?? '';
-  }
+  const blocks = topicToBlocks(row);
 
-  else if (questionType === 'numerical') {
-    const num = await fetchNumerical(chId, terms);
-    if (!num) return { ...EMPTY_RESULT };
-    blocks.example = `${num.question} → ${num.answer}`;
-    page = num.page_number ?? null;
-    topic = terms[0] ?? '';
-  }
-
-  else {
-    // general — retrieve one block of each type from the same topic
-    const [def, exp, frm, ex] = await Promise.all([
-      fetchDefinition(chId, terms),
-      fetchExplanation(chId, terms),
-      fetchFormula(chId, terms),
-      fetchExample(chId, terms),
-    ]);
-
-    if (!def && !exp && !frm && !ex) return { ...EMPTY_RESULT };
-
-    if (def) { blocks.definition = def.definition; topic = def.term; }
-    if (exp) blocks.explanation = exp;
-    if (frm) { blocks.formula = frm.formula; blocks.flabel = frm.name.toUpperCase(); }
-    if (ex)  { blocks.example = `${ex.question} → ${ex.answer}`; page = ex.page_number ?? null; }
-
-    if (!topic) topic = terms[0] ?? '';
-  }
+  // For strict question types, only return if the relevant block is non-empty
+  if (questionType === 'definition'  && !blocks.definition)  return { ...EMPTY_RESULT };
+  if (questionType === 'explanation' && !blocks.explanation) return { ...EMPTY_RESULT };
+  if (questionType === 'formula'     && !blocks.formula)     return { ...EMPTY_RESULT };
+  if (questionType === 'example'     && !blocks.example)     return { ...EMPTY_RESULT };
+  if (questionType === 'numerical'   && !blocks.example)     return { ...EMPTY_RESULT };
 
   const hasAnyContent =
     blocks.definition || blocks.explanation || blocks.formula || blocks.example;
+  if (!hasAnyContent) {
+    console.log(`[retrieveBookContent] EMPTY FIELDS — topic matched but all content fields are null: "${row.topic_title}"`);
+    return { ...EMPTY_RESULT };
+  }
 
-  if (!hasAnyContent) return { ...EMPTY_RESULT };
+  const chTitle = row.chapter_title
+    ? `Unit ${row.chapter_number} — ${row.chapter_title}`
+    : `Chapter ${row.chapter_number}`;
+
+  console.log(`[retrieveBookContent] FOUND — topic="${row.topic_title}" chapter="${chTitle}" page=${row.page}`);
 
   return {
-    found: true,
-    chapter: chTitle,
-    chapterNumber: chapter.unit_number,
-    topic,
-    page,
+    found:         true,
+    chapter:       chTitle,
+    chapterNumber: row.chapter_number,
+    topic:         row.topic_title,
+    page:          row.page ?? null,
     blocks,
   };
 }

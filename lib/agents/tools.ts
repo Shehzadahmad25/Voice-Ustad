@@ -242,17 +242,21 @@ export async function retrieveContent(
 
 /**
  * Builds a StructuredAnswer directly from DB blocks.
- * No AI call — guarantees book-accurate content with zero hallucination.
+ *
+ * STRICT DATABASE MODE: returns ONLY values stored in the `topics` row.
+ * No text is generated, modified, or supplemented. If a field is empty
+ * in the DB it stays empty here — the frontend handles missing fields.
  */
 export function generateAnswerFromDB(db: RetrievalResult): StructuredAnswer {
-  return repairStructuredAnswer(normalizeStructuredAnswer({
-    definition:  db.blocks.definition  || '',
-    explanation: db.blocks.explanation || '',
-    example:     db.blocks.example     || '',
-    formula:     db.blocks.formula     || '',
-    flabel:      db.blocks.flabel      || '',
+  return {
+    definition:  db.blocks.definition   || '',
+    explanation: db.blocks.explanation  || '',
+    example:     db.blocks.example      || '',
+    formula:     db.blocks.formula      || '',
+    flabel:      db.blocks.flabel       || '',
+    urduTtsText: db.blocks.urduTtsText  || '',
     dur:         30,
-  }));
+  };
 }
 
 // ── Tool: generateStructuredAnswer ────────────────────────────────────────────

@@ -3,12 +3,14 @@
  * --------------------
  * Topic-View mode retrieval — distinct from question-mode retrieval.
  *
- * Fetches ALL content blocks for a topic:
- *   - Definition   → first matching concept
- *   - Explanation  → ALL matching key_points concatenated (full, not one line)
- *   - Formula      → first matching formula
- *   - Example      → first matching worked example
- *   - Page range   → derived from the topics table or examples
+ * Fetches ALL content blocks for a topic from the unified `topics` table
+ * (new schema). No multi-table joins. No concepts / formulas / examples tables.
+ *
+ * Match strategy (tried in order):
+ *   1. topic_title ILIKE '%full title%'
+ *   2. topic_title ILIKE '%term%'        — per extracted term
+ *   3. keywords array contains term
+ *   4. definition ILIKE '%term%'         — full-text fallback
  *
  * Used ONLY when a user clicks a topic from the sidebar or scope modal.
  * Never used for typed questions.
@@ -19,8 +21,8 @@ import { createClient } from '@supabase/supabase-js';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface TopicViewBlocks {
-  definition: string;
-  explanation: string;  // all matching key_points joined into one body
+  definition:  string;
+  explanation: string;
   formula:     string;
   flabel:      string;
   example:     string;
@@ -58,6 +60,25 @@ function getClient() {
   return createClient(url, key);
 }
 
+// ── Topic row type (new schema) ───────────────────────────────────────────────
+
+interface TopicRow {
+  id:             string;
+  chapter_number: number;
+  chapter_title:  string;
+  topic_code:     string;
+  topic_title:    string;
+  page:           number | null;
+  definition:     string | null;
+  explanation:    string | null;
+  example:        string | null;
+  formula:        string | null;
+  urdu_tts_text:  string | null;
+  keywords:       string[] | null;
+}
+
+const SELECT_COLS = 'id,chapter_number,chapter_title,topic_code,topic_title,page,definition,explanation,example,formula,urdu_tts_text,keywords';
+
 // ── Search term extraction ────────────────────────────────────────────────────
 
 const STOP_WORDS = new Set([
@@ -72,165 +93,62 @@ function extractTopicTerms(title: string): string[] {
     .replace(/[^a-z0-9 ]/g, ' ')
     .split(/\s+/)
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
-    .slice(0, 4); // top 4 meaningful words
+    .slice(0, 4);
 }
 
-// ── Chapter lookup ────────────────────────────────────────────────────────────
+// ── Topic row lookup ──────────────────────────────────────────────────────────
 
-async function getChapter(unitNumber: number) {
+async function fetchTopicRow(
+  chapterNumber: number,
+  topicTitle:   string,
+  terms:        string[],
+): Promise<TopicRow | null> {
   const db = getClient();
-  const { data } = await db
-    .from('chapters')
-    .select('id, unit_number, title')
-    .eq('unit_number', unitNumber)
-    .single();
-  return data ?? null;
-}
 
-// ── Per-type fetchers ─────────────────────────────────────────────────────────
-
-async function fetchDefinition(
-  chapterId: string,
-  terms: string[],
-): Promise<{ term: string; definition: string } | null> {
-  const db = getClient();
-  for (const term of terms) {
+  // Strategy 1: exact topic title match
+  {
     const { data } = await db
-      .from('concepts')
-      .select('term, definition')
-      .eq('chapter_id', chapterId)
-      .ilike('term', `%${term}%`)
+      .from('topics')
+      .select(SELECT_COLS)
+      .eq('chapter_number', chapterNumber)
+      .ilike('topic_title', `%${topicTitle}%`)
       .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  // fallback: search inside definition text
-  for (const term of terms) {
-    const { data } = await db
-      .from('concepts')
-      .select('term, definition')
-      .eq('chapter_id', chapterId)
-      .ilike('definition', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  return null;
-}
-
-/**
- * Fetch ALL matching key_points (up to 6) and concatenate as one paragraph.
- * This is the key difference from question-mode, which only returns 1 line.
- */
-async function fetchAllExplanations(
-  chapterId: string,
-  terms: string[],
-): Promise<string> {
-  const db = getClient();
-  const seen = new Set<string>();
-  const rows: string[] = [];
-
-  for (const term of terms) {
-    const { data } = await db
-      .from('key_points')
-      .select('text, point_number')
-      .eq('chapter_id', chapterId)
-      .ilike('text', `%${term}%`)
-      .order('point_number', { ascending: true })
-      .limit(6);
-
-    for (const row of data ?? []) {
-      const t = String(row.text ?? '').trim();
-      if (t && !seen.has(t)) {
-        seen.add(t);
-        rows.push(t);
-      }
-    }
+    if (data?.[0]) return data[0] as TopicRow;
   }
 
-  return rows.join(' ');
-}
-
-async function fetchFormula(
-  chapterId: string,
-  terms: string[],
-): Promise<{ name: string; formula: string } | null> {
-  const db = getClient();
-  for (const term of terms) {
-    const { data } = await db
-      .from('formulas')
-      .select('name, formula')
-      .eq('chapter_id', chapterId)
-      .ilike('name', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  for (const term of terms) {
-    const { data } = await db
-      .from('formulas')
-      .select('name, formula')
-      .eq('chapter_id', chapterId)
-      .ilike('formula', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  return null;
-}
-
-async function fetchExample(
-  chapterId: string,
-  terms: string[],
-): Promise<{ question: string; solution: string; answer: string; page_number: number } | null> {
-  const db = getClient();
-  for (const term of terms) {
-    const { data } = await db
-      .from('examples')
-      .select('question, solution, answer, page_number')
-      .eq('chapter_id', chapterId)
-      .ilike('question', `%${term}%`)
-      .limit(1);
-    if (data?.[0]) return data[0];
-  }
-  return null;
-}
-
-/** Get page range from examples table for the topic terms. */
-async function getPageRange(
-  chapterId: string,
-  terms: string[],
-): Promise<{ page_start: number | null; page_end: number | null }> {
-  const db = getClient();
-  const pages: number[] = [];
-
-  for (const term of terms) {
-    const { data } = await db
-      .from('examples')
-      .select('page_number')
-      .eq('chapter_id', chapterId)
-      .ilike('question', `%${term}%`)
-      .limit(10);
-    for (const row of data ?? []) {
-      if (Number.isFinite(Number(row.page_number))) pages.push(Number(row.page_number));
-    }
-  }
-
-  if (pages.length === 0) return { page_start: null, page_end: null };
-  return { page_start: Math.min(...pages), page_end: Math.max(...pages) };
-}
-
-/** Get topic row from the topics table (for section label and any stored page info). */
-async function getTopicRow(
-  chapterId: string,
-  terms: string[],
-): Promise<{ section: string; title: string; page_start?: number; page_end?: number } | null> {
-  const db = getClient();
+  // Strategy 2: per-term topic_title match
   for (const term of terms) {
     const { data } = await db
       .from('topics')
-      .select('section, title, page_start, page_end')
-      .eq('chapter_id', chapterId)
-      .ilike('title', `%${term}%`)
+      .select(SELECT_COLS)
+      .eq('chapter_number', chapterNumber)
+      .ilike('topic_title', `%${term}%`)
       .limit(1);
-    if (data?.[0]) return data[0];
+    if (data?.[0]) return data[0] as TopicRow;
   }
+
+  // Strategy 3: keywords array overlap
+  for (const term of terms) {
+    const { data } = await db
+      .from('topics')
+      .select(SELECT_COLS)
+      .eq('chapter_number', chapterNumber)
+      .contains('keywords', [term])
+      .limit(1);
+    if (data?.[0]) return data[0] as TopicRow;
+  }
+
+  // Strategy 4: definition full-text fallback
+  for (const term of terms) {
+    const { data } = await db
+      .from('topics')
+      .select(SELECT_COLS)
+      .eq('chapter_number', chapterNumber)
+      .ilike('definition', `%${term}%`)
+      .limit(1);
+    if (data?.[0]) return data[0] as TopicRow;
+  }
+
   return null;
 }
 
@@ -244,57 +162,47 @@ async function getTopicRow(
  * @param chapterNumber - 1-based unit number
  */
 export async function retrieveTopicContent(
-  topicTitle: string,
+  topicTitle:    string,
   chapterNumber: number,
 ): Promise<TopicViewResult> {
   if (!topicTitle || !chapterNumber || chapterNumber <= 0) return { ...EMPTY };
 
-  const chapter = await getChapter(chapterNumber);
-  if (!chapter) return { ...EMPTY };
-
-  const chId    = chapter.id;
-  const chTitle = `Unit ${chapter.unit_number} — ${chapter.title}`;
-  const terms   = extractTopicTerms(topicTitle);
+  const terms = extractTopicTerms(topicTitle);
   if (terms.length === 0) return { ...EMPTY };
 
-  // Fetch everything concurrently
-  const [def, exp, frm, ex, topicRow, pageRange] = await Promise.all([
-    fetchDefinition(chId, terms),
-    fetchAllExplanations(chId, terms),
-    fetchFormula(chId, terms),
-    fetchExample(chId, terms),
-    getTopicRow(chId, terms),
-    getPageRange(chId, terms),
-  ]);
+  const row = await fetchTopicRow(chapterNumber, topicTitle, terms);
+  if (!row) return { ...EMPTY };
 
-  const hasAny = def || exp || frm || ex;
+  const formula = (row.formula ?? '').trim();
+
+  const hasAny =
+    (row.definition ?? '').trim() ||
+    (row.explanation ?? '').trim() ||
+    formula ||
+    (row.example ?? '').trim();
+
   if (!hasAny) return { ...EMPTY };
 
-  // Prefer page range from examples; fall back to topics table columns
-  const page_start =
-    pageRange.page_start ??
-    (topicRow?.page_start ? Number(topicRow.page_start) : null);
-  const page_end =
-    pageRange.page_end ??
-    (topicRow?.page_end ? Number(topicRow.page_end) : null) ??
-    page_start;
+  const chTitle = row.chapter_title
+    ? `Unit ${row.chapter_number} — ${row.chapter_title}`
+    : `Chapter ${row.chapter_number}`;
+
+  const page = row.page ?? null;
 
   return {
     found:         true,
     chapter:       chTitle,
-    chapterNumber: chapter.unit_number,
-    topic:         def?.term || topicRow?.title || topicTitle,
-    section:       topicRow?.section || '',
-    page_start,
-    page_end,
+    chapterNumber: row.chapter_number,
+    topic:         row.topic_title,
+    section:       row.topic_code || '',
+    page_start:    page,
+    page_end:      page,
     blocks: {
-      definition:  def?.definition  ?? '',
-      explanation: exp              ?? '',
-      formula:     frm?.formula     ?? '',
-      flabel:      frm?.name        ? frm.name.toUpperCase() : '',
-      example:     ex
-        ? `${ex.question} → ${ex.answer}` + (ex.solution ? ` (${ex.solution})` : '')
-        : '',
+      definition:  (row.definition  ?? '').trim(),
+      explanation: (row.explanation ?? '').trim(),
+      formula,
+      flabel:      formula ? row.topic_title.toUpperCase() : '',
+      example:     (row.example     ?? '').trim(),
     },
   };
 }
