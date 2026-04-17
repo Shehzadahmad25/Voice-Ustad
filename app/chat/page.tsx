@@ -2170,8 +2170,14 @@ export default function ChatPage() {
       setTimeout(()=>scrollDn(true), 350);
     };
     window.addEventListener('orientationchange', onOrientationChange);
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
     return () => {
       window.removeEventListener('orientationchange', onOrientationChange);
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
     };
   }, []);
 

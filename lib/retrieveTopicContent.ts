@@ -127,12 +127,7 @@ export async function retrieveTopicContent(
   query:         string,
   chapterNumber: number,
 ): Promise<TopicViewResult | null> {
-  console.log(`[retrieveTopicContent] query="${query}" chapter=${chapterNumber}`);
-
-  if (!query?.trim() || !chapterNumber || chapterNumber <= 0) {
-    console.log(`[retrieveTopicContent] SKIP — missing query or chapterNumber`);
-    return null;
-  }
+  if (!query?.trim() || !chapterNumber || chapterNumber <= 0) return null;
 
   const row = await fetchTopicRow(chapterNumber, query.trim());
   if (!row) return null;

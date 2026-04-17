@@ -3,7 +3,7 @@
  * ----------------
  * Provider router for TTS generation.
  *
- * Current: OpenAI TTS primary (model=tts-1-hd, voice=onyx)
+ * Current: OpenAI TTS primary (model=tts-1, voice=nova)
  *
  * AZURE TTS — disabled, keeping for reference.
  * Re-enable by un-commenting the Azure block below and removing the OpenAI block.
@@ -65,7 +65,6 @@ export async function generateSpeech(
   // ── OpenAI TTS — primary ───────────────────────────────────────────────────
   const model = 'tts-1';
   const voice = 'nova';
-  console.log(`[tts] using OpenAI TTS — model=${model} voice=${voice}`);
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('[tts] OPENAI_API_KEY is not set');

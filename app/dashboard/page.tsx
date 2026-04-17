@@ -56,6 +56,12 @@ export default function DashboardPage() {
   const [loading,         setLoading]         = useState(true)
 
   useEffect(() => {
+    document.body.style.overflow = 'auto';
+    document.documentElement.style.overflow = 'auto';
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     const load = async () => {
       try {
         // Try real session first; fall back to mock if auth is bypassed / unavailable

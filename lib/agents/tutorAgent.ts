@@ -132,7 +132,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
 
   // ── Step 0: Debug mode intercept ────────────────────────────────────────────
   if (/^\/debug(\s|$)/i.test(message.trim())) {
-    console.log('[agent] DEBUG MODE triggered');
     const { chapterNumber: debugCh, topicFilter } = parseDebugCommand(message.trim());
     const ch  = debugCh || chapterNumber || 1;
     const dbg = await runDebugMode(ch, topicFilter);
@@ -159,7 +158,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
 
   // ── Step 1: Normalize ───────────────────────────────────────────────────────
   const question = message.trim();
-  console.log(`[agent] START — query="${question.slice(0, 80)}" chapter=${chapterNumber}`);
 
   if (!CACHE_ENABLED) {
     console.log('[cache] DISABLED — development mode');
@@ -167,7 +165,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
 
   // ── Step 2: Cache lookup ────────────────────────────────────────────────────
   if (CACHE_ENABLED) {
-    console.log('[agent] step=cache-lookup');
     const cacheResult = await lookupCache(question, chapterNumber);
 
     if (cacheResult.hit && cacheResult.entry) {
@@ -179,11 +176,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
       const cachedUrdu = entry.urdu_tts_text
         ? (postProcessUrduTts(sanitizeUrduTtsText(entry.urdu_tts_text)) || null)
         : null;
-
-      const matchType = cacheResult.exact
-        ? 'exact'
-        : `semantic(${(cacheResult.similarity * 100).toFixed(0)}%)`;
-      console.log(`[agent] cache-${matchType} hit — returning cached DB answer`);
 
       if (!URDU_TTS_ENABLED && entry.audio_url) {
         console.log('[tts] DISABLED — skipping audio URL from storage also');
@@ -214,17 +206,15 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   }
 
   // ── Step 3: Retrieve from DB ────────────────────────────────────────────────
-  console.log('[agent] step=retrieve — strict title/keyword match only');
   let dbResult: RetrievalResult | null = null;
   try {
     dbResult = await retrieveContent(question, chapterNumber);
-  } catch (err) {
-    console.warn('[agent] retrieve error:', (err as Error).message);
+  } catch {
+    // non-fatal — treated as DB miss below
   }
 
   // ── Step 4: DB miss → hard stop, no AI fallback ─────────────────────────────
   if (!dbResult) {
-    console.log(`[agent] NO MATCH — query="${question.slice(0, 80)}" is not in the database. Returning not-found. No AI fallback.`);
     if (CACHE_ENABLED) {
       logCacheEvent({
         question:      question,
@@ -238,8 +228,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   }
 
   // ── Step 5: Build structured answer from DB blocks ──────────────────────────
-  console.log(`[agent] FOUND — topic="${dbResult.topic}" page=${dbResult.page}`);
-  console.log('[agent] step=answer-from-db — zero AI transformation');
   const answer = generateAnswerFromDB(dbResult);
 
   // ── Step 6: Urdu TTS text ────────────────────────────────────────────────────
@@ -249,7 +237,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   if (!URDU_TTS_ENABLED) {
     console.log('[urdu-tts] DISABLED — enable with URDU_TTS_ENABLED=true');
   } else {
-    console.log('[urdu-tts] DEV MODE — generating fresh, not saving');
     try {
       const generated = await Promise.race([
         generateDevUrduTts(
@@ -260,10 +247,8 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
         new Promise<string>((resolve) => setTimeout(() => resolve(''), 3_000)),
       ]);
       urduSummary = generated ? (sanitizeUrduTtsText(generated) || null) : null;
-      console.log(`[urdu-tts] generated ${urduSummary?.length ?? 0} chars`);
     } catch (err) {
       audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
-      console.warn('[urdu-tts] error (non-fatal):', audioError);
     }
   }
 
@@ -273,7 +258,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
 
   // ── Step 8: Persist to cache (fire-and-forget) ───────────────────────────────
   if (CACHE_ENABLED) {
-    console.log('[agent] step=save-cache');
     const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
 
     logCacheEvent({
@@ -297,7 +281,6 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   }
 
   // ── Step 9: Return result ────────────────────────────────────────────────────
-  console.log(`[agent] DONE — source=db topic="${dbResult.topic}"`);
   return {
     answer,
     urduSummary,

@@ -222,18 +222,12 @@ export async function retrieveContent(
   question:      string,
   chapterNumber: number,
 ): Promise<RetrievalResult | null> {
-  if (!chapterNumber || chapterNumber <= 0) {
-    console.log('[agent:tools] retrieveContent — skipped (no chapter)');
-    return null;
-  }
+  if (!chapterNumber || chapterNumber <= 0) return null;
   try {
     const qType  = classifyQuestionType(question);
-    console.log(`[agent:tools] retrieveContent — type=${qType} chapter=${chapterNumber}`);
     const result = await retrieveBookContent(question, qType, chapterNumber);
-    console.log(`[agent:tools] retrieveContent — found=${result.found} topic="${result.topic}"`);
     return result.found ? result : null;
-  } catch (err) {
-    console.warn('[agent:tools] retrieveContent error:', (err as Error).message);
+  } catch {
     return null;
   }
 }
@@ -277,8 +271,6 @@ export async function generateStructuredAnswer(
 
   const model   = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
   const dbBlock = dbContent?.found ? buildDbContentBlock(dbContent) : '';
-
-  console.log(`[agent:tools] generateStructuredAnswer — model=${model} hasDbBlock=${!!dbBlock}`);
 
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
@@ -341,9 +333,6 @@ export interface UrduSummaryFields {
  * Returns post-processed Urdu text ready to pass to Azure TTS.
  * Returns empty string if the generation fails (Urdu is optional).
  */
-/** Minimum Urdu script length for a full 3-section topic (chars). Warn if below. */
-const MIN_URDU_SCRIPT_CHARS = 300;
-
 /** Returns true when the Urdu text ends with a proper closing sentence. */
 function isUrduScriptComplete(text: string): boolean {
   const t = text.trimEnd();
@@ -392,18 +381,10 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
   const model      = process.env.OPENAI_TTS_TEXT_MODEL || process.env.OPENAI_MODEL || 'gpt-4.1-mini';
   const sourceText = buildTeacherStyleUrduTts(fields);
 
-  console.log(`[agent:tools] generateUrduSummary — model=${model}`);
-
   let content = '';
   try {
-    // First attempt — 750 tokens to cover definition + explanation + example
     content = await callUrduLlm(apiKey, model, sourceText, 750);
-  } catch (err) {
-    if ((err as Error)?.name === 'AbortError') {
-      console.warn('[agent:tools] generateUrduSummary timed out');
-      return '';
-    }
-    console.warn('[agent:tools] generateUrduSummary failed:', (err as Error).message);
+  } catch {
     return '';
   }
 
@@ -411,22 +392,12 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
 
   // Completeness check: if script is cut mid-sentence, retry once with more tokens
   if (!isUrduScriptComplete(content)) {
-    console.warn('[agent:tools] Urdu script incomplete — retrying with 900 tokens');
     try {
       const retry = await callUrduLlm(apiKey, model, sourceText, 900);
-      if (retry && isUrduScriptComplete(retry)) {
-        content = retry;
-      }
+      if (retry && isUrduScriptComplete(retry)) content = retry;
     } catch {
       // keep first attempt
     }
-  }
-
-  // Length warning: a complete 3-section topic should be well over 300 chars
-  if (content.length < MIN_URDU_SCRIPT_CHARS) {
-    console.warn(
-      `[agent:tools] Urdu script short (${content.length} chars) — may be incomplete`,
-    );
   }
 
   return postProcessUrduTts(sanitizeUrduTtsText(content));
@@ -510,18 +481,10 @@ export async function generateDevUrduTts(
         ],
       }),
     });
-    if (!res.ok) {
-      console.warn(`[urdu-tts] OpenAI error ${res.status}`);
-      return '';
-    }
+    if (!res.ok) return '';
     const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
     return String(json?.choices?.[0]?.message?.content ?? '').trim();
-  } catch (err) {
-    if ((err as Error)?.name === 'AbortError') {
-      console.warn('[urdu-tts] generateDevUrduTts timed out');
-    } else {
-      console.warn('[urdu-tts] generateDevUrduTts failed:', (err as Error).message);
-    }
+  } catch {
     return '';
   } finally {
     clearTimeout(timeoutId);
