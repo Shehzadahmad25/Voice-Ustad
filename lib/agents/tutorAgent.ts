@@ -31,7 +31,7 @@ import {
 import {
   retrieveContent,
   generateAnswerFromDB,
-  generateUrduSummary,
+  generateDevUrduTts,
   normalizeStructuredAnswer,
   repairStructuredAnswer,
   sanitizeUrduTtsText,
@@ -75,6 +75,13 @@ export interface TutorAgentResult {
  * Default: OFF — set CACHE_ENABLED=true in .env.local to re-enable at launch.
  */
 const CACHE_ENABLED = process.env.CACHE_ENABLED === 'true';
+
+/**
+ * Urdu TTS save flag.
+ * Default: OFF — generated text is returned to the client but NOT written to DB.
+ * Set SAVE_URDU_TTS=true in .env.local to persist generated text to cache at launch.
+ */
+const SAVE_URDU_TTS = process.env.SAVE_URDU_TTS === 'true';
 
 // Set TTS_FORCE_REFRESH=true in .env.local to suppress cached audio URLs
 // so the frontend always calls mode=audio for fresh TTS during voice testing.
@@ -230,36 +237,27 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   console.log('[agent] step=answer-from-db — zero AI transformation');
   const answer = generateAnswerFromDB(dbResult);
 
-  // ── Step 6: Urdu TTS text ────────────────────────────────────────────────────
-  console.log('[agent] step=urdu-tts');
+  // ── Step 6: Urdu TTS text — DEV MODE: always generate fresh ─────────────────
+  // DB urdu_tts_text field is intentionally ignored — fresh generation every time.
+  // Set SAVE_URDU_TTS=true to persist to cache at launch.
+  console.log('[urdu-tts] DEV MODE — generating fresh, not saving');
   let urduSummary: string | null = null;
   let audioError:  string | null = null;
 
-  // Priority 1: use pre-stored urdu_tts_text from DB (zero AI calls)
-  if (answer.urduTtsText) {
-    urduSummary = postProcessUrduTts(sanitizeUrduTtsText(answer.urduTtsText)) || null;
-    console.log(`[agent] urdu-tts: using DB field (${urduSummary?.length ?? 0} chars)`);
-  }
-
-  // Priority 2: generate from DB content fields (only if DB field is empty)
-  if (!urduSummary) {
-    try {
-      const generated = await Promise.race([
-        generateUrduSummary({
-          definition:  dbResult.blocks.definition  || '',
-          explanation: dbResult.blocks.explanation || '',
-          example:     dbResult.blocks.example     || '',
-          formula:     dbResult.blocks.formula     || undefined,
-          flabel:      dbResult.blocks.flabel      || undefined,
-        }),
-        new Promise<string>((resolve) => setTimeout(() => resolve(''), 1_200)),
-      ]);
-      urduSummary = generated || null;
-      console.log(`[agent] urdu-tts: generated (${urduSummary?.length ?? 0} chars)`);
-    } catch (err) {
-      audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
-      console.warn('[agent] urdu-tts error (non-fatal):', audioError);
-    }
+  try {
+    const generated = await Promise.race([
+      generateDevUrduTts(
+        dbResult.topic,
+        dbResult.blocks.definition  || '',
+        dbResult.blocks.explanation || '',
+      ),
+      new Promise<string>((resolve) => setTimeout(() => resolve(''), 3_000)),
+    ]);
+    urduSummary = generated ? (sanitizeUrduTtsText(generated) || null) : null;
+    console.log(`[urdu-tts] generated ${urduSummary?.length ?? 0} chars`);
+  } catch (err) {
+    audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
+    console.warn('[urdu-tts] error (non-fatal):', audioError);
   }
 
   // ── Step 7: Attach board reference metadata ──────────────────────────────────
@@ -285,7 +283,7 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
       chapterNumber,
       topic:       dbResult.topic,
       answerJson:  answer as unknown as StructuredAnswerJson,
-      urduTtsText: urduSummary ?? '',
+      urduTtsText: SAVE_URDU_TTS ? (urduSummary ?? '') : '',
       modelText:   'db',
       modelTts:    process.env.OPENAI_TTS_TEXT_MODEL || model,
     }).catch(() => {});

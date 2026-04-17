@@ -431,3 +431,85 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
 
   return postProcessUrduTts(sanitizeUrduTtsText(content));
 }
+
+// ── Tool: generateDevUrduTts ──────────────────────────────────────────────────
+
+/**
+ * DEV MODE: generates fresh Roman Urdu TTS text for every request.
+ *
+ * Uses a simple, strict Roman Urdu prompt — short sentences, 6–8 lines,
+ * classroom teacher style. Ignores whatever is stored in urdu_tts_text.
+ *
+ * Input: topic title + definition + explanation (no example/formula).
+ * Output: Raw Roman Urdu string. Caller applies sanitizeUrduTtsText.
+ * Never throws — returns '' on any failure.
+ *
+ * Controlled by SAVE_URDU_TTS env var in tutorAgent.ts.
+ */
+
+const DEV_URDU_SYSTEM_PROMPT = `\
+You are a Pakistani Chemistry teacher explaining to KPK Board students in Urdu.
+Write a natural, teacher-style Urdu explanation for TTS (text-to-speech).
+
+STRICT RULES:
+- Write in Roman Urdu (not Arabic script)
+- Use short sentences (max 15 words each)
+- Sound like a real classroom teacher, not a translation
+- Use simple everyday Urdu words
+- Keep English only for chemistry terms (stoichiometry, reactants, products, etc.)
+- Do NOT translate chemistry terms — keep them in English
+- Total length: 6 to 8 sentences maximum
+- Start with: "Aaj hum [topic name] parhein gay."`;
+
+export async function generateDevUrduTts(
+  topicTitle:  string,
+  definition:  string,
+  explanation: string,
+): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return '';
+
+  const model       = process.env.OPENAI_TTS_TEXT_MODEL || process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+  const userContent = [
+    `Topic: ${topicTitle.trim()}`,
+    definition.trim()  ? `Definition: ${definition.trim()}`   : '',
+    explanation.trim() ? `Explanation: ${explanation.trim()}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  if (!userContent.trim()) return '';
+
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      signal:  controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature:           0.4,
+        max_completion_tokens: 400,
+        messages: [
+          { role: 'system', content: DEV_URDU_SYSTEM_PROMPT },
+          { role: 'user',   content: userContent },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`[urdu-tts] OpenAI error ${res.status}`);
+      return '';
+    }
+    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+    return String(json?.choices?.[0]?.message?.content ?? '').trim();
+  } catch (err) {
+    if ((err as Error)?.name === 'AbortError') {
+      console.warn('[urdu-tts] generateDevUrduTts timed out');
+    } else {
+      console.warn('[urdu-tts] generateDevUrduTts failed:', (err as Error).message);
+    }
+    return '';
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
