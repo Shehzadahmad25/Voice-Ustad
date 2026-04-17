@@ -27,7 +27,7 @@ import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
 
 // ── Voice constants & map ─────────────────────────────────────────────────────
 
-export const AZURE_VOICE_NAME = process.env.AZURE_URDU_VOICE || 'ur-PK-UzmaNeural';
+export const AZURE_VOICE_NAME = process.env.AZURE_URDU_VOICE || 'ur-PK-AsadNeural';
 
 export const VOICE_MAP: Record<string, string> = {
   asad:    'ur-PK-AsadNeural',
