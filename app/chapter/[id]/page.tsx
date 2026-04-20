@@ -55,12 +55,12 @@ function SectionBlock({ label, text, color }: { label: string; text: string; col
       borderTop: '1px solid rgba(255,255,255,0.05)',
     }}>
       <SectionLabel label={label} color={color} />
-      <p style={{
+      <div style={{
         fontSize: '14px', color: '#cbd5e1', lineHeight: '1.8',
-        margin: 0, whiteSpace: 'pre-line',
+        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
       }}>
         {text}
-      </p>
+      </div>
     </div>
   )
 }
@@ -80,12 +80,12 @@ function FormulaBlock({ text }: { text: string }) {
         border: '1px solid rgba(167,139,250,0.15)',
         borderRadius: '8px', padding: '14px 16px',
       }}>
-        <p style={{
+        <div style={{
           fontSize: '13.5px', color: '#e2d9ff', lineHeight: '1.9',
-          margin: 0, fontFamily: 'monospace', whiteSpace: 'pre-line',
+          fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         }}>
           {text}
-        </p>
+        </div>
       </div>
     </div>
   )
@@ -155,12 +155,12 @@ function ExampleBlock({ text, topicCode }: { text: string; topicCode: string }) 
       {isElementsTable ? (
         <ElementsTable raw={text} />
       ) : (
-        <p style={{
+        <div style={{
           fontSize: '14px', color: '#cbd5e1', lineHeight: '1.8',
-          margin: 0, whiteSpace: 'pre-line',
+          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         }}>
           {text}
-        </p>
+        </div>
       )}
     </div>
   )
@@ -268,7 +268,13 @@ export default function ChapterPage() {
 
         if (dbError) throw dbError
 
-        const rows = (data ?? []) as Topic[]
+        const parseCode = (code: string) => {
+          const parts = code.replace('MCQ', '999').split('.')
+          return parseFloat(parts[0]) * 1000 + parseFloat(parts[1] || '0')
+        }
+        const rows = ((data ?? []) as Topic[]).sort(
+          (a, b) => parseCode(a.topic_code) - parseCode(b.topic_code)
+        )
         setTopics(rows)
         if (rows.length > 0) setChapterTitle(rows[0].chapter_title)
       } catch (e: unknown) {
