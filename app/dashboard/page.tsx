@@ -237,6 +237,49 @@ export default function DashboardPage() {
             ))}
           </div>
 
+          {/* CHAPTERS QUICK ACCESS */}
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+              Textbook Chapters
+            </p>
+            <button
+              onClick={() => router.push('/chapter/1')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '14px',
+                width: '100%', textAlign: 'left',
+                background: '#141929',
+                border: '1px solid rgba(34,197,94,0.2)',
+                borderRadius: '14px', padding: '16px 20px',
+                cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'rgba(34,197,94,0.45)'
+                e.currentTarget.style.background = '#172034'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'rgba(34,197,94,0.2)'
+                e.currentTarget.style.background = '#141929'
+              }}
+            >
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '11px', flexShrink: 0,
+                background: 'rgba(34,197,94,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '20px',
+              }}>🧪</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: '14px', fontWeight: '700', color: '#f1f5f9', margin: '0 0 3px' }}>
+                  Chapter 1: Stoichiometry
+                </p>
+                <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                  Chemistry · Class 11 · All topics in order
+                </p>
+              </div>
+              <span style={{ color: '#22c55e', fontSize: '16px', flexShrink: 0 }}>→</span>
+            </button>
+          </div>
+
           {/* TWO COL */}
           <div className="dash-twocol" style={{
             display: 'grid', gridTemplateColumns: '1.15fr 0.85fr',
