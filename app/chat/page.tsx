@@ -393,7 +393,6 @@ function buildSb(filter=''){
       <div class="sb-ch${c.on?' on':''}" role="button" tabindex="0"
             aria-label="Chapter ${c.n}: ${c.t}${hasSaved?' - has saved history':''}"
             onclick="selCh(${i})" onkeydown="if(event.key==='Enter')selCh(${i})">
-        <div class="sb-ch-dot"></div>
         <div class="sb-ch-label">${esc(c.t)}</div>
         <div class="sb-ch-n">${c.n}</div>
         <button class="sb-ch-expand" onclick="event.stopPropagation();toggleChapterPanel(${i},${c.id||0})" aria-label="Show topics for chapter ${c.n}" title="Topics &amp; resources">&#9656;</button>
@@ -2152,6 +2151,14 @@ export default function ChatPage() {
 
     return 'Trial period ended';
   })();
+
+  useEffect(() => {
+    if (user?.id) {
+      console.log('[chat-history] user:', user.id, 'loading history...');
+      _currentUserId = user.id;
+      dbLoadHistory();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     _sbClient = supabaseRef.current;
