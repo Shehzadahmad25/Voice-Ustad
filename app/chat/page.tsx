@@ -2135,6 +2135,7 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [scopeTopics, setScopeTopics] = useState<string[]>([]);
+  const [sidebarTopics, setSidebarTopics] = useState<{ topic_code: string; topic_title: string; page: number | null }[]>([]);
 
   const displayName =
     profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Student';
@@ -2204,6 +2205,25 @@ export default function ChatPage() {
       trial: trialStatus,
     });
   }, [displayName, email, focus, trialStatus]);
+
+  useEffect(() => {
+    const sb = supabaseRef.current;
+    if (!sb) return;
+    const parseCode = (code: string) => {
+      const parts = code.replace('MCQ', '999').split('.');
+      return parseFloat(parts[0]) * 1000 + parseFloat(parts[1] || '0');
+    };
+    sb.from('topics')
+      .select('topic_code, topic_title, page')
+      .eq('chapter_number', 1)
+      .not('topic_code', 'like', '%.MCQ%')
+      .order('topic_code', { ascending: true })
+      .then(({ data }) => {
+        if (!data) return;
+        const sorted = [...data].sort((a, b) => parseCode(a.topic_code) - parseCode(b.topic_code));
+        setSidebarTopics(sorted);
+      });
+  }, []);
 
   return (
     <div className="app" style={{ paddingTop: '62px' }}>
@@ -2325,6 +2345,28 @@ export default function ChatPage() {
         </div>
 
         <div className="sb-list" id="sbList"></div>
+
+        {sidebarTopics.length > 0 && (
+          <div className="sb-topics-wrap">
+            <div className="sb-sec">Topics</div>
+            <div className="sb-topics-list">
+              {sidebarTopics.map(topic => (
+                <button
+                  key={topic.topic_code}
+                  className="sb-topic-item"
+                  onClick={() => viewTopic(topic.topic_title, 1)}
+                  title={topic.topic_title}
+                >
+                  <span className="sb-topic-code">{topic.topic_code}</span>
+                  <span className="sb-topic-title">{topic.topic_title}</span>
+                  {topic.page != null && (
+                    <span className="sb-topic-page">p.{topic.page}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="sb-foot">
           {process.env.NODE_ENV === 'development' && (

@@ -325,6 +325,34 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .sb-ch-expand:hover { color: var(--brand); background: var(--brand-lt); }
 .sb-ch-expand.open { transform: rotate(90deg); color: var(--brand); }
 .sb-ch-panel { overflow: hidden; }
+
+/* ── Sidebar topic list ─────────────────────────────────────────────────── */
+.sb-topics-wrap { flex-shrink: 0; }
+.sb-topics-list {
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 0 4px;
+}
+.sb-topic-item {
+  display: flex; align-items: baseline; gap: 7px;
+  width: 100%; text-align: left;
+  padding: 6px 12px; border-radius: 7px;
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; transition: background .12s;
+  color: var(--t2);
+}
+.sb-topic-item:hover { background: rgba(255,255,255,.04); color: var(--t1); }
+.sb-topic-code {
+  font-size: .68rem; font-weight: 700; color: var(--brand);
+  flex-shrink: 0; font-variant-numeric: tabular-nums;
+}
+.sb-topic-title {
+  font-size: .75rem; line-height: 1.35; flex: 1; word-break: break-word;
+}
+.sb-topic-page {
+  font-size: .65rem; color: var(--t3); flex-shrink: 0; margin-left: auto;
+}
 .sb-panel {
   background: rgba(255,255,255,.02); border: 1px solid var(--border);
   border-radius: 8px; margin: 2px 0 5px; overflow: hidden;
