@@ -395,16 +395,12 @@ function buildSb(filter=''){
             onclick="selCh(${i})" onkeydown="if(event.key==='Enter')selCh(${i})">
         <div class="sb-ch-dot"></div>
         <div class="sb-ch-label">${esc(c.t)}</div>
-        <div class="sb-ch-n">${c.n}${hasSaved?'<span style="color:var(--brand);margin-left:3px">·</span>':''}</div>
+        <div class="sb-ch-n">${c.n}</div>
         <button class="sb-ch-expand" onclick="event.stopPropagation();toggleChapterPanel(${i},${c.id||0})" aria-label="Show topics for chapter ${c.n}" title="Topics &amp; resources">&#9656;</button>
       </div>
       <div class="sb-ch-panel" id="sb-ch-panel-${i}"></div>
     </div>`;
   });
-  h = h.replace(
-    /<span style="color:var\(--brand\);margin-left:3px">.*?<\/span>/g,
-    '<span style="color:var(--brand);margin-left:3px" aria-label="Saved history">•</span>',
-  );
   if(!h) h=`<div style="padding:16px;text-align:center;font-size:.78rem;color:var(--t3)">No chapters found</div>`;
   const sbList = document.getElementById('sbList');
   if (sbList) sbList.innerHTML = h;
@@ -1819,7 +1815,11 @@ function formatTime(isoStr: string): string {
 }
 
 async function dbLoadHistory() {
-  if (!_sbClient || !_currentUserId) return;
+  console.log('[sidebar] dbLoadHistory called — _currentUserId:', _currentUserId, '_sbClient:', !!_sbClient);
+  if (!_sbClient || !_currentUserId) {
+    console.warn('[sidebar] skipping dbLoadHistory — missing client or userId');
+    return;
+  }
   try {
     const { data, error } = await _sbClient
       .from('chat_sessions')
@@ -1827,6 +1827,8 @@ async function dbLoadHistory() {
       .eq('user_id', _currentUserId)
       .order('updated_at', { ascending: false })
       .limit(50);
+    console.log('[sidebar] chats loaded:', data?.length);
+    console.log('[sidebar] chats error:', error);
     if (error) { console.error('History load error:', error); return; }
     if (_setSessions) _setSessions(data || []);
   } catch (e) { console.error('dbLoadHistory error:', e); }

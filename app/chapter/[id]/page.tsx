@@ -55,11 +55,8 @@ function SectionBlock({ label, text, color }: { label: string; text: string; col
       borderTop: '1px solid rgba(255,255,255,0.05)',
     }}>
       <SectionLabel label={label} color={color} />
-      <div style={{
-        fontSize: '14px', color: '#cbd5e1', lineHeight: '1.8',
-        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-      }}>
-        {text}
+      <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px', lineHeight: '1.8', color: '#cbd5e1' }}>
+        {text.replace(/(\d+\.\s)/g, '\n$1').replace(/^\n/, '')}
       </div>
     </div>
   )
@@ -117,10 +114,10 @@ function ExampleBlock({ text, topicCode }: { text: string; topicCode: string }) 
               {text.split('|').map((row, i) => {
                 const parts = row.trim().split(/\s+/)
                 if (parts.length < 4) return null
-                const atomicMass = parts[parts.length - 1]
-                const atomicNo   = parts[parts.length - 2]
-                const symbol     = parts[parts.length - 3]
-                const element    = parts.slice(0, parts.length - 3).join(' ')
+                const element   = parts[0]
+                const symbol    = parts[1]
+                const atomicNo  = parts[2]
+                const atomicMass = parts[3]
                 return (
                   <tr key={i} style={{
                     backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
@@ -137,11 +134,8 @@ function ExampleBlock({ text, topicCode }: { text: string; topicCode: string }) 
           </table>
         </div>
       ) : (
-        <div style={{
-          fontSize: '14px', color: '#cbd5e1', lineHeight: '1.8',
-          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        }}>
-          {text}
+        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px', lineHeight: '1.8', color: '#cbd5e1' }}>
+          {text.replace(/(\d+\.\s)/g, '\n$1').replace(/^\n/, '')}
         </div>
       )}
     </div>
