@@ -91,60 +91,9 @@ function FormulaBlock({ text }: { text: string }) {
   )
 }
 
-// ── Elements table for topic 1.4 ─────────────────────────────────────────────
-function ElementsTable({ raw }: { raw: string }) {
-  const rows = raw
-    .split('\n')
-    .map(line => line.split('|').map(c => c.trim()))
-    .filter(cols => cols.length >= 2 && cols[0])
-
-  if (rows.length === 0) return (
-    <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.8', margin: 0, whiteSpace: 'pre-line' }}>
-      {raw}
-    </p>
-  )
-
-  const thStyle: React.CSSProperties = {
-    padding: '8px 12px', fontSize: '11px', fontWeight: '700',
-    textTransform: 'uppercase', letterSpacing: '0.6px',
-    color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.08)',
-    textAlign: 'left', whiteSpace: 'nowrap',
-  }
-  const tdStyle: React.CSSProperties = {
-    padding: '8px 12px', fontSize: '13.5px', color: '#cbd5e1',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
-  }
-
-  return (
-    <div style={{ overflowX: 'auto', marginTop: '4px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Element</th>
-            <th style={thStyle}>Symbol</th>
-            <th style={thStyle}>Atomic No.</th>
-            <th style={thStyle}>Atomic Mass</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((cols, i) => (
-            <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-              <td style={tdStyle}>{cols[0] ?? '—'}</td>
-              <td style={{ ...tdStyle, fontFamily: 'monospace', color: '#22c55e', fontWeight: '700' }}>{cols[1] ?? '—'}</td>
-              <td style={{ ...tdStyle, textAlign: 'center' }}>{cols[2] ?? '—'}</td>
-              <td style={{ ...tdStyle, textAlign: 'center' }}>{cols[3] ?? '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ── Example section (with elements table for 1.4) ────────────────────────────
+// ── Example section ──────────────────────────────────────────────────────────
 function ExampleBlock({ text, topicCode }: { text: string; topicCode: string }) {
   if (!text?.trim()) return null
-  const isElementsTable = topicCode === '1.4'
   return (
     <div style={{
       marginTop: '20px',
@@ -152,8 +101,41 @@ function ExampleBlock({ text, topicCode }: { text: string; topicCode: string }) 
       borderTop: '1px solid rgba(255,255,255,0.05)',
     }}>
       <SectionLabel label="Example" color="#f59e0b" />
-      {isElementsTable ? (
-        <ElementsTable raw={text} />
+
+      {topicCode === '1.4' ? (
+        <div style={{ overflowX: 'auto', marginTop: '8px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
+                <th style={{ padding: '8px 12px', textAlign: 'left',   borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Element</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left',   borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Symbol</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Atomic No.</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Atomic Mass</th>
+              </tr>
+            </thead>
+            <tbody>
+              {text.split('|').map((row, i) => {
+                const parts = row.trim().split(/\s+/)
+                if (parts.length < 4) return null
+                const atomicMass = parts[parts.length - 1]
+                const atomicNo   = parts[parts.length - 2]
+                const symbol     = parts[parts.length - 3]
+                const element    = parts.slice(0, parts.length - 3).join(' ')
+                return (
+                  <tr key={i} style={{
+                    backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
+                    borderBottom: '1px solid rgba(255,255,255,0.07)',
+                  }}>
+                    <td style={{ padding: '7px 12px' }}>{element}</td>
+                    <td style={{ padding: '7px 12px', fontFamily: 'monospace', color: '#4ade80' }}>{symbol}</td>
+                    <td style={{ padding: '7px 12px', textAlign: 'center' }}>{atomicNo}</td>
+                    <td style={{ padding: '7px 12px', textAlign: 'center' }}>{atomicMass}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div style={{
           fontSize: '14px', color: '#cbd5e1', lineHeight: '1.8',
