@@ -730,7 +730,7 @@ function appendTopicView(r: any){
   if (r.definition)
     sectionsHtml += `<div class="tv-section tv-section--definition"><div class="tv-sec-lbl">Definition</div><div class="tv-sec-body">${esc(r.definition)}</div></div>`;
   if (r.explanation)
-    sectionsHtml += `<div class="tv-section tv-section--explanation"><div class="tv-sec-lbl">Explanation</div><div class="tv-sec-body">${esc(r.explanation)}</div></div>`;
+    sectionsHtml += `<div class="tv-section tv-section--explanation"><div class="tv-sec-lbl">Explanation</div><div class="tv-sec-body">${fmtNumbered(r.explanation)}</div></div>`;
   if (r.formula)
     sectionsHtml += `<div class="tv-section tv-formula-sec"><div class="tv-sec-lbl">${esc(r.flabel || 'Formula')}</div><div class="tv-formula-body">${fmtBody(r.formula)}</div></div>`;
   if (r.example)
@@ -1213,8 +1213,8 @@ function appendAI(r, time, save=true){
   const contentHtml = hasNewFormat ? (() => {
     let html = '';
     if (r.definition) html += `<div class="ai-field"><div class="ai-field-lbl">Definition</div><div class="ai-field-body">${esc(r.definition)}</div></div>`;
-    if (r.explanation) html += `<div class="ai-field"><div class="ai-field-lbl">Explanation</div><div class="ai-field-body">${esc(r.explanation)}</div></div>`;
-    if (r.example) html += `<div class="ai-field"><div class="ai-field-lbl">Example</div><div class="ai-field-body">${esc(r.example)}</div></div>`;
+    if (r.explanation) html += `<div class="ai-field"><div class="ai-field-lbl">Explanation</div><div class="ai-field-body">${fmtNumbered(r.explanation)}</div></div>`;
+    if (r.example) html += `<div class="ai-field"><div class="ai-field-lbl">Example</div><div class="ai-field-body">${fmtNumbered(r.example)}</div></div>`;
     return `<div class="ai-card">${html}</div>`;
   })() : (() => {
     // Legacy format fallback for stored history
@@ -2029,6 +2029,12 @@ function esc(s=''){
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 /** Like esc() but also renders scientific notation superscripts and Avogadro Nₐ */
+function fmtNumbered(s=''){
+  return fmtBody(
+    String(s ?? '').replace(/(\d+\.\s)/g, '\n$1').replace(/^\n/, '')
+  )
+}
+
 function fmtBody(s=''){
   return esc(s)
     // 1.204x10^22 → 1.204×10<sup>22</sup>
@@ -2049,7 +2055,7 @@ function fmtExample(s=''){
 
   // Detect stepped format: "Step 1:", "Step 2:", etc.
   const stepRe = /(?:^|\n)\s*(Step\s+\d+\s*:)/i;
-  if (!stepRe.test(raw)) return fmtBody(raw);
+  if (!stepRe.test(raw)) return fmtNumbered(raw);
 
   // Split into: intro (before Step 1) + step chunks
   const parts = raw.split(/\n(?=\s*Step\s+\d+\s*:)/i);
