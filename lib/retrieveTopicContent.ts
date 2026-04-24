@@ -78,20 +78,37 @@ async function fetchTopicRow(
   const db = getClient();
   const q  = query.toLowerCase().trim();
 
-  // Strategy 1: topic_title ILIKE '%query%'
-  const { data: titleData } = await db
+  console.log('[retrieveTopicContent] raw user question:', query);
+  console.log('[retrieveTopicContent] extracted query term:', q);
+
+  // Strategy 1: exact title match (highest priority)
+  const { data: exactData } = await db
+    .from('topics')
+    .select(SELECT_COLS)
+    .eq('chapter_number', chapterNumber)
+    .ilike('topic_title', q)
+    .limit(1);
+
+  if (exactData?.[0]) {
+    console.log(`[retrieveTopicContent] EXACT MATCH — "${(exactData[0] as TopicRow).topic_title}"`);
+    return exactData[0] as TopicRow;
+  }
+
+  // Strategy 2: partial title match, prefer longer (more specific) titles
+  const { data: partialData } = await db
     .from('topics')
     .select(SELECT_COLS)
     .eq('chapter_number', chapterNumber)
     .ilike('topic_title', `%${q}%`)
+    .order('topic_title', { ascending: false })
     .limit(1);
 
-  if (titleData?.[0]) {
-    console.log(`[retrieveTopicContent] MATCH via topic_title="${(titleData[0] as TopicRow).topic_title}" for query="${q}"`);
-    return titleData[0] as TopicRow;
+  if (partialData?.[0]) {
+    console.log(`[retrieveTopicContent] PARTIAL MATCH — "${(partialData[0] as TopicRow).topic_title}"`);
+    return partialData[0] as TopicRow;
   }
 
-  // Strategy 2: keywords @> ARRAY[query]
+  // Strategy 3: keywords @> ARRAY[query]
   const { data: kwData } = await db
     .from('topics')
     .select(SELECT_COLS)
@@ -100,11 +117,11 @@ async function fetchTopicRow(
     .limit(1);
 
   if (kwData?.[0]) {
-    console.log(`[retrieveTopicContent] MATCH via keywords topic_title="${(kwData[0] as TopicRow).topic_title}" for query="${q}"`);
+    console.log(`[retrieveTopicContent] KEYWORD MATCH — "${(kwData[0] as TopicRow).topic_title}"`);
     return kwData[0] as TopicRow;
   }
 
-  console.log(`[retrieveTopicContent] NO MATCH — query="${q}" chapter=${chapterNumber}`);
+  console.log(`[retrieveTopicContent] NO MATCH — query="${q}"`);
   return null;
 }
 

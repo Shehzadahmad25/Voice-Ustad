@@ -132,12 +132,12 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
 
   // ── Step 0: Debug mode intercept ────────────────────────────────────────────
   if (/^\/debug(\s|$)/i.test(message.trim())) {
-    const { chapterNumber: debugCh, topicFilter } = parseDebugCommand(message.trim());
-    const ch  = debugCh || chapterNumber || 1;
-    const dbg = await runDebugMode(ch, topicFilter);
+    const parsed = parseDebugCommand(message.trim());
+    const ch  = parsed?.chapterNumber || chapterNumber || 1;
+    const dbgOutput = await runDebugMode(ch);
     return {
       answer: {
-        definition:   dbg.output,
+        definition:   dbgOutput,
         explanation:  '',
         example:      '',
         formula:      '',

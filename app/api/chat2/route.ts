@@ -200,9 +200,8 @@ export async function POST(request: NextRequest) {
     // ── Debug mode ─────────────────────────────────────────────────────────────
     if (mode === 'debug') {
       const chapterNumber = Number(body?.chapterNumber ?? 1);
-      const topicFilter   = body?.topic ? String(body.topic).trim() : undefined;
-      const debugResult   = await runDebugMode(chapterNumber, topicFilter);
-      return NextResponse.json({ ok: true, ...debugResult }, { status: 200 });
+      const debugOutput   = await runDebugMode(chapterNumber);
+      return NextResponse.json({ ok: true, output: debugOutput, debugMode: true }, { status: 200 });
     }
 
     // ── Chat mode ──────────────────────────────────────────────────────────────

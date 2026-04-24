@@ -12,23 +12,11 @@ import TopNav from '@/components/TopNav';
 const CHS: Array<{p:number; n:string; t:string; chips:string[]; followups:string[]; on?:boolean}> = [];
 
 // TODO: Re-enable after all chapter topics are added to DB
-const SHOW_CHAPTER_SCOPE = false;
+const SHOW_CHAPTER_SCOPE = true;
 
-// Chapter scope topics per chapter index (0-based)
-const CHAPTER_SCOPE_DATA: Record<number, string[]> = {
-  0: [
-    '1.1 Mole and Avogadro\'s Number (p.1)',
-    '1.2 Mole Calculation (p.5)',
-    '1.2.1 Mole and Chemical Equations (p.8)',
-    '1.2.2 Calculations Involving Gases (p.12)',
-    '1.3 Percentage Composition (p.14)',
-    '1.4 Excess and Limiting Reagents (p.17)',
-    '1.5 Theoretical Yield and Percent Yield (p.19)',
-    'Exercise MCQs — 12 Questions (End of Chapter)',
-  ],
-};
+interface ScopeTopic { topic_code: string; topic_title: string; page: number | null; }
 
-let _setScopeTopics: ((t: string[]) => void) | null = null;
+let _setScopeTopics: ((t: ScopeTopic[]) => void) | null = null;
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    STATE
@@ -485,23 +473,23 @@ function selCh(i: number){
   CHS.forEach((c,j)=>c.on=j===i);
   activeChIdx=i;
   ri=0;
-  // Immediately populate scope from static data (may be empty for most chapters)
-  if (_setScopeTopics) _setScopeTopics(CHAPTER_SCOPE_DATA[i] || []);
-  // Fire-and-forget: load topics from DB and refresh scope modal for this chapter
-  const _scopeChId = (CHS[i] as any)?.id;
-  if (_sbClient && _scopeChId && _setScopeTopics) {
+  // Load scope topics from new topics table by chapter_number
+  const chapterNum = parseInt(CHS[i]?.n ?? String(i + 1), 10);
+  if (_sbClient && _setScopeTopics) {
     _sbClient
       .from('topics')
-      .select('section, title')
-      .eq('chapter_id', _scopeChId)
-      .order('section')
-      .then(({ data }: { data: Array<{ section: string; title: string }> | null }) => {
-        if (data && data.length > 0 && _setScopeTopics) {
-          const dbTopics = data.map((t) =>
-            t.section ? `${t.section} ${t.title}` : t.title,
-          );
-          _setScopeTopics(dbTopics);
-        }
+      .select('topic_code, topic_title, page')
+      .eq('chapter_number', chapterNum)
+      .not('topic_code', 'like', '%.MCQ%')
+      .order('topic_code', { ascending: true })
+      .then(({ data }: { data: Array<{ topic_code: string; topic_title: string; page: number | null }> | null }) => {
+        if (!data || data.length === 0) return;
+        const parseCode = (c: string) => {
+          const p = c.split('.');
+          return parseFloat(p[0]) * 1000 + parseFloat(p[1] || '0');
+        };
+        const sorted = [...data].sort((a, b) => parseCode(a.topic_code) - parseCode(b.topic_code));
+        if (_setScopeTopics) _setScopeTopics(sorted);
       })
       .catch(() => {/* non-fatal */});
   }
@@ -510,6 +498,8 @@ function selCh(i: number){
   activeCh=`Chapter ${CHS[i]?.n || String(i+1)} - ${CHS[i]?.t || ''}`;
   const tbTitle = document.getElementById('tbTitle');
   if (tbTitle) tbTitle.textContent=activeCh;
+  const tbChPill = document.getElementById('tbChapterPill');
+  if (tbChPill) tbChPill.textContent = CHS[i]?.t || `Chapter ${CHS[i]?.n || String(i+1)}`;
   updateTopbarSub(i);
   updateInputPlaceholder(i);
   sanitizeVisibleUiText();
@@ -808,7 +798,9 @@ function appendTopicView(r: any){
       </div>
     </div>`;
 
-  getInner().appendChild(w);
+  const inner0 = getInner();
+  if (!inner0) return;
+  inner0.appendChild(w);
   scrollDn();
   setVoiceSource(id, voiceSources[id] || 'unknown');
   prefetchUrduAudio(id);
@@ -943,7 +935,6 @@ function showWelcome(){
       <h2 class="wl-h"><span>Welcome to VoiceUstad</span></h2>
       <p class="wl-p" id="wlBody">Ask in English. Get a clear explanation with optional Urdu audio.</p>
       <div class="wl-meta" id="wlMeta">${esc(viewerFocus)} - ${esc(viewerTrial)}</div>
-      <button class="wl-scope-btn" type="button" aria-label="Show current chapter topics" onclick="openScope()">What can I ask?</button>
       <div class="wl-grid" id="wlGrid" role="list"></div>
     </div>
   </div>`;
@@ -1118,16 +1109,20 @@ async function send(){
 }
 
 function ask(q){
-  document.getElementById('msg').value=q;
-  resize(document.getElementById('msg'));
+  const msgEl = document.getElementById('msg') as HTMLTextAreaElement | null;
+  if(!msgEl) return;
+  msgEl.value=q;
+  resize(msgEl);
   updateSendBtn();
   send();
 }
 
 function retryLast(){
   if(!lastQuestion) return;
-  document.getElementById('msg').value=lastQuestion;
-  resize(document.getElementById('msg'));
+  const msgEl = document.getElementById('msg') as HTMLTextAreaElement | null;
+  if(!msgEl) return;
+  msgEl.value=lastQuestion;
+  resize(msgEl);
   updateSendBtn();
   send();
 }
@@ -1149,7 +1144,9 @@ function appendUser(t, time, save=true){
       <div class="u-time" aria-label="Sent at ${time}">${time}</div>
     </div>
   </div>`;
-  getInner().appendChild(w); scrollDn();
+  const inner1 = getInner();
+  if (!inner1) return;
+  inner1.appendChild(w); scrollDn();
   if(save){
     chatHistory.push({type:'user',text:t,time});
     saveHistory(activeChIdx, chatHistory);
@@ -1210,11 +1207,44 @@ function appendAI(r, time, save=true){
   // ── New strict format: definition / explanation / example as clean text blocks ──
   const hasNewFormat = !!(r.definition || r.explanation || r.example);
 
+  const defLc = String(r.definition || '').toLowerCase();
+  const isElementsTable =
+    String(r.example || '').includes('|') ||
+    defLc.includes('first 20 elements') ||
+    defLc.includes('reference table') ||
+    String(r.flabel || '').toLowerCase().includes('element');
+  const exampleHtml = (() => {
+    if (!r.example) return '';
+    if (isElementsTable) {
+      const rows = String(r.example).split('|').map((row: string, i: number) => {
+        const parts = row.trim().split(/\s+/);
+        if (parts.length < 4) return '';
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.07);background:${i%2===0?'rgba(255,255,255,0.03)':'transparent'}">
+          <td style="padding:5px 10px">${esc(parts[0])}</td>
+          <td style="padding:5px 10px;color:#4ade80;font-family:monospace">${esc(parts[1])}</td>
+          <td style="padding:5px 10px;text-align:center">${esc(parts[2])}</td>
+          <td style="padding:5px 10px;text-align:center">${esc(parts[3])}</td>
+        </tr>`;
+      }).join('');
+      return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:rgba(255,255,255,0.1)">
+          <th style="padding:6px 10px;text-align:left">Element</th>
+          <th style="padding:6px 10px;text-align:left">Symbol</th>
+          <th style="padding:6px 10px;text-align:center">Atomic No.</th>
+          <th style="padding:6px 10px;text-align:center">Atomic Mass</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+    const exampleFormatted = esc(String(r.example)).split('. ').join('.\n');
+    return `<div style="white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.8">${exampleFormatted}</div>`;
+  })();
+
   const contentHtml = hasNewFormat ? (() => {
     let html = '';
     if (r.definition) html += `<div class="ai-field"><div class="ai-field-lbl">Definition</div><div class="ai-field-body">${esc(r.definition)}</div></div>`;
     if (r.explanation) html += `<div class="ai-field"><div class="ai-field-lbl">Explanation</div><div class="ai-field-body">${fmtNumbered(r.explanation)}</div></div>`;
-    if (r.example) html += `<div class="ai-field"><div class="ai-field-lbl">Example</div><div class="ai-field-body">${fmtNumbered(r.example)}</div></div>`;
+    if (r.example) html += `<div class="ai-field"><div class="ai-field-lbl">Example</div><div class="ai-field-body">${exampleHtml}</div></div>`;
     return `<div class="ai-card">${html}</div>`;
   })() : (() => {
     // Legacy format fallback for stored history
@@ -1226,11 +1256,13 @@ function appendAI(r, time, save=true){
     return `<div class="ai-card"><div class="ai-intro">${esc(r.text||'')}</div><div class="ai-pts">${kp}</div></div>`;
   })();
 
-  const formulaHtml = (r.formula??'') ? `
-    <div class="ai-formula" lang="en">
+  const formulaHtml = (r.formula??'') ? (() => {
+    const fmtFormula = esc(String(r.formula)).split('. ').join('.\n');
+    return `<div class="ai-formula" lang="en">
       <div class="formula-lbl">${esc(r.flabel??'FORMULA')}</div>
-      <div class="formula-body">${esc(r.formula)}</div>
-    </div>` : '';
+      <div class="formula-body" style="white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:13px;line-height:2;background:rgba(139,92,246,0.1);padding:8px 12px;border-radius:6px">${fmtFormula}</div>
+    </div>`;
+  })() : '';
 
   const mcq = r.mcq;
   const mcqOptions = Array.isArray(mcq?.options) ? mcq.options : [];
@@ -1269,37 +1301,37 @@ function appendAI(r, time, save=true){
         ${formulaHtml}
         ${mcqHtml}
 
-        <div class="voice-card" role="region" aria-label="Urdu voice explanation">
-          <div class="vc-top-row">
-            <div class="vc-icon" aria-hidden="true">ðŸ”Š</div>
-            <div class="vc-info">
-              <div class="vc-label">Urdu audio</div>
-              <div class="vc-sub" lang="ur" dir="ltr">Play - ${actualDur}s</div>
-              <div class="vc-loading" id="vcload_${id}" aria-live="polite">
-                <span class="vc-dot"></span>
-                <span class="vc-dot"></span>
-                <span class="vc-dot"></span>
+        ${(r?.audioBase64 || r?.audioUrl) ? `<div class=”voice-card” role=”region” aria-label=”Urdu voice explanation”>
+          <div class=”vc-top-row”>
+            <div class=”vc-icon” aria-hidden=”true”>🔊</div>
+            <div class=”vc-info”>
+              <div class=”vc-label”>Urdu audio</div>
+              <div class=”vc-sub” lang=”ur” dir=”ltr”>Play - ${actualDur}s</div>
+              <div class=”vc-loading” id=”vcload_${id}” aria-live=”polite”>
+                <span class=”vc-dot”></span>
+                <span class=”vc-dot”></span>
+                <span class=”vc-dot”></span>
                 Preparing audio...
               </div>
             </div>
-            <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu</span>
-            <div class="vc-wave" id="wv_${id}" aria-hidden="true">
+            <span class=”vc-badge src-unknown” id=”badge_${id}” aria-label=”Urdu voice source”>Urdu</span>
+            <div class=”vc-wave” id=”wv_${id}” aria-hidden=”true”>
               <span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
             </div>
-            <div class="vc-timer" id="tm_${id}" aria-live="polite">${mm}:${ss}</div>
-            <button class="vc-play" id="btn_${id}" data-dur="${actualDur}" data-tts="${ttsText}" data-tts-ur="${ttsUrText}" aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay('${id}')">
-              <svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 9L5 21V3z"/></svg>
-              <svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            <div class=”vc-timer” id=”tm_${id}” aria-live=”polite”>${mm}:${ss}</div>
+            <button class=”vc-play” id=”btn_${id}” data-dur=”${actualDur}” data-tts=”${ttsText}” data-tts-ur=”${ttsUrText}” aria-label=”Play Urdu audio” aria-pressed=”false” onclick=”togglePlay('${id}')”>
+              <svg class=”ico-play” width=”13” height=”13” viewBox=”0 0 24 24” fill=”currentColor” aria-hidden=”true”><path d=”M5 3l14 9L5 21V3z”/></svg>
+              <svg class=”ico-stop” width=”11” height=”11” viewBox=”0 0 24 24” fill=”currentColor” aria-hidden=”true”><rect x=”4” y=”4” width=”16” height=”16” rx=”2”/></svg>
             </button>
-            <button class="vc-retry" id="retry_${id}" type="button" aria-label="Retry Urdu voice" onclick="retryAudio('${id}')">
+            <button class=”vc-retry” id=”retry_${id}” type=”button” aria-label=”Retry Urdu voice” onclick=”retryAudio('${id}')”>
               Retry audio
             </button>
           </div>
-          <div class="vc-progress" id="prog_${id}" role="progressbar" aria-valuemin="0" aria-valuemax="${actualDur}" aria-valuenow="0">
-            <div class="vc-progress-bar" id="progbar_${id}"></div>
+          <div class=”vc-progress” id=”prog_${id}” role=”progressbar” aria-valuemin=”0” aria-valuemax=”${actualDur}” aria-valuenow=”0”>
+            <div class=”vc-progress-bar” id=”progbar_${id}”></div>
           </div>
-        </div>
+        </div>` : ''}
 
         <div class="ai-actions" role="toolbar" aria-label="Response actions">
           <button class="ai-action-btn" id="copy_${id}" aria-label="Copy answer to clipboard" onclick="copyAnswer('${id}')">
@@ -1326,7 +1358,9 @@ function appendAI(r, time, save=true){
       </div>
     </div>`;
 
-  getInner().appendChild(w); scrollDn();
+  const inner2 = getInner();
+  if (!inner2) return;
+  inner2.appendChild(w); scrollDn();
   setVoiceSource(id, (voiceSources[id] || 'unknown'));
   prefetchUrduAudio(id);
   const retryBtn = document.getElementById('retry_'+id) as HTMLButtonElement | null;
@@ -1334,7 +1368,7 @@ function appendAI(r, time, save=true){
   if(save){
     chatHistory.push({type:'ai',response:r,time});
     saveHistory(activeChIdx, chatHistory);
-    buildSb(document.getElementById('sbSearch').value); // refresh dot indicators
+    buildSb((document.getElementById('sbSearch') as HTMLInputElement | null)?.value ?? ''); // refresh dot indicators
     buildPrevChats();
   }
 }
@@ -1360,7 +1394,9 @@ function appendError(
       </button>
     </div>
   </div>`;
-  getInner().appendChild(w); scrollDn();
+  const inner3 = getInner();
+  if (!inner3) return;
+  inner3.appendChild(w); scrollDn();
   if(retryAfterMs > 0){
     const btn = document.getElementById(retryId) as HTMLButtonElement | null;
     if (!btn) return;
@@ -1723,7 +1759,9 @@ function showTyping(){
         <div class="typing-note" id="typingNote">Generating answer...</div>
       </div>
     </div>`;
-  getInner().appendChild(w); scrollDn();
+  const inner4 = getInner();
+  if (!inner4) return;
+  inner4.appendChild(w); scrollDn();
   const msgs = ['Generating answer...', 'Still thinking...', 'Almost ready...', 'Hang tight...'];
   let idx = 0;
   typingProgressTimer = setInterval(() => {
@@ -1737,10 +1775,12 @@ function hideTyping(){
   const e=document.getElementById('typi'); if(e)e.remove();
 }
 
-function appendDivider(label){
-  const w=document.createElement('div');
-  w.innerHTML=`<div class="date-stamp"><span>${esc(label)}</span></div>`;
-  getInner().appendChild(w);
+function appendDivider(label: string) {
+  const inner = getInner();
+  if (!inner) return;
+  const w = document.createElement('div');
+  w.innerHTML = `<div class="date-stamp"><span>${esc(label)}</span></div>`;
+  inner.appendChild(w);
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -1813,24 +1853,40 @@ function formatTime(isoStr: string): string {
   } catch { return ''; }
 }
 
+function buildSidebarHistory(data: any[]) {
+  if (_setSessions) _setSessions(data);
+}
+
 async function dbLoadHistory() {
-  console.log('[sidebar] dbLoadHistory called — _currentUserId:', _currentUserId, '_sbClient:', !!_sbClient);
-  if (!_sbClient || !_currentUserId) {
-    console.warn('[sidebar] skipping dbLoadHistory — missing client or userId');
+  if (!_sbClient) {
+    console.log('[history] no supabase client');
     return;
   }
   try {
+    const { data: { user } } = await _sbClient.auth.getUser();
+    if (!user?.id) {
+      console.log('[history] no auth user found');
+      return;
+    }
+    console.log('[history] loading for user:', user.id);
+    _currentUserId = user.id;
+
     const { data, error } = await _sbClient
       .from('chat_sessions')
-      .select('*')
-      .eq('user_id', _currentUserId)
+      .select('id, title, updated_at, chapter_number')
+      .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .limit(50);
-    console.log('[sidebar] chats loaded:', data?.length);
-    console.log('[sidebar] chats error:', error);
-    if (error) { console.error('History load error:', error); return; }
-    if (_setSessions) _setSessions(data || []);
-  } catch (e) { console.error('dbLoadHistory error:', e); }
+
+    console.log('[history] loaded:', data?.length, 'error:', error?.message);
+    if (data && data.length > 0) {
+      buildSidebarHistory(data);
+    } else if (!error) {
+      buildSidebarHistory([]);
+    }
+  } catch (err) {
+    console.log('[history] error:', err);
+  }
 }
 
 async function dbCreateSession(): Promise<string | null> {
@@ -1972,11 +2028,12 @@ function newChat(){
   chatHistory=[];
   buildPrevChats();
   showWelcome(); closeSb();
-  document.getElementById('scrollBtn').classList.remove('show');
-  document.getElementById('msg').value='';
-  resize(document.getElementById('msg'));
+  document.getElementById('scrollBtn')?.classList.remove('show');
+  const _msgEl = document.getElementById('msg') as HTMLTextAreaElement | null;
+  if(_msgEl){ _msgEl.value=''; resize(_msgEl); }
   updateSendBtn();
-  document.getElementById('sbSearch').value='';
+  const _sbSearchEl = document.getElementById('sbSearch') as HTMLInputElement | null;
+  if(_sbSearchEl) _sbSearchEl.value='';
   buildSb();
 }
 
@@ -2003,7 +2060,8 @@ function updateSendBtn(){
   btn.setAttribute('aria-disabled',(!val||busy)?'true':'false');
 }
 function setSpin(on){
-  const b=document.getElementById('sendBtn');
+  const b=document.getElementById('sendBtn') as HTMLButtonElement | null;
+  if(!b) return;
   b.disabled=on;
   b.className=on?'send-btn spin':'send-btn';
   b.setAttribute('aria-label',on?'Sending...':'Send message');
@@ -2013,10 +2071,11 @@ function setSpin(on){
 }
 function scrollDn(force=false){
   const m=document.getElementById('msgs');
+  if(!m) return;
   if(force||!userScrolled){
     requestAnimationFrame(()=>{
       m.scrollTop=m.scrollHeight;
-      document.getElementById('scrollBtn').classList.remove('show');
+      document.getElementById('scrollBtn')?.classList.remove('show');
       userScrolled=false;
     });
   }
@@ -2134,8 +2193,9 @@ export default function ChatPage() {
   );
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [scopeTopics, setScopeTopics] = useState<string[]>([]);
-  const [sidebarTopics, setSidebarTopics] = useState<{ topic_code: string; topic_title: string; page: number | null }[]>([]);
+  const [scopeTopics, setScopeTopics] = useState<ScopeTopic[]>([]);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const displayName =
     profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Student';
@@ -2160,12 +2220,24 @@ export default function ChatPage() {
   })();
 
   useEffect(() => {
-    if (user?.id) {
-      console.log('[chat-history] user:', user.id, 'loading history...');
-      _currentUserId = user.id;
-      dbLoadHistory();
-    }
+    if (!user?.id) return;
+    console.log('[history] user ready, loading history for:', user.id);
+    _currentUserId = user.id;
+    if (!_sbClient) _sbClient = supabaseRef.current;
+    dbLoadHistory();
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!supabaseRef.current) return;
+    const { data: authListener } = supabaseRef.current.auth.onAuthStateChange((event, session) => {
+      if (session?.user?.id) {
+        console.log('[history] auth state changed, loading history...');
+        if (!_sbClient) _sbClient = supabaseRef.current;
+        dbLoadHistory();
+      }
+    });
+    return () => authListener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     _sbClient = supabaseRef.current;
@@ -2207,22 +2279,14 @@ export default function ChatPage() {
   }, [displayName, email, focus, trialStatus]);
 
   useEffect(() => {
-    const sb = supabaseRef.current;
-    if (!sb) return;
-    const parseCode = (code: string) => {
-      const parts = code.replace('MCQ', '999').split('.');
-      return parseFloat(parts[0]) * 1000 + parseFloat(parts[1] || '0');
+    const container = document.getElementById('msgs');
+    if (!container) return;
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 100);
     };
-    sb.from('topics')
-      .select('topic_code, topic_title, page')
-      .eq('chapter_number', 1)
-      .not('topic_code', 'like', '%.MCQ%')
-      .order('topic_code', { ascending: true })
-      .then(({ data }) => {
-        if (!data) return;
-        const sorted = [...data].sort((a, b) => parseCode(a.topic_code) - parseCode(b.topic_code));
-        setSidebarTopics(sorted);
-      });
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
@@ -2248,19 +2312,19 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* TODO: Re-enable after all chapter topics are added to DB */}
-      {SHOW_CHAPTER_SCOPE && (
       <div className="modal-bg" id="scopeBg" role="dialog" aria-modal="true" aria-labelledby="scopeTitle">
         <div className="modal scope-modal">
           <button className="modal-close" aria-label="Close chapter scope dialog" onClick={() => closeScope()}>×</button>
           <div className="modal-badge">Chapter Scope</div>
           <h3 id="scopeTitle">Current Chapter Topics</h3>
-          <p>This chapter's AI is focused on the following topics. For best answers, ask directly from this list.</p>
+          <p>This chapter&apos;s AI is focused on the following topics. For best answers, ask directly from this list.</p>
           <ul className="scope-list">
             {scopeTopics.map((topic) => (
-              <li key={topic}>
-                <button type="button" className="scope-item-btn" onClick={() => askScopeTopic(topic)}>
-                  {topic}
+              <li key={topic.topic_code}>
+                <button type="button" className="scope-item-btn" onClick={() => askScopeTopic(topic.topic_title)}>
+                  <span className="scope-topic-code">{topic.topic_code}</span>
+                  <span className="scope-topic-title">{topic.topic_title}</span>
+                  {topic.page != null && <span className="scope-topic-page">p.{topic.page}</span>}
                 </button>
               </li>
             ))}
@@ -2269,7 +2333,6 @@ export default function ChatPage() {
           <button className="modal-skip" onClick={() => closeScope()}>Close</button>
         </div>
       </div>
-      )}
 
       <aside className="sidebar" id="sb">
         <div className="sb-brand">
@@ -2285,35 +2348,42 @@ export default function ChatPage() {
           New Conversation
         </button>
 
-        <div className="sb-sec">Chats</div>
+        <div className="sb-sec">Chat History</div>
         <div className="sb-prev-list" id="sbPrevList">
           {sessions.length === 0 ? (
-            <div className="sb-prev-empty">No previous chats yet</div>
+            <div style={{ padding: '10px 12px', opacity: 0.45, fontSize: '12px', color: 'var(--t2)' }}>
+              No previous chats
+            </div>
           ) : (
-            sessions.map((s) => (
-              <div
-                key={s.id}
-                className={`session-item${activeSessionId === s.id ? ' active' : ''}`}
-                onClick={() => (window as any).dbLoadSession(s.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (window as any).dbLoadSession(s.id)}
-                aria-label={`Open conversation: ${s.title || 'Untitled'}`}
-                aria-current={activeSessionId === s.id ? 'true' : undefined}
-              >
-                <div className="session-title">{s.title || 'Untitled conversation'}</div>
-                <div className="session-meta">
-                  <span className="session-last-msg">{s.last_message || 'No messages yet'}</span>
-                  <span className="session-time">{getTimeAgo(s.updated_at)}</span>
+            sessions.map((s) => {
+              const dateStr = s.updated_at
+                ? new Date(s.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : '';
+              return (
+                <div
+                  key={s.id}
+                  className={`session-item${activeSessionId === s.id ? ' active' : ''}`}
+                  onClick={() => (window as any).dbLoadSession(s.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && (window as any).dbLoadSession(s.id)}
+                  aria-label={`Open conversation: ${s.title || 'Untitled'}`}
+                  aria-current={activeSessionId === s.id ? 'true' : undefined}
+                >
+                  <div className="session-title">{s.title || 'Untitled conversation'}</div>
+                  <div className="session-meta">
+                    <span className="session-last-msg">{getTimeAgo(s.updated_at)}</span>
+                    <span className="session-time">{dateStr}</span>
+                  </div>
+                  <button
+                    className="session-delete-btn"
+                    onClick={(e) => (window as any).dbDeleteSession(s.id, e)}
+                    aria-label="Delete conversation"
+                    title="Delete"
+                  >×</button>
                 </div>
-                <button
-                  className="session-delete-btn"
-                  onClick={(e) => (window as any).dbDeleteSession(s.id, e)}
-                  aria-label="Delete conversation"
-                  title="Delete"
-                >×</button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -2345,28 +2415,6 @@ export default function ChatPage() {
         </div>
 
         <div className="sb-list" id="sbList"></div>
-
-        {sidebarTopics.length > 0 && (
-          <div className="sb-topics-wrap">
-            <div className="sb-sec">Topics</div>
-            <div className="sb-topics-list">
-              {sidebarTopics.map(topic => (
-                <button
-                  key={topic.topic_code}
-                  className="sb-topic-item"
-                  onClick={() => viewTopic(topic.topic_title, 1)}
-                  title={topic.topic_title}
-                >
-                  <span className="sb-topic-code">{topic.topic_code}</span>
-                  <span className="sb-topic-title">{topic.topic_title}</span>
-                  {topic.page != null && (
-                    <span className="sb-topic-page">p.{topic.page}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="sb-foot">
           {process.env.NODE_ENV === 'development' && (
@@ -2425,16 +2473,15 @@ export default function ChatPage() {
             <div className="tb-meta" id="tbMeta">Chemistry focus</div>
           </div>
           <div className="tb-right">
-            {/* TODO: Re-enable after all chapter topics are added to DB */}
-            {SHOW_CHAPTER_SCOPE && (
-            <button className="tb-btn tb-scope" title="What can I ask?" aria-label="Show chapter scope topics" onClick={() => openScope()}>
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path strokeLinecap="round" d="M9.5 9a2.5 2.5 0 115 0c0 1.7-2.5 1.9-2.5 3.6" />
-                <circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none" />
-              </svg>
+            <button
+              id="tbChapterPill"
+              className="tb-ch-pill"
+              title="View chapter topics"
+              aria-label="View current chapter topics"
+              onClick={() => openScope()}
+            >
+              Select Chapter
             </button>
-            )}
             <div className="tb-status" aria-label="AI status: ready">
               <span className="blink-dot" aria-hidden="true"></span>AI Ready
             </div>
@@ -2448,6 +2495,7 @@ export default function ChatPage() {
 
         <div className="msgs-wrap">
           <div className="msgs" id="msgs"></div>
+          <div ref={messagesEndRef} />
           <button className="scroll-btn" id="scrollBtn" onClick={() => scrollDn(true)}>
             <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" d="M19 9l-7 7-7-7" />
@@ -2455,6 +2503,33 @@ export default function ChatPage() {
             Scroll to latest
           </button>
         </div>
+
+        {showScrollBtn && (
+          <button
+            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+            style={{
+              position: 'fixed',
+              bottom: '90px',
+              right: '20px',
+              background: '#22c55e',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              fontSize: '18px',
+              cursor: 'pointer',
+              zIndex: 100,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="Scroll to bottom"
+          >
+            ↓
+          </button>
+        )}
 
         <div className="input-area">
           <div className="input-inner">

@@ -83,57 +83,95 @@ const SELECT_COLS = 'id,chapter_number,chapter_title,topic_code,topic_title,page
 // ── Keyword extraction ────────────────────────────────────────────────────────
 
 const CHEMISTRY_TERM_MAP: Record<string, string> = {
-  'mole':                  'mole',
-  'mol':                   'mole',
-  'moles':                 'mole',
-  'avogadro':              'avogadro',
-  'avagadro':              'avogadro',
-  'atomic mass':           'atomic mass',
-  'atomic weight':         'atomic mass',
-  'molecular mass':        'molecular mass',
-  'molecular weight':      'molecular mass',
-  'formula mass':          'formula mass',
-  'molar mass':            'molar mass',
-  'gram atom':             'gram atom',
-  'gram-atom':             'gram atom',
-  'stoichiometry':         'stoichiometry',
-  'stoichiometric':        'stoichiometry',
-  'limiting reagent':      'limiting reagent',
-  'limiting reactant':     'limiting reagent',
-  'excess reagent':        'excess reagent',
-  'excess reactant':       'excess reagent',
-  'percentage composition':'percentage composition',
-  'percent composition':   'percentage composition',
-  'theoretical yield':     'theoretical yield',
-  'actual yield':          'actual yield',
-  'percent yield':         'percent yield',
-  'percentage yield':      'percent yield',
-  'stp':                   'STP',
-  'molar volume':          'molar volume',
+  // ── Multi-word mappings (checked before single-word) ──────────────────────
+  'mole calculations':                        'mole calculations',
+  'mole calculation':                         'mole calculations',
+  'number of moles':                          'mole calculations',
+  'moles from mass':                          'mole calculations',
+  'mole and chemical equations':              'mole and chemical equations',
+  'mole chemical equations':                  'mole and chemical equations',
+  'stoichiometric calculations':              'mole and chemical equations',
+  'mole mole conversion':                     'mole and chemical equations',
+  'mole mass conversion':                     'mole and chemical equations',
+  'mass mass conversion':                     'mole and chemical equations',
+  'calculations involving gases':             'calculations involving gases',
+  'gas calculations':                         'calculations involving gases',
+  'stp calculations':                         'calculations involving gases',
+  'percentage composition':                   'percentage composition',
+  'percent composition':                      'percentage composition',
+  'mass percent':                             'percentage composition',
+  'excess and limiting reagents':             'excess and limiting reagents',
+  'identification of limiting reagent':       'identification of limiting reagent',
+  'identify limiting reagent':                'identification of limiting reagent',
+  'theoretical yield, actual yield and percentage yield': 'theoretical yield, actual yield and percentage yield',
+  'theoretical yield':                        'theoretical yield, actual yield and percentage yield',
+  'actual yield':                             'theoretical yield, actual yield and percentage yield',
+  'percentage yield':                         'theoretical yield, actual yield and percentage yield',
+  'percent yield':                            'theoretical yield, actual yield and percentage yield',
+  "avogadro's number":                        "avogadro's number",
+  'avogadro number':                          "avogadro's number",
+  'first 20 elements reference table':        'first 20 elements reference table',
+  'first 20 elements':                        'first 20 elements reference table',
+  'elements table':                           'first 20 elements reference table',
+  'periodic table elements':                  'first 20 elements reference table',
+  'limiting reagent':                         'excess and limiting reagents',
+  'limiting reactant':                        'excess and limiting reagents',
+  'excess reagent':                           'excess and limiting reagents',
+  'excess reactant':                          'excess and limiting reagents',
+  'atomic mass':                              'atomic mass',
+  'atomic weight':                            'atomic mass',
+  'molecular mass':                           'molecular mass',
+  'molecular weight':                         'molecular mass',
+  'formula mass':                             'formula mass',
+  'molar mass':                               'mole calculations',
+  'molar volume':                             'calculations involving gases',
+  'gram atom':                                'gram atom',
+  'gram-atom':                                'gram atom',
+  // ── Single-word mappings ──────────────────────────────────────────────────
+  'mole':          'mole',
+  'mol':           'mole',
+  'moles':         'mole',
+  'avogadro':      "avogadro's number",
+  'avagadro':      "avogadro's number",
+  'stoichiometry': 'stoichiometry',
+  'stoichiometric':'stoichiometry',
+  'stp':           'calculations involving gases',
 };
 
 function extractSearchTerms(question: string): string[] {
   const lower = question.toLowerCase();
+
+  // Strip question words to get the clean topic phrase
+  const cleanQuery = lower
+    .replace(/^(what is|what are|explain|define|tell me about|describe|how does|what do you mean by)\s+/i, '')
+    .replace(/\?$/, '')
+    .trim();
+
   const found: string[] = [];
 
-  // 1. Match multi-word chemistry terms first (longest match wins)
+  // 1. Try full cleanQuery against map first (exact multi-word lookup)
+  const fullTerm = CHEMISTRY_TERM_MAP[cleanQuery];
+  if (fullTerm) found.push(fullTerm);
+
+  // 2. Match all map keys present in the question, longest first
   const sortedKeys = Object.keys(CHEMISTRY_TERM_MAP).sort((a, b) => b.length - a.length);
   for (const key of sortedKeys) {
     if (lower.includes(key)) {
-      found.push(CHEMISTRY_TERM_MAP[key]);
+      const mapped = CHEMISTRY_TERM_MAP[key];
+      if (!found.includes(mapped)) found.push(mapped);
     }
   }
 
-  // 2. Raw token fallback — only if no chemistry term matched
+  // 3. Raw token fallback — only if nothing matched
   if (found.length === 0) {
     lower
       .replace(/[^a-z0-9 ]/g, ' ')
       .split(/\s+/)
       .filter((w) => w.length > 3)
-      .forEach((w) => found.push(w));
+      .forEach((w) => { if (!found.includes(w)) found.push(w); });
   }
 
-  return [...new Set(found)];
+  return found;
 }
 
 // ── Core topic lookup — STRICT title/keyword matching only ────────────────────
@@ -155,22 +193,38 @@ async function fetchTopicByTerms(
 ): Promise<TopicRow | null> {
   const db = getClient();
 
-  // Strategy 1: topic_title ILIKE match
+  // Strategy 1: exact topic_title match (highest priority)
+  for (const term of terms) {
+    const { data } = await db
+      .from('topics')
+      .select(SELECT_COLS)
+      .eq('chapter_number', chapterNumber)
+      .ilike('topic_title', term)
+      .limit(1);
+
+    if (data?.[0]) {
+      console.log(`[retrieveBookContent] EXACT MATCH via topic_title — term="${term}" matched topic="${(data[0] as TopicRow).topic_title}"`);
+      return data[0] as TopicRow;
+    }
+  }
+
+  // Strategy 2: partial topic_title match — prefer longer (more specific) titles
   for (const term of terms) {
     const { data } = await db
       .from('topics')
       .select(SELECT_COLS)
       .eq('chapter_number', chapterNumber)
       .ilike('topic_title', `%${term}%`)
+      .order('topic_title', { ascending: false })
       .limit(1);
 
     if (data?.[0]) {
-      console.log(`[retrieveBookContent] MATCH via topic_title — term="${term}" matched topic="${(data[0] as TopicRow).topic_title}"`);
+      console.log(`[retrieveBookContent] PARTIAL MATCH via topic_title — term="${term}" matched topic="${(data[0] as TopicRow).topic_title}"`);
       return data[0] as TopicRow;
     }
   }
 
-  // Strategy 2: keywords array exact match
+  // Strategy 3: keywords array exact match
   for (const term of terms) {
     const { data } = await db
       .from('topics')
@@ -229,13 +283,28 @@ export async function retrieveBookContent(
     return { ...EMPTY_RESULT };
   }
 
-  const terms = extractSearchTerms(question);
+  // Strip question words to get the raw topic phrase (preserves multi-word names)
+  const cleanQuery = question
+    .toLowerCase()
+    .replace(/^(what is|what are|explain|define|tell me about|describe|how does|what do you mean by)\s+/i, '')
+    .replace(/\?$/, '')
+    .trim();
+
+  console.log('[retrieveBookContent] raw user question:', question);
+  console.log('[retrieveBookContent] cleaned query:', cleanQuery);
+
+  const baseTerms = extractSearchTerms(question);
+  // Prepend cleanQuery so multi-word phrase is tried first before individual chemistry terms
+  const terms = cleanQuery && cleanQuery !== question.toLowerCase().replace(/\?$/, '').trim()
+    ? [cleanQuery, ...baseTerms.filter(t => t !== cleanQuery)]
+    : baseTerms;
+
   if (terms.length === 0) {
     console.log(`[retrieveBookContent] SKIP — could not extract search terms from: "${question}"`);
     return { ...EMPTY_RESULT };
   }
 
-  console.log(`[retrieveBookContent] query="${question.slice(0, 80)}" terms=${JSON.stringify(terms)} type=${questionType} chapter=${chapterNumber}`);
+  console.log(`[retrieveBookContent] extracted query term: "${cleanQuery}" — full terms=${JSON.stringify(terms)} type=${questionType} chapter=${chapterNumber}`);
 
   const row = await fetchTopicByTerms(chapterNumber, terms);
   if (!row) return { ...EMPTY_RESULT };

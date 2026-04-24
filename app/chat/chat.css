@@ -129,9 +129,11 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   z-index: 100;
   padding-bottom: max(0px, env(safe-area-inset-bottom));
+  scrollbar-width: thin;
 }
 
 .sb-brand {
@@ -178,11 +180,11 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 }
 .sb-new:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
-.sb-sec {
+.sb-sec, .sb-section-label {
   padding: 11px 14px 4px;
-  font-size: .58rem; font-weight: 700;
-  letter-spacing: 1.8px; text-transform: uppercase;
-  color: var(--t3);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
   flex-shrink: 0;
 }
 
@@ -215,10 +217,9 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   scrollbar-width: thin;
 }
 .sb-prev-list {
-  display: flex; flex-direction: column; gap: 5px;
-  padding: 2px 7px 7px;
-  max-height: 180px;
-  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 2px 8px 8px;
+  overflow-y: visible;   /* sidebar itself scrolls */
   overscroll-behavior: contain;
 }
 .sb-prev-empty {
@@ -250,33 +251,38 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .session-item {
   position: relative;
   display: block;
-  padding: 9px 30px 9px 11px;  /* right pad leaves room for delete btn */
-  border-radius: 9px;
-  border: 1px solid var(--border);
-  background: transparent;
+  padding: 10px 32px 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
   cursor: pointer;
   transition: background .13s, border-color .13s;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
+  width: 100%;
+  box-sizing: border-box;
 }
-.session-item:hover { background: var(--surface); border-color: var(--brand-mid); }
+.session-item:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--brand-mid);
+}
 .session-item.active {
-  background: rgba(99,102,241,.1);
-  border-color: rgba(99,102,241,.35);
+  background: rgba(25,195,125,0.12);
+  border-color: rgba(25,195,125,0.35);
 }
 .session-title {
-  font-size: .72rem; font-weight: 600; color: var(--t1);
-  line-height: 1.35; margin-bottom: 3px;
+  font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9);
+  line-height: 1.35; margin-bottom: 4px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .session-meta {
   display: flex; justify-content: space-between; align-items: center; gap: 6px;
 }
 .session-last-msg {
-  font-size: .63rem; color: var(--t3);
+  font-size: 11px; color: var(--t2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  max-width: 70%;
+  max-width: 65%;
 }
-.session-time { font-size: .62rem; color: var(--t3); white-space: nowrap; flex-shrink: 0; }
+.session-time { font-size: 11px; color: var(--t3); white-space: nowrap; flex-shrink: 0; }
 .session-delete-btn {
   position: absolute; top: 50%; right: 7px;
   transform: translateY(-50%);
@@ -495,6 +501,16 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .tb-btn:hover { background: rgba(255,255,255,.09); color: var(--t1); border-color: var(--border-hi); }
 .tb-scope { background: var(--brand-lt); border-color: var(--brand-mid); color: var(--brand); }
 .tb-scope:hover { background: var(--brand-mid); color: #fff; }
+.tb-ch-pill {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 11px; border-radius: 999px;
+  background: var(--brand-lt); border: 1px solid var(--brand-mid);
+  color: var(--brand); font-size: .68rem; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: all .13s; white-space: nowrap;
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+}
+.tb-ch-pill:hover { background: var(--brand-mid); color: #fff; border-color: var(--brand); }
 
 /* ═══════════════════════════════════════
    MESSAGES AREA
@@ -1252,6 +1268,10 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   border-radius: 9px; transition: all .12s;
 }
 .scope-item-btn:hover { background: var(--brand-lt); border-color: var(--brand-mid); color: var(--brand); }
+.scope-item-btn { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.scope-topic-code { font-size: .72rem; font-weight: 700; color: #22c55e; flex-shrink: 0; }
+.scope-topic-title { flex: 1; font-size: .77rem; color: var(--t2); }
+.scope-topic-page { font-size: .69rem; color: var(--t3); flex-shrink: 0; }
 
 /* ═══════════════════════════════════════
    OVERLAY, TOAST, ERROR
@@ -1313,7 +1333,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
     box-shadow: var(--sh-lg);
   }
   .sidebar.on { transform: translateX(0); }
-  .sb-prev-list { max-height: 18vh; }
+  .sb-prev-list { overflow-y: visible; }
 
   .mob-btn { display: flex; }
   .tb-status { display: none; }
@@ -1416,7 +1436,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   .wl-p { font-size: .8rem; }
   .voice-card { gap: 7px; }
   .vc-wave { display: none; }
-  .sb-prev-list { max-height: 15vh; }
+  .sb-prev-list { overflow-y: visible; }
 }
 
 /* ═══════════════════════════════════════
