@@ -57,11 +57,14 @@
   .plan-bar button { width:100%; }
   .fg           { grid-template-columns:1fr !important; }
   .auth-box     { padding:26px 18px !important; border-radius:18px !important; }
+  /* Compact topnav on mobile */
+  .topnav       { padding: 0 14px !important; }
+  .topnav-email { display: none !important; }
+  .topnav-links { display: none !important; }
 }
 @media (max-width: 480px) {
   .dash-stats  { grid-template-columns: 1fr !important; }
   .otp-inp     { width:42px !important; height:48px !important; }
-  .topnav-links { display: none !important; }
 }
 @media (max-width: 600px) {
   .dash-upgrade-btn { white-space: normal !important; text-align: center; }
