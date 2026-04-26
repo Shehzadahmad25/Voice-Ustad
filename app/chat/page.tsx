@@ -2531,7 +2531,7 @@ export default function ChatPage() {
         <div className="sb-list" id="sbList"></div>
 
         {quizChapterInfo && scopeTopics.length > 0 && (
-          <div style={{ padding: '8px 12px 4px' }}>
+          <div className="sb-quiz-wrap">
             <button
               onClick={() => {
                 if (viewedTopics.size >= scopeTopics.length) {
