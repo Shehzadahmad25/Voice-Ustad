@@ -129,25 +129,22 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;   /* scroll happens inside .sb-scroll-area only */
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   z-index: 100;
   pointer-events: auto;
 }
 .sb-foot {
-  padding-bottom: max(9px, env(safe-area-inset-bottom)); /* safe area handled here */
+  padding-bottom: max(9px, env(safe-area-inset-bottom));
 }
 .sb-header {
   flex-shrink: 0;
 }
 .sb-scroll-area {
-  flex: 1;
-  min-height: 0;          /* flex scroll fix: allows item to shrink below content size */
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;            /* tell browser this element handles vertical panning */
-  overscroll-behavior: contain;   /* prevent scroll from propagating to parent */
-  pointer-events: auto;
+  flex: none;
+  overflow: visible;
+  height: auto;
   scrollbar-width: thin;
 }
 
@@ -1350,30 +1347,36 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
     position: fixed;
     top: 62px;
     left: 0;
-    height: calc(100dvh - 62px); /* explicit height — more reliable than bottom:0 on iOS Safari */
+    height: calc(100dvh - 62px);
     width: min(290px, 82vw);
     transform: translateX(-100%);
     z-index: 200;
     transition: transform .28s cubic-bezier(.4,0,.2,1);
     box-shadow: var(--sh-lg);
-    overflow: hidden;
+    overflow-y: scroll !important;
+    -webkit-overflow-scrolling: touch !important;
   }
   .sidebar.on { transform: translateX(0); }
-  /* overlay must NOT cover the sidebar — restrict it to the chat area only */
+  /* overlay restricted to chat area only; pointer-events off so touches reach sidebar */
   .overlay {
     left: min(290px, 82vw);
+    pointer-events: none !important;
   }
-  /* reinforce touch scrolling inside the scroll area */
+  /* passthrough — sidebar itself scrolls */
   .sb-scroll-area {
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
+    overflow: visible !important;
+    height: auto !important;
   }
-  /* cap chat history at ~3 items so chapters are visible without scrolling */
+  /* quiz button flows in document order, not sticky */
+  .sb-quiz-wrap {
+    position: relative !important;
+    bottom: auto !important;
+  }
+  /* no internal scroll caps on mobile — sidebar scrolls as one unit */
   .sb-prev-list {
-    max-height: 280px;
-    overflow-y: hidden;
+    max-height: none;
+    overflow-y: visible;
   }
-  /* chapters have no height cap — show all without internal scroll */
   .sb-list {
     max-height: none;
     overflow-y: visible;
