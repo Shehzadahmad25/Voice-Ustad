@@ -1359,6 +1359,16 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   .sb-scroll-area {
     -webkit-overflow-scrolling: touch;
   }
+  /* cap chat history at ~3 items so chapters are visible without scrolling */
+  .sb-prev-list {
+    max-height: 280px;
+    overflow-y: hidden;
+  }
+  /* chapters have no height cap — show all without internal scroll */
+  .sb-list {
+    max-height: none;
+    overflow-y: visible;
+  }
 
   .mob-btn { display: flex; }
   .tb-status { display: none; }

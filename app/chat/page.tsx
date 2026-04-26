@@ -2210,7 +2210,8 @@ export default function ChatPage() {
   );
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(7);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 720;
+  const [visibleCount, setVisibleCount] = useState(isMobile ? 3 : 7);
   const [scopeTopics, setScopeTopics] = useState<ScopeTopic[]>([]);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [quizChapterInfo, setQuizChapterInfo] = useState<QuizChapterInfo | null>(null);
@@ -2486,7 +2487,7 @@ export default function ChatPage() {
           )}
           {sessions.length > visibleCount && (
             <button
-              onClick={() => setVisibleCount((prev) => prev + 7)}
+              onClick={() => setVisibleCount((prev) => prev <= 3 ? prev + 4 : prev + 7)}
               style={{
                 width: '100%',
                 padding: '7px 0',
@@ -2500,7 +2501,7 @@ export default function ChatPage() {
                 letterSpacing: '0.02em',
               }}
             >
-              Show more
+              {visibleCount <= 3 ? 'See all chats' : 'Show more'}
             </button>
           )}
         </div>
