@@ -131,6 +131,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   flex-direction: column;
   overflow: hidden;   /* scroll happens inside .sb-scroll-area only */
   z-index: 100;
+  pointer-events: auto;
 }
 .sb-foot {
   padding-bottom: max(9px, env(safe-area-inset-bottom)); /* safe area handled here */
@@ -144,6 +145,9 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;            /* tell browser this element handles vertical panning */
+  overscroll-behavior: contain;   /* prevent scroll from propagating to parent */
+  pointer-events: auto;
   scrollbar-width: thin;
 }
 
@@ -1355,9 +1359,14 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
     overflow: hidden;
   }
   .sidebar.on { transform: translateX(0); }
-  /* ensure scroll area fills all available space between header and footer */
+  /* overlay must NOT cover the sidebar — restrict it to the chat area only */
+  .overlay {
+    left: min(290px, 82vw);
+  }
+  /* reinforce touch scrolling inside the scroll area */
   .sb-scroll-area {
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
   /* cap chat history at ~3 items so chapters are visible without scrolling */
   .sb-prev-list {
