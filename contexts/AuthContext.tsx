@@ -12,7 +12,7 @@ import { authService } from '@/lib/authService'
 import { UserProfile } from '@/lib/supabase'
 
 const MOCK_USER = {
-  id: 'dev-bypass-user',
+  id: '23e10a78-6f05-4aa1-88f0-f1483adddf57',
   email: 'test@example.com',
   user_metadata: { full_name: 'Test User' },
   app_metadata: {},
@@ -21,7 +21,7 @@ const MOCK_USER = {
 } as unknown as User
 
 const MOCK_PROFILE: UserProfile = {
-  id:                  'dev-bypass-user',
+  id:                  '23e10a78-6f05-4aa1-88f0-f1483adddf57',
   email:               'test@example.com',
   full_name:           'Test User',
   phone:               '',

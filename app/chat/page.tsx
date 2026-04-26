@@ -8,6 +8,7 @@ import { getTimeAgo } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import TopNav from '@/components/TopNav';
+import QuizModal from '@/components/QuizModal';
 // CHAPTER DATA WILL BE LOADED FROM SUPABASE
 const CHS: Array<{p:number; n:string; t:string; chips:string[]; followups:string[]; on?:boolean}> = [];
 
@@ -15,8 +16,11 @@ const CHS: Array<{p:number; n:string; t:string; chips:string[]; followups:string
 const SHOW_CHAPTER_SCOPE = true;
 
 interface ScopeTopic { topic_code: string; topic_title: string; page: number | null; }
+interface QuizChapterInfo { id: string; title: string; }
 
 let _setScopeTopics: ((t: ScopeTopic[]) => void) | null = null;
+let _setQuizChapterInfo: ((info: QuizChapterInfo | null) => void) | null = null;
+let _setViewedTopics: ((fn: (prev: Set<string>) => Set<string>) => void) | null = null;
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    STATE
@@ -493,6 +497,8 @@ function selCh(i: number){
       })
       .catch(() => {/* non-fatal */});
   }
+  if (_setQuizChapterInfo) _setQuizChapterInfo({ id: (CHS[i] as any).id || '', title: CHS[i]?.t || '' });
+  if (_setViewedTopics) _setViewedTopics(() => new Set());
   const sbSearch = document.getElementById('sbSearch') as HTMLInputElement;
   buildSb(sbSearch?.value || '');
   activeCh=`Chapter ${CHS[i]?.n || String(i+1)} - ${CHS[i]?.t || ''}`;
@@ -606,6 +612,7 @@ async function viewTopic(topicTitle: string, chN: number){
   const title = String(topicTitle || '').replace(/\s+/g, ' ').trim();
   console.log("VIEW TOPIC CALLED:", title);
   if (!title) return;
+  if (_setViewedTopics) _setViewedTopics((prev) => new Set([...prev, title]));
 
   if (!started){
     const m = document.getElementById('msgs') as HTMLElement;
@@ -1854,38 +1861,48 @@ function formatTime(isoStr: string): string {
 }
 
 function buildSidebarHistory(data: any[]) {
-  if (_setSessions) _setSessions(data);
+  console.log('[history] setSessions called with:', data?.length, data);
+  if (_setSessions) {
+    _setSessions(data);
+  } else {
+    console.log('[history] _setSessions is null — state setter not wired yet');
+  }
 }
 
 async function dbLoadHistory() {
-  if (!_sbClient) {
-    console.log('[history] no supabase client');
+  // Resolve userId: prefer real Supabase auth user, fall back to context user id
+  let userId: string | null = null;
+  try {
+    if (_sbClient) {
+      const { data: { user: realUser } } = await _sbClient.auth.getUser();
+      if (realUser?.id) {
+        userId = realUser.id;
+        console.log('[history] real auth user:', userId);
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  if (!userId && _currentUserId && _currentUserId !== 'dev-bypass-user') {
+    userId = _currentUserId;
+    console.log('[history] using context user id:', userId);
+  }
+
+  console.log('[history] querying with user_id:', userId);
+
+  if (!userId) {
+    console.log('[history] no user id — skipping');
     return;
   }
+
   try {
-    const { data: { user } } = await _sbClient.auth.getUser();
-    if (!user?.id) {
-      console.log('[history] no auth user found');
-      return;
-    }
-    console.log('[history] loading for user:', user.id);
-    _currentUserId = user.id;
-
-    const { data, error } = await _sbClient
-      .from('chat_sessions')
-      .select('id, title, updated_at, chapter_number')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(50);
-
-    console.log('[history] loaded:', data?.length, 'error:', error?.message);
-    if (data && data.length > 0) {
-      buildSidebarHistory(data);
-    } else if (!error) {
-      buildSidebarHistory([]);
-    }
+    // Use the server-side API route so service-role key bypasses RLS
+    const res = await fetch(`/api/chat-history?userId=${encodeURIComponent(userId)}`);
+    const json = await res.json();
+    console.log('[history] API response:', json.sessions?.length, 'error:', json.error);
+    if (!json.ok) { console.log('[history] API error:', json.error); return; }
+    buildSidebarHistory(json.sessions || []);
   } catch (err) {
-    console.log('[history] error:', err);
+    console.log('[history] fetch error:', err);
   }
 }
 
@@ -2193,8 +2210,13 @@ export default function ChatPage() {
   );
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(7);
   const [scopeTopics, setScopeTopics] = useState<ScopeTopic[]>([]);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [quizChapterInfo, setQuizChapterInfo] = useState<QuizChapterInfo | null>(null);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [showQuizWarning, setShowQuizWarning] = useState(false);
+  const [viewedTopics, setViewedTopics] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const displayName =
@@ -2223,7 +2245,9 @@ export default function ChatPage() {
     if (!user?.id) return;
     console.log('[history] user ready, loading history for:', user.id);
     _currentUserId = user.id;
-    if (!_sbClient) _sbClient = supabaseRef.current;
+    if (!_sbClient)       _sbClient   = supabaseRef.current;
+    if (!_setSessions)    _setSessions = setSessions;
+    if (!_setActiveSessionId) _setActiveSessionId = setActiveSessionId;
     dbLoadHistory();
   }, [user?.id]);
 
@@ -2245,6 +2269,8 @@ export default function ChatPage() {
     _setSessions = setSessions;
     _setActiveSessionId = setActiveSessionId;
     _setScopeTopics = setScopeTopics;
+    _setQuizChapterInfo = setQuizChapterInfo;
+    _setViewedTopics = setViewedTopics;
     dbLoadHistory();
     fetchChapters();
     const params = new URLSearchParams(window.location.search);
@@ -2334,6 +2360,75 @@ export default function ChatPage() {
         </div>
       </div>
 
+      {showQuizWarning && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9998,
+            background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px', boxSizing: 'border-box',
+          }}
+          onClick={() => setShowQuizWarning(false)}
+        >
+          <div
+            style={{
+              background: '#1e1e1e',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              padding: '28px 24px',
+              maxWidth: '400px', width: '100%',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '28px', marginBottom: '12px', textAlign: 'center' }}>⚠️</div>
+            <h3 style={{ color: '#ececec', fontSize: '17px', fontWeight: 700, margin: '0 0 10px', textAlign: 'center' }}>
+              Are you ready?
+            </h3>
+            <p style={{ color: '#9a9a9a', fontSize: '13px', lineHeight: 1.6, margin: '0 0 24px', textAlign: 'center' }}>
+              You have studied <span style={{ color: '#ececec', fontWeight: 600 }}>{viewedTopics.size}</span> of{' '}
+              <span style={{ color: '#ececec', fontWeight: 600 }}>{scopeTopics.length}</span> topics in this chapter.
+              <br />
+              We recommend completing all topics before taking the quiz.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => { setShowQuizWarning(false); setShowQuiz(true); }}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '9px',
+                  background: 'rgba(25,195,125,0.1)',
+                  border: '1px solid rgba(25,195,125,0.25)',
+                  color: '#19c37d', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Continue Anyway
+              </button>
+              <button
+                onClick={() => setShowQuizWarning(false)}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '9px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#ececec', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Go Back &amp; Study
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showQuiz && quizChapterInfo && (
+        <QuizModal
+          chapterId={quizChapterInfo.id}
+          chapterTitle={quizChapterInfo.title}
+          topics={scopeTopics}
+          userId={user?.id || ''}
+          onClose={() => setShowQuiz(false)}
+        />
+      )}
+
       <aside className="sidebar" id="sb">
         <div className="sb-brand">
           <div className="sb-logo">V</div>
@@ -2355,7 +2450,7 @@ export default function ChatPage() {
               No previous chats
             </div>
           ) : (
-            sessions.map((s) => {
+            sessions.slice(0, visibleCount).map((s) => {
               const dateStr = s.updated_at
                 ? new Date(s.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                 : '';
@@ -2384,6 +2479,25 @@ export default function ChatPage() {
                 </div>
               );
             })
+          )}
+          {sessions.length > visibleCount && (
+            <button
+              onClick={() => setVisibleCount((prev) => prev + 7)}
+              style={{
+                width: '100%',
+                padding: '7px 0',
+                background: 'transparent',
+                border: 'none',
+                borderTop: '1px solid var(--border, rgba(255,255,255,0.07))',
+                color: 'var(--t2)',
+                fontSize: '12px',
+                cursor: 'pointer',
+                opacity: 0.6,
+                letterSpacing: '0.02em',
+              }}
+            >
+              Show more
+            </button>
           )}
         </div>
 
@@ -2415,6 +2529,39 @@ export default function ChatPage() {
         </div>
 
         <div className="sb-list" id="sbList"></div>
+
+        {quizChapterInfo && scopeTopics.length > 0 && (
+          <div style={{ padding: '8px 12px 4px' }}>
+            <button
+              onClick={() => {
+                if (viewedTopics.size >= scopeTopics.length) {
+                  setShowQuiz(true);
+                } else {
+                  setShowQuizWarning(true);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '9px 14px',
+                background: 'rgba(25,195,125,0.1)',
+                border: '1px solid rgba(25,195,125,0.25)',
+                borderRadius: '9px',
+                color: '#19c37d',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                letterSpacing: '0.02em',
+              }}
+            >
+              <span aria-hidden="true">📝</span>
+              Take Chapter Quiz
+            </button>
+          </div>
+        )}
 
         <div className="sb-foot">
           {process.env.NODE_ENV === 'development' && (
