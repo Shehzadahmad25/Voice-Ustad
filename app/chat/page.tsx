@@ -2430,18 +2430,22 @@ export default function ChatPage() {
       )}
 
       <aside className="sidebar" id="sb">
-        <div className="sb-brand">
-          <div className="sb-logo">V</div>
-          <span className="sb-name">VoiceUstad</span>
-          <div className="sb-pill"><span className="blink-dot"></span>Online</div>
+        <div className="sb-header">
+          <div className="sb-brand">
+            <div className="sb-logo">V</div>
+            <span className="sb-name">VoiceUstad</span>
+            <div className="sb-pill"><span className="blink-dot"></span>Online</div>
+          </div>
+
+          <button className="sb-new" onClick={() => newChat()}>
+            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" d="M12 4v16m8-8H4" />
+            </svg>
+            New Conversation
+          </button>
         </div>
 
-        <button className="sb-new" onClick={() => newChat()}>
-          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" d="M12 4v16m8-8H4" />
-          </svg>
-          New Conversation
-        </button>
+        <div className="sb-scroll-area">
 
         <div className="sb-sec">Chat History</div>
         <div className="sb-prev-list" id="sbPrevList">
@@ -2529,6 +2533,8 @@ export default function ChatPage() {
         </div>
 
         <div className="sb-list" id="sbList"></div>
+
+        </div>{/* end sb-scroll-area */}
 
         {quizChapterInfo && scopeTopics.length > 0 && (
           <div className="sb-quiz-wrap">

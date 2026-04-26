@@ -129,10 +129,18 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;   /* scroll happens inside .sb-scroll-area only */
   z-index: 100;
   padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+.sb-header {
+  flex-shrink: 0;
+}
+.sb-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
 
@@ -213,14 +221,11 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .sb-search-inp::placeholder { color: var(--t3); }
 
 .sb-list {
-  flex: 1; min-height: 160px; overflow-y: auto; padding: 2px 7px 8px;
+  padding: 2px 7px 8px;
   scrollbar-width: thin;
 }
 .sb-quiz-wrap {
   flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
   background: var(--surface2);
   padding: 8px 12px 6px;
   border-top: 1px solid var(--border);
@@ -1340,24 +1345,9 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
     transform: translateX(-100%); z-index: 200;
     transition: transform .28s cubic-bezier(.4,0,.2,1);
     box-shadow: var(--sh-lg);
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
   }
   .sidebar.on { transform: translateX(0); }
-  /* sb-list must not flex-grow on mobile — it would consume all remaining
-     height and push the quiz button + footer out of the scrollable area */
-  .sb-list {
-    flex: none;
-    min-height: unset;
-    max-height: 42vh;
-    overflow-y: auto;
-  }
-  .sb-prev-list { overflow-y: visible; }
-  /* Quiz button sticks to bottom of sidebar scroll container */
-  .sb-quiz-wrap {
-    position: sticky;
-    bottom: 0;
-  }
 
   .mob-btn { display: flex; }
   .tb-status { display: none; }
