@@ -131,13 +131,16 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   flex-direction: column;
   overflow: hidden;   /* scroll happens inside .sb-scroll-area only */
   z-index: 100;
-  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+.sb-foot {
+  padding-bottom: max(9px, env(safe-area-inset-bottom)); /* safe area handled here */
 }
 .sb-header {
   flex-shrink: 0;
 }
 .sb-scroll-area {
   flex: 1;
+  min-height: 0;          /* flex scroll fix: allows item to shrink below content size */
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -1340,14 +1343,22 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 ═══════════════════════════════════════ */
 @media (max-width: 720px) {
   .sidebar {
-    position: fixed; top: 62px; bottom: 0; left: 0;
+    position: fixed;
+    top: 62px;
+    left: 0;
+    height: calc(100dvh - 62px); /* explicit height — more reliable than bottom:0 on iOS Safari */
     width: min(290px, 82vw);
-    transform: translateX(-100%); z-index: 200;
+    transform: translateX(-100%);
+    z-index: 200;
     transition: transform .28s cubic-bezier(.4,0,.2,1);
     box-shadow: var(--sh-lg);
     overflow: hidden;
   }
   .sidebar.on { transform: translateX(0); }
+  /* ensure scroll area fills all available space between header and footer */
+  .sb-scroll-area {
+    -webkit-overflow-scrolling: touch;
+  }
 
   .mob-btn { display: flex; }
   .tb-status { display: none; }
