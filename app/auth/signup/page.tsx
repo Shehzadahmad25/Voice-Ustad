@@ -20,7 +20,7 @@ function StepIndicator({ current }: { current: number }) {
         <div key={i} style={{
           height:'4px', borderRadius:'4px', transition:'all 0.25s',
           width: i === current ? '38px' : '28px',
-          background: i < current ? '#22c55e' : i === current ? '#0ea5e9' : 'rgba(255,255,255,0.08)',
+          background: i < current ? '#f59e0b' : i === current ? '#f59e0b' : 'rgba(255,255,255,0.08)',
         }} />
       ))}
     </div>
@@ -124,21 +124,21 @@ export default function SignUpPage() {
           <label style={labelStyle}>Full Name</label>
           <input type="text" value={fullName} onChange={e => setFullName(e.target.value)}
             placeholder="Ahmad Khan" style={inputStyle}
-            onFocus={e => Object.assign(e.target.style, { borderColor:'#22c55e', boxShadow:'0 0 0 3px rgba(34,197,94,0.1)' })}
+            onFocus={e => Object.assign(e.target.style, { borderColor:'#f59e0b', boxShadow:'0 0 0 3px rgba(245,158,11,0.1)' })}
             onBlur={e => Object.assign(e.target.style, { borderColor:'rgba(255,255,255,0.14)', boxShadow:'none' })} />
         </div>
         <div>
           <label style={labelStyle}>Email address</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com" style={inputStyle}
-            onFocus={e => Object.assign(e.target.style, { borderColor:'#22c55e', boxShadow:'0 0 0 3px rgba(34,197,94,0.1)' })}
+            onFocus={e => Object.assign(e.target.style, { borderColor:'#f59e0b', boxShadow:'0 0 0 3px rgba(245,158,11,0.1)' })}
             onBlur={e => Object.assign(e.target.style, { borderColor:'rgba(255,255,255,0.14)', boxShadow:'none' })} />
         </div>
         <div>
           <label style={labelStyle}>Phone Number <span style={{ color:'#64748b' }}>(optional)</span></label>
           <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
             placeholder="+92 300 0000000" style={inputStyle}
-            onFocus={e => Object.assign(e.target.style, { borderColor:'#22c55e', boxShadow:'0 0 0 3px rgba(34,197,94,0.1)' })}
+            onFocus={e => Object.assign(e.target.style, { borderColor:'#f59e0b', boxShadow:'0 0 0 3px rgba(245,158,11,0.1)' })}
             onBlur={e => Object.assign(e.target.style, { borderColor:'rgba(255,255,255,0.14)', boxShadow:'none' })} />
         </div>
         <div>
@@ -172,7 +172,7 @@ export default function SignUpPage() {
 
         <label style={{ display:'flex', alignItems:'flex-start', gap:'10px', cursor:'pointer' }}>
           <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
-            style={{ marginTop:'2px', accentColor:'#22c55e', width:'15px', height:'15px', flexShrink:0 }} />
+            style={{ marginTop:'2px', accentColor:'#f59e0b', width:'15px', height:'15px', flexShrink:0 }} />
           <span style={{ fontSize:'12px', color:'#94a3b8', lineHeight:'1.5' }}>
             I agree to Terms of Service and Privacy Policy. I confirm I am a Pakistani FSc student.
           </span>
@@ -188,9 +188,9 @@ export default function SignUpPage() {
 
         <button type="submit" disabled={loading} style={{
           width:'100%', padding:'13px', borderRadius:'11px',
-          background:'#22c55e', fontSize:'14px', fontWeight:'700',
+          background:'#f59e0b', fontSize:'14px', fontWeight:'700',
           color:'#000', border:'none', cursor:'pointer', fontFamily:'inherit',
-          transition:'all 0.15s', boxShadow:'0 3px 16px rgba(34,197,94,0.28)',
+          transition:'all 0.15s', boxShadow:'0 3px 16px rgba(245,158,11,0.28)',
           opacity: loading ? 0.7 : 1,
           display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
         }}>
@@ -206,7 +206,7 @@ export default function SignUpPage() {
       <p style={{ textAlign:'center', marginTop:'20px', fontSize:'13px', color:'#64748b' }}>
         Already have an account?{' '}
         <button onClick={() => router.push('/auth/signin')} style={{
-          color:'#22c55e', background:'none', border:'none', cursor:'pointer',
+          color:'#f59e0b', background:'none', border:'none', cursor:'pointer',
           fontFamily:'inherit', fontSize:'13px', fontWeight:'600',
         }}>Sign in</button>
       </p>

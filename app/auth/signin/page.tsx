@@ -23,9 +23,9 @@ export default function SignInPage() {
         onClick={() => router.push('/dashboard')}
         style={{
           width: '100%', padding: '14px', borderRadius: '11px',
-          background: '#22c55e', fontSize: '15px', fontWeight: '700',
+          background: '#f59e0b', fontSize: '15px', fontWeight: '700',
           color: '#000', border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', boxShadow: '0 3px 16px rgba(34,197,94,0.28)',
+          fontFamily: 'inherit', boxShadow: '0 3px 16px rgba(245,158,11,0.28)',
           transition: 'all 0.15s',
         }}
       >

@@ -12,7 +12,7 @@ function StepIndicator({ current }: { current: number }) {
         <div key={i} style={{
           height:'4px', borderRadius:'4px', transition:'all 0.25s',
           width: i === current ? '38px' : '28px',
-          background: i < current ? '#22c55e' : i === current ? '#0ea5e9' : 'rgba(255,255,255,0.08)',
+          background: i < current ? '#f59e0b' : i === current ? '#f59e0b' : 'rgba(255,255,255,0.08)',
         }} />
       ))}
     </div>
@@ -73,7 +73,7 @@ export default function OnboardingPage() {
   }
 
   const focusHandler = (e: React.FocusEvent<HTMLSelectElement | HTMLInputElement>) =>
-    Object.assign(e.target.style, { borderColor:'#22c55e', boxShadow:'0 0 0 3px rgba(34,197,94,0.1)' })
+    Object.assign(e.target.style, { borderColor:'#f59e0b', boxShadow:'0 0 0 3px rgba(245,158,11,0.1)' })
   const blurHandler = (e: React.FocusEvent<HTMLSelectElement | HTMLInputElement>) =>
     Object.assign(e.target.style, { borderColor:'rgba(255,255,255,0.14)', boxShadow:'none' })
 
@@ -139,9 +139,9 @@ export default function OnboardingPage() {
 
         <button type="button" onClick={handleSave} disabled={loading} style={{
           width:'100%', padding:'13px', borderRadius:'11px',
-          background:'#22c55e', fontSize:'14px', fontWeight:'700',
+          background:'#f59e0b', fontSize:'14px', fontWeight:'700',
           color:'#000', border:'none', cursor:'pointer', fontFamily:'inherit',
-          transition:'all 0.15s', boxShadow:'0 3px 16px rgba(34,197,94,0.28)',
+          transition:'all 0.15s', boxShadow:'0 3px 16px rgba(245,158,11,0.28)',
           opacity: loading ? 0.7 : 1,
           display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
         }}>

@@ -22,14 +22,14 @@ export default function AuthLayout({ children, showBrand = true }: AuthLayoutPro
         position: 'fixed',
         top: 0, left: 0,
         width: '40%', height: '40%',
-        background: 'radial-gradient(circle at 20% 20%, rgba(34,197,94,0.05), transparent 70%)',
+        background: 'radial-gradient(circle at 20% 20%, rgba(245,158,11,0.05), transparent 70%)',
         pointerEvents: 'none',
       }} />
       <div style={{
         position: 'fixed',
         bottom: 0, right: 0,
         width: '40%', height: '40%',
-        background: 'radial-gradient(circle at 80% 80%, rgba(14,165,233,0.05), transparent 70%)',
+        background: 'radial-gradient(circle at 80% 80%, rgba(245,158,11,0.04), transparent 70%)',
         pointerEvents: 'none',
       }} />
 

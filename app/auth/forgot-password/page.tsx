@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
         <div style={{ textAlign:'center' }}>
           <div style={{
             width:'64px', height:'64px', borderRadius:'50%',
-            background:'rgba(14,165,233,0.1)', border:'2px solid rgba(14,165,233,0.3)',
+            background:'rgba(245,158,11,0.1)', border:'2px solid rgba(245,158,11,0.3)',
             display:'flex', alignItems:'center', justifyContent:'center',
             fontSize:'28px', margin:'0 auto 20px',
           }}>📧</div>
@@ -59,9 +59,9 @@ export default function ForgotPasswordPage() {
             Reset link sent to <strong style={{ color:'#f1f5f9' }}>{email}</strong>. Expires in 15 minutes.
           </p>
           <div style={{
-            background:'rgba(14,165,233,0.08)', border:'1px solid rgba(14,165,233,0.2)',
+            background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)',
             borderRadius:'10px', padding:'11px 14px', marginBottom:'24px',
-            fontSize:'13px', color:'#0ea5e9', display:'flex', alignItems:'center',
+            fontSize:'13px', color:'#f59e0b', display:'flex', alignItems:'center',
             justifyContent:'center', gap:'8px',
           }}>💡 Check your spam folder</div>
           <button onClick={() => router.push('/auth/signin')} style={{
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
           <p style={{ fontSize:'13px', color:'#64748b' }}>
             Didn&apos;t get it?{' '}
             <button onClick={handleResend} style={{
-              color:'#22c55e', background:'none', border:'none', cursor:'pointer',
+              color:'#f59e0b', background:'none', border:'none', cursor:'pointer',
               fontFamily:'inherit', fontSize:'13px', fontWeight:'600',
             }}>Resend link</button>
           </p>
@@ -94,7 +94,7 @@ export default function ForgotPasswordPage() {
           <label style={{ fontSize:'12px', color:'#94a3b8', marginBottom:'6px', display:'block' }}>Email address</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com" required style={inputStyle}
-            onFocus={e => Object.assign(e.target.style, { borderColor:'#22c55e', boxShadow:'0 0 0 3px rgba(34,197,94,0.1)' })}
+            onFocus={e => Object.assign(e.target.style, { borderColor:'#f59e0b', boxShadow:'0 0 0 3px rgba(245,158,11,0.1)' })}
             onBlur={e => Object.assign(e.target.style, { borderColor:'rgba(255,255,255,0.14)', boxShadow:'none' })} />
         </div>
 
@@ -108,9 +108,9 @@ export default function ForgotPasswordPage() {
 
         <button type="submit" disabled={loading} style={{
           width:'100%', padding:'13px', borderRadius:'11px',
-          background:'#22c55e', fontSize:'14px', fontWeight:'700',
+          background:'#f59e0b', fontSize:'14px', fontWeight:'700',
           color:'#000', border:'none', cursor:'pointer', fontFamily:'inherit',
-          transition:'all 0.15s', boxShadow:'0 3px 16px rgba(34,197,94,0.28)',
+          transition:'all 0.15s', boxShadow:'0 3px 16px rgba(245,158,11,0.28)',
           opacity: loading ? 0.7 : 1,
           display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
         }}>

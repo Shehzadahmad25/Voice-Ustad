@@ -35,8 +35,8 @@ function Skeleton({ width = '100%', height = '20px', style = {} }: { width?: str
 
 const cardStyle: React.CSSProperties = {
   background: '#141929',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.06)',
+  borderRadius: '12px',
   padding: '18px 20px',
   position: 'relative',
   overflow: 'hidden',
@@ -118,9 +118,9 @@ export default function DashboardPage() {
   const firstName = getFirstName(profile, user)
 
   const subjects = [
-    { name: 'Chemistry',    icon: '🧪', bg: 'rgba(34,197,94,0.1)',  chapterId: 'chemistry'   },
-    { name: 'Biology',      icon: '🌿', bg: 'rgba(14,165,233,0.1)', chapterId: 'biology'     },
-    { name: 'Physics',      icon: '⚡', bg: 'rgba(124,58,237,0.1)', chapterId: 'physics'     },
+    { name: 'Chemistry',    icon: '🧪', bg: 'rgba(245,158,11,0.1)', chapterId: 'chemistry'   },
+    { name: 'Biology',      icon: '🌿', bg: 'rgba(245,158,11,0.08)', chapterId: 'biology'     },
+    { name: 'Physics',      icon: '⚡', bg: 'rgba(245,158,11,0.08)', chapterId: 'physics'     },
     { name: 'Mathematics',  icon: '📐', bg: 'rgba(245,158,11,0.1)', chapterId: 'mathematics' },
   ]
 
@@ -170,10 +170,10 @@ export default function DashboardPage() {
               )}
             </div>
             <button onClick={() => router.push('/chat')} style={{
-              padding: '9px 20px', borderRadius: '9px', background: '#22c55e',
+              padding: '9px 20px', borderRadius: '9px', background: '#f59e0b',
               fontWeight: '700', color: '#000', border: 'none', cursor: 'pointer',
               fontFamily: 'inherit', fontSize: '14px', transition: 'all 0.15s',
-              boxShadow: '0 3px 14px rgba(34,197,94,0.28)', whiteSpace: 'nowrap',
+              boxShadow: '0 3px 14px rgba(245,158,11,0.28)', whiteSpace: 'nowrap',
             }}>▶ Continue Studying</button>
           </div>
 
@@ -192,7 +192,7 @@ export default function DashboardPage() {
                 Free Trial Active — Upgrade to unlock all subjects and unlimited questions
               </div>
               <button style={{
-                padding: '8px 18px', borderRadius: '8px', background: '#22c55e',
+                padding: '8px 18px', borderRadius: '8px', background: '#f59e0b',
                 color: '#000', fontWeight: '700', border: 'none', cursor: 'pointer',
                 fontFamily: 'inherit', fontSize: '13px', flexShrink: 0, whiteSpace: 'nowrap',
                 transition: 'all 0.15s',
@@ -206,16 +206,11 @@ export default function DashboardPage() {
             gap: '14px', marginBottom: '20px',
           }}>
             {[
-              { label: 'QUESTIONS ASKED', value: questionsAsked, color: '#22c55e', glow: 'rgba(34,197,94,0.2)',  note: 'Keep it up!'          },
-              { label: 'CHAPTERS ACTIVE', value: chaptersActive, color: '#0ea5e9', glow: 'rgba(14,165,233,0.2)', note: 'Start your first chapter' },
-              { label: 'STUDY SESSIONS',  value: studySessions,  color: '#f59e0b', glow: 'rgba(245,158,11,0.2)', note: 'Start your first →'    },
+              { label: 'QUESTIONS ASKED', value: questionsAsked, note: 'Keep it up!'          },
+              { label: 'CHAPTERS ACTIVE', value: chaptersActive, note: 'Start your first chapter' },
+              { label: 'STUDY SESSIONS',  value: studySessions,  note: 'Start your first →'    },
             ].map((stat, idx) => (
               <div key={idx} style={cardStyle}>
-                <div style={{
-                  position: 'absolute', top: '-15px', right: '-15px',
-                  width: '70px', height: '70px', borderRadius: '50%',
-                  background: stat.glow, opacity: 0.5, pointerEvents: 'none',
-                }} />
                 {loading ? (
                   <>
                     <Skeleton width="120px" height="12px" style={{ marginBottom: '12px' }} />
@@ -224,13 +219,13 @@ export default function DashboardPage() {
                   </>
                 ) : (
                   <>
-                    <p style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                    <p style={{ fontSize: '11px', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
                       {stat.label}
                     </p>
-                    <p style={{ fontSize: '32px', fontWeight: '900', color: stat.color, lineHeight: 1, marginBottom: '6px' }}>
+                    <p style={{ fontSize: '32px', fontWeight: '900', color: '#f59e0b', lineHeight: 1, marginBottom: '6px' }}>
                       {stat.value}
                     </p>
-                    <p style={{ fontSize: '12px', color: '#64748b' }}>{stat.note}</p>
+                    <p style={{ fontSize: '12px', color: '#94a3b8' }}>{stat.note}</p>
                   </>
                 )}
               </div>
@@ -248,23 +243,23 @@ export default function DashboardPage() {
                 display: 'flex', alignItems: 'center', gap: '14px',
                 width: '100%', textAlign: 'left',
                 background: '#141929',
-                border: '1px solid rgba(34,197,94,0.2)',
-                borderRadius: '14px', padding: '16px 20px',
+                border: '1px solid rgba(245,158,11,0.2)',
+                borderRadius: '12px', padding: '16px 20px',
                 cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'all 0.15s',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'rgba(34,197,94,0.45)'
-                e.currentTarget.style.background = '#172034'
+                e.currentTarget.style.borderColor = 'rgba(245,158,11,0.45)'
+                e.currentTarget.style.background = '#1a1600'
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(34,197,94,0.2)'
+                e.currentTarget.style.borderColor = 'rgba(245,158,11,0.2)'
                 e.currentTarget.style.background = '#141929'
               }}
             >
               <div style={{
                 width: '42px', height: '42px', borderRadius: '11px', flexShrink: 0,
-                background: 'rgba(34,197,94,0.1)',
+                background: 'rgba(245,158,11,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '20px',
               }}>🧪</div>
@@ -276,7 +271,7 @@ export default function DashboardPage() {
                   Chemistry · Class 11 · All topics in order
                 </p>
               </div>
-              <span style={{ color: '#22c55e', fontSize: '16px', flexShrink: 0 }}>→</span>
+              <span style={{ color: '#f59e0b', fontSize: '16px', flexShrink: 0 }}>→</span>
             </button>
           </div>
 
@@ -290,7 +285,7 @@ export default function DashboardPage() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'18px' }}>
                 <span style={{ fontSize:'14px', fontWeight:'700', color:'white' }}>Your Subjects</span>
                 <button onClick={() => router.push('/chat')} style={{
-                  fontSize:'12px', color:'#22c55e', background:'none', border:'none',
+                  fontSize:'12px', color:'#f59e0b', background:'none', border:'none',
                   cursor:'pointer', fontFamily:'inherit', fontWeight:'500',
                 }}>View all →</button>
               </div>
@@ -309,7 +304,7 @@ export default function DashboardPage() {
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' }}>
                         <span style={{ fontSize:'13.5px', fontWeight:'600', color:'#f1f5f9' }}>{sub.name}</span>
-                        <span style={{ fontSize:'12px', color: progress > 0 ? '#22c55e' : '#64748b', fontWeight:'600' }}>
+                        <span style={{ fontSize:'12px', color: progress > 0 ? '#22c55e' : '#475569', fontWeight:'600' }}>
                           {progress > 0 ? `${progress}%` : '—'}
                         </span>
                       </div>
@@ -334,7 +329,7 @@ export default function DashboardPage() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'18px' }}>
                 <span style={{ fontSize:'14px', fontWeight:'700', color:'white' }}>Account</span>
                 <button onClick={() => router.push('/settings')} style={{
-                  fontSize:'12px', color:'#22c55e', background:'none', border:'none',
+                  fontSize:'12px', color:'#f59e0b', background:'none', border:'none',
                   cursor:'pointer', fontFamily:'inherit', fontWeight:'500',
                 }}>Edit →</button>
               </div>
@@ -366,7 +361,7 @@ export default function DashboardPage() {
                     <span style={{ color:'#64748b' }}>Plan</span>
                     <span style={{
                       padding:'2px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'700',
-                      background:'rgba(34,197,94,0.12)', color:'#22c55e', border:'1px solid rgba(34,197,94,0.2)',
+                      background:'rgba(245,158,11,0.1)', color:'#f59e0b', border:'1px solid rgba(245,158,11,0.2)',
                     }}>Free Trial</span>
                   </div>
 
@@ -390,7 +385,7 @@ export default function DashboardPage() {
               <div style={{ display:'flex', gap:'10px', marginTop:'16px' }}>
                 <button onClick={() => router.push('/settings')} style={{
                   flex:1, padding:'9px', borderRadius:'9px',
-                  background:'#22c55e', color:'#000', fontWeight:'700',
+                  background:'#f59e0b', color:'#000', fontWeight:'700',
                   border:'none', cursor:'pointer', fontFamily:'inherit',
                   fontSize:'13px', transition:'all 0.15s',
                 }}>Edit Profile</button>
@@ -406,14 +401,14 @@ export default function DashboardPage() {
 
           {/* UPGRADE BANNER */}
           <div className="upgrade-wrap" style={{
-            borderRadius:'16px', padding:'26px 30px',
-            background:'linear-gradient(135deg,#0d1a0d,#0a1220)',
-            border:'1px solid rgba(34,197,94,0.2)',
+            borderRadius:'12px', padding:'26px 30px',
+            background:'rgba(245,158,11,0.1)',
+            border:'1px solid rgba(245,158,11,0.3)',
             display:'flex', alignItems:'center', justifyContent:'space-between',
             gap:'20px', position:'relative', overflow:'hidden',
           }}>
             <div>
-              <p style={{ fontSize:'10.5px', color:'#22c55e', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'6px', fontWeight:'700' }}>
+              <p style={{ fontSize:'10.5px', color:'#f59e0b', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'6px', fontWeight:'700' }}>
                 🔥 LIMITED LAUNCH OFFER
               </p>
               <h3 style={{ fontSize:'19px', fontWeight:'800', color:'white', marginBottom:'6px' }}>
@@ -425,10 +420,10 @@ export default function DashboardPage() {
               </p>
             </div>
             <button style={{
-              background:'#22c55e', color:'#000', padding:'12px 26px',
-              borderRadius:'10px', fontWeight:'700', border:'none', cursor:'pointer',
+              background:'#f59e0b', color:'#000', padding:'12px 26px',
+              borderRadius:'8px', fontWeight:'700', border:'none', cursor:'pointer',
               fontFamily:'inherit', fontSize:'14px', flexShrink:0, whiteSpace:'nowrap',
-              boxShadow:'0 3px 16px rgba(34,197,94,0.32)', transition:'all 0.15s',
+              boxShadow:'0 3px 16px rgba(245,158,11,0.32)', transition:'all 0.15s',
             }}>Try 7 Days Free →</button>
           </div>
 
