@@ -1300,6 +1300,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   animation: slideUp .2s ease;
 }
 .toast.error { background: rgba(239,68,68,.15); border-color: var(--red-bd); color: #f87171; }
+.toast-icon { margin-right: 5px; }
 
 .err-card {
   background: rgba(239,68,68,.07); border: 1px solid var(--red-bd);

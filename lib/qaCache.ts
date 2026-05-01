@@ -336,12 +336,18 @@ export async function saveToCache(input: CacheSaveInput): Promise<void> {
 
 // ── Audio filename (deterministic, safe for Supabase Storage) ─────────────────
 
-function audioFilename(normalizedQuestion: string, chapterNumber: number): string {
+function audioFilename(
+  normalizedQuestion: string,
+  chapterNumber: number,
+  ttsVoice = 'onyx',
+  ttsModel  = 'tts-1-hd',
+): string {
   const safe = normalizedQuestion
     .replace(/\s+/g, '_')
     .replace(/[^a-z0-9_-]/g, '')
-    .slice(0, 80);
-  return `tts/${chapterNumber}/${safe}.mp3`;
+    .slice(0, 70);
+  const tag = `${ttsModel}_${ttsVoice}`.replace(/[^a-z0-9_-]/g, '_');
+  return `tts/${chapterNumber}/${safe}_${tag}.mp3`;
 }
 
 // ── Patch audio fields on an existing cache row ───────────────────────────────
@@ -406,7 +412,7 @@ export async function saveAudioToCache(
   try {
     const db          = getDb();
     const normalized  = normalizeQuestion(question);
-    const filename    = audioFilename(normalized, chapterNumber);
+    const filename    = audioFilename(normalized, chapterNumber, ttsVoice, ttsModel);
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
     // ── Upload to Supabase Storage ──────────────────────────────────────────
@@ -469,7 +475,7 @@ export async function saveAudioToCacheById(
   try {
     const db          = getDb();
     const normalized  = normalizeQuestion(question);
-    const filename    = audioFilename(normalized, chapterNumber);
+    const filename    = audioFilename(normalized, chapterNumber, ttsVoice, ttsModel);
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
     const { error: uploadError } = await db.storage
