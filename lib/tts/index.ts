@@ -86,7 +86,7 @@ export async function generateSpeech(
   // ── OpenAI TTS — primary ───────────────────────────────────────────────────
   const model = 'tts-1-hd';
   const voice = process.env.OPENAI_TTS_VOICE || 'onyx';
-  const speed = 0.88;
+  const speed = 1.05;
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('[tts] OPENAI_API_KEY is not set');
