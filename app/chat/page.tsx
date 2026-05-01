@@ -923,7 +923,8 @@ function showToast(icon: string, msg: string, duration: number = 2400){
   const safeIcon = (() => {
     const raw = String(icon || '').trim();
     if (!raw) return 'Info';
-    if (['Soon','Note','Audio','Edit','Copy','OK'].includes(raw)) return raw;
+    if (/\p{Emoji}/u.test(raw)) return raw;
+    if (['Soon','Note','Edit','Copy','OK'].includes(raw)) return raw;
     if (/copy/i.test(msg)) return 'Copy';
     if (/feedback|thanks/i.test(msg)) return 'OK';
     if (/edit/i.test(msg)) return 'Edit';
@@ -1559,7 +1560,7 @@ async function togglePlay(id){
   const ttsUrText = decodeURIComponent(btn.dataset.ttsUr || '');
   const hasAudioText = Boolean(urduSummaries[id] || ttsText || ttsUrText);
   if(!hasAudioText){
-    showToast('Audio', 'No text available for Urdu audio');
+    showToast('🔊','No text available for Urdu audio');
     return;
   }
 
@@ -1628,7 +1629,7 @@ async function togglePlay(id){
       startPlaying();
     } else {
       stopPlay(id);
-      showToast('Audio', (e as any)?.message || 'Urdu TTS failed');
+      showToast('🔊',(e as any)?.message || 'Urdu TTS failed');
       ttsLoading[id]=false;
       return;
     }
@@ -1711,7 +1712,7 @@ async function retryAudio(id, silent=false){
   let summary = String(urduSummaries[id] || ttsUrText || ttsText || '').trim();
   if (summary.length > 1100) summary = summary.slice(0, 1100);
   if(!summary){
-    showToast('Audio', 'Urdu summary unavailable');
+    showToast('🔊','Urdu summary unavailable');
     return;
   }
   const card = btn?.closest('.voice-card');
@@ -1758,11 +1759,11 @@ async function retryAudio(id, silent=false){
     setVoiceSource(id, 'openai');
     const retryBtn = document.getElementById('retry_'+id) as HTMLButtonElement | null;
     if (retryBtn) retryBtn.style.display = 'none';
-    if (!silent) showToast('Audio', 'Urdu voice ready');
+    if (!silent) showToast('🔊','Urdu voice ready');
     return true;
   } catch(e){
     audioErrors[id] = (e as any)?.message || 'Urdu TTS failed';
-    if (!silent) showToast('Audio', (e as any)?.message || 'Urdu TTS failed');
+    if (!silent) showToast('🔊',(e as any)?.message || 'Urdu TTS failed');
     return false;
   } finally {
     if (card) card.classList.remove('loading');
