@@ -241,13 +241,16 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
     console.log('[urdu-tts] DISABLED — enable with URDU_TTS_ENABLED=true');
   } else {
     try {
-      // 20-second window — Claude Opus Urdu generation typically takes 5–12 s.
+      // 20-second window — Claude Sonnet Urdu generation typically takes 5–12 s.
+      const englishAnswerText = [answer.definition, answer.explanation, answer.example]
+        .filter(Boolean).join(' ');
       const generated = await Promise.race([
         generateDevUrduTts(
           dbResult.topic,
           dbResult.blocks.definition  || '',
           dbResult.blocks.explanation || '',
           dbResult.blocks.example     || '',
+          englishAnswerText,
         ),
         new Promise<string>((resolve) => setTimeout(() => resolve(''), 20_000)),
       ]);

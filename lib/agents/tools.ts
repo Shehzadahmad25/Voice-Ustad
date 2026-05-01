@@ -484,10 +484,11 @@ const DEV_URDU_SYSTEM_PROMPT =
 const ANTHROPIC_TIMEOUT_MS = 25_000;
 
 export async function generateDevUrduTts(
-  topicTitle:  string,
-  definition:  string,
-  explanation: string,
-  example?:    string,
+  topicTitle:    string,
+  definition:    string,
+  explanation:   string,
+  example?:      string,
+  englishAnswer?: string,
 ): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   console.log('[urdu-tts] ANTHROPIC_API_KEY exists:', !!apiKey, apiKey?.slice(0, 10));
@@ -499,23 +500,37 @@ export async function generateDevUrduTts(
   const def  = definition.trim();
   const exp  = explanation.trim();
   const ex   = (example ?? '').trim();
+  const eng  = (englishAnswer ?? '').trim();
 
   console.log('[urdu-tts] inputs —',
     'topic:', topicTitle,
     '| definition chars:', def.length,
     '| explanation chars:', exp.length,
     '| example chars:', ex.length,
+    '| englishAnswer chars:', eng.length,
   );
 
-  const parts = [
-    `Topic: ${topicTitle.trim()}`,
-    def  ? `Definition: ${def}`   : '',
-    exp  ? `Explanation: ${exp}`  : '',
-    ex   ? `Example: ${ex}`       : '',
-  ].filter(Boolean).join('\n\n');
+  // Skip only when ALL usable inputs are empty
+  if (!def && !exp && !eng) {
+    console.log(`[urdu-tts] SKIPPED — all inputs empty for topic: ${topicTitle}`);
+    return '';
+  }
 
-  const userContent = parts ? 'English textbook content:\n' + parts : '';
-  if (!userContent.trim()) return '';
+  let userContent: string;
+  if (!def && !exp) {
+    // definition and explanation both missing — use englishAnswer as source
+    userContent = `Translate and summarize the following English answer in simple Urdu for a Pakistani student:\n${eng}`;
+  } else {
+    const parts = [
+      `Topic: ${topicTitle.trim()}`,
+      def  ? `Definition: ${def}`   : '',
+      exp  ? `Explanation: ${exp}`  : '',
+      ex   ? `Example: ${ex}`       : '',
+    ].filter(Boolean).join('\n\n');
+    userContent = 'English textbook content:\n' + parts;
+  }
+
+  console.log('[urdu-tts] userContent preview:', userContent.slice(0, 100));
 
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
@@ -536,13 +551,14 @@ export async function generateDevUrduTts(
         messages:   [{ role: 'user', content: userContent }],
       }),
     });
+    console.log('[urdu-tts] Anthropic HTTP status:', res.status);
     if (!res.ok) {
       console.error('[urdu-tts] Anthropic API error', res.status, await res.text().catch(() => ''));
       return '';
     }
     const json = await res.json() as { content?: Array<{ type: string; text?: string }> };
     const result = String(json?.content?.[0]?.text ?? '').trim();
-    console.log('[urdu-tts] Claude Opus response length:', result.length, '| preview:', result.slice(0, 80));
+    console.log('[urdu-tts] Claude Sonnet response length:', result.length, '| preview:', result.slice(0, 80));
     return result;
   } catch (err) {
     console.error('[urdu-tts] fetch failed:', err instanceof Error ? err.message : err);

@@ -1186,6 +1186,7 @@ function appendAI(r, time, save=true){
   const actualDur = Math.max(dur, computedDur);
   const mm=Math.floor(actualDur/60), ss=String(actualDur%60).padStart(2,'0');
 
+  console.log('[appendAI] raw resp:', JSON.stringify(r).slice(0, 300));
   const urduSummary = String(r?.urduSummary || r?.urduTtsText || '').trim();
   console.log('[appendAI] id:', id, '| urduSummary length:', urduSummary.length, '| preview:', urduSummary.slice(0, 60) || 'EMPTY');
   urduSummaries[id] = urduSummary;
