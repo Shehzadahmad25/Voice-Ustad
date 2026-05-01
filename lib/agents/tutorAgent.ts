@@ -251,7 +251,9 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
         ),
         new Promise<string>((resolve) => setTimeout(() => resolve(''), 20_000)),
       ]);
+      console.log('[tutor] urdu generated length:', generated?.length ?? 0, '| preview:', generated?.slice(0, 80) || 'EMPTY');
       if (generated) urduSummary = sanitizeUrduTtsText(generated) || urduSummary;
+      console.log('[tutor] urduSummary final:', urduSummary ? urduSummary.slice(0, 60) + '...' : 'NULL');
     } catch (err) {
       audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
     }

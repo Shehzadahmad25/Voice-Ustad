@@ -420,7 +420,6 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
 
 const DEV_URDU_SYSTEM_PROMPT =
   'You are VoiceUstad, a friendly Pakistani tutor for FSc students.\n' +
-  'Powered by Claude Opus — the most intelligent AI model.\n' +
   '\n' +
   'YOUR JOB:\n' +
   'You will receive English textbook content for a topic.\n' +
@@ -531,7 +530,7 @@ export async function generateDevUrduTts(
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model:      'claude-opus-4-5',
+        model:      'claude-sonnet-4-6',
         max_tokens: 1024,
         system:     DEV_URDU_SYSTEM_PROMPT,
         messages:   [{ role: 'user', content: userContent }],

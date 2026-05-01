@@ -166,7 +166,8 @@ export async function POST(request: NextRequest) {
           console.log('[tts] voice override:', voiceKey, '→', voiceOverride);
         }
 
-        const speechResult = await generateSpeech(urduSummary, voiceOverride);
+        console.log('[audio-mode] urduSummary length:', urduSummary.length, '| preview:', urduSummary.slice(0, 100));
+      const speechResult = await generateSpeech(urduSummary, voiceOverride);
         if (!speechResult) {
           return NextResponse.json({ ok: true, audioBase64: null }, { status: 200 });
         }
