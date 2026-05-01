@@ -1057,14 +1057,15 @@ async function send(){
     }
     resp = data?.answer ?? null;
     if (resp) {
-      if (data?.urduSummary)    resp.urduSummary = data.urduSummary;
+      // Always assign urduSummary — fall back to urduTtsText so it's never missing from saved history
+      resp.urduSummary    = data?.urduSummary || resp.urduTtsText || '';
       if (data?.audioBase64)    resp.audioBase64 = data.audioBase64;
       if (data?.audioError)     resp.audioError  = data.audioError;
       if (data?.audioUrl)       resp.audioUrl    = data.audioUrl;
       if (data?.cacheId)        resp.cacheId     = data.cacheId;
       if (data?.responseSource) resp._source     = data.responseSource;
     }
-    console.log('[send] response reqId:', reqId, '| source:', data?.responseSource || 'unknown', '| cacheHit:', !!data?.cacheHit);
+    console.log('[send] response reqId:', reqId, '| source:', data?.responseSource || 'unknown', '| cacheHit:', !!data?.cacheHit, '| urduSummary length:', resp?.urduSummary?.length ?? 0);
   } catch (e) {
     // Stale request — a newer send already owns the UI
     if (reqId !== _currentRequestId) { clearTimeout(localTimeout); busy=false; return; }
@@ -1186,6 +1187,7 @@ function appendAI(r, time, save=true){
   const mm=Math.floor(actualDur/60), ss=String(actualDur%60).padStart(2,'0');
 
   const urduSummary = String(r?.urduSummary || r?.urduTtsText || '').trim();
+  console.log('[appendAI] id:', id, '| urduSummary length:', urduSummary.length, '| preview:', urduSummary.slice(0, 60) || 'EMPTY');
   urduSummaries[id] = urduSummary;
   cacheIdForId[id]  = r?.cacheId  || null;
   questionForId[id] = r?.question || lastQuestion || '';
@@ -1466,6 +1468,7 @@ async function prefetchUrduAudio(id){
     setVoiceSource(id, 'openai');
   }
   if (!audioUrls[id] && urduSummaries[id]) {
+    console.log('[prefetch] id:', id, '| urduSummaries length:', urduSummaries[id]?.length, '| starting audio fetch');
     prefetchInFlight[id] = retryAudio(id, true).finally(() => { prefetchInFlight[id] = null; });
     return;
   }
