@@ -753,7 +753,7 @@ function appendTopicView(r: any){
   w2.__copyData = w2.__copyData || {};
   w2.__copyData[id] = copyText;
 
-  const voiceHtml = (urduSummary || r?.definition || r?.explanation) ? `
+  const voiceHtml = urduSummary ? `
     <div class="voice-card" role="region" aria-label="Urdu voice explanation">
       <div class="vc-top-row">
         <div class="vc-icon" aria-hidden="true">&#128266;</div>
