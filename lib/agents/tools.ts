@@ -512,11 +512,14 @@ export async function generateDevUrduTts(
 
   console.log('[urdu-tts] userContent preview:', userContent.slice(0, 100));
 
+  const activeModel = model ?? 'claude-sonnet-4-6';
+  console.log('[urdu-tts] using model:', activeModel);
+
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
 
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+  async function callAnthropic(m: string): Promise<Response> {
+    return fetch('https://api.anthropic.com/v1/messages', {
       method:  'POST',
       headers: {
         'content-type':      'application/json',
@@ -525,13 +528,31 @@ export async function generateDevUrduTts(
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model:      model ?? 'claude-sonnet-4-6',
+        model:      m,
         max_tokens: 1024,
         system:     DEV_URDU_SYSTEM_PROMPT,
         messages:   [{ role: 'user', content: userContent }],
       }),
     });
-    console.log('[urdu-tts] Anthropic HTTP status:', res.status, '| model:', model ?? 'claude-sonnet-4-6');
+  }
+
+  try {
+    let res = await callAnthropic(activeModel);
+    console.log('[urdu-tts] Anthropic HTTP status:', res.status, '| model:', activeModel);
+
+    if (res.status === 529) {
+      console.warn('[urdu-tts] 529 overloaded — waiting 2s and retrying...');
+      await new Promise<void>((r) => setTimeout(r, 2_000));
+      res = await callAnthropic(activeModel);
+      console.log('[urdu-tts] retry HTTP status:', res.status, '| model:', activeModel);
+
+      if (res.status === 529 && activeModel !== 'claude-sonnet-4-6') {
+        console.log('[urdu-tts] Opus overloaded — falling back to Sonnet');
+        res = await callAnthropic('claude-sonnet-4-6');
+        console.log('[urdu-tts] fallback HTTP status:', res.status, '| model: claude-sonnet-4-6');
+      }
+    }
+
     if (!res.ok) {
       console.error('[urdu-tts] Anthropic API error', res.status, await res.text().catch(() => ''));
       return '';
