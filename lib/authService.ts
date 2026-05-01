@@ -63,16 +63,24 @@ function setAuthMarkerCookie(active: boolean) {
 }
 
 function mapAuthError(error: unknown, fallback: string) {
-  console.error('[authService] raw error:', error)
+  // Log raw type and non-enumerable Error properties that don't survive JSON.stringify
+  console.error('[authService] raw error —',
+    'type:', typeof error,
+    '| constructor:', (error as Error)?.constructor?.name ?? 'unknown',
+    '| message:',     (error as Error)?.message           ?? '(none)',
+    '| status:',      (error as Record<string, unknown>)?.['status']  ?? '(none)',
+    '| name:',        (error as Error)?.name              ?? '(none)',
+  )
   if (error && typeof error === 'object') {
     // Cast through unknown first to satisfy TypeScript — PostgrestError does not
     // have an index signature so a direct cast to Record<string,unknown> is rejected.
-    const e      = error as unknown as Record<string, unknown>
-    const msg    = String(e['message']  ?? '')
-    const code   = String(e['code']     ?? '')
-    const details = String(e['details'] ?? '')
-    const hint   = String(e['hint']     ?? '')
-    console.error('[authService] Supabase error detail:', { code, message: msg, details, hint })
+    const e       = error as unknown as Record<string, unknown>
+    const msg     = String(e['message']  ?? '')
+    const code    = String(e['code']     ?? '')
+    const status  = String(e['status']   ?? '')
+    const details = String(e['details']  ?? '')
+    const hint    = String(e['hint']     ?? '')
+    console.error('[authService] Supabase error detail:', { code, status, message: msg, details, hint })
     if (msg  && msg  !== 'undefined') return msg
     if (code && code !== 'undefined') return `DB error code: ${code}`
   }
@@ -204,8 +212,20 @@ export const authService = {
     // ── AUTH BYPASS: return null instead of throwing
     if (!supabase) return null
 
+    // Check for an active session first — getUser() makes a network call and
+    // returns AuthApiError("Auth session missing!") when no session exists.
+    // Treat that as a normal "not logged in" state rather than an error.
+    const { data: sessionData } = await supabase.auth.getSession()
+    if (!sessionData?.session) return null
+
     const { data, error } = await supabase.auth.getUser()
-    if (error) throw new Error(mapAuthError(error, 'Could not load user.'))
+    if (error) {
+      const msg    = (error as unknown as Record<string, unknown>)?.['message']
+      const status = (error as unknown as Record<string, unknown>)?.['status']
+      console.warn('[authService] getCurrentUser — getUser() returned error (returning null):',
+        'message:', msg, '| status:', status, '| name:', error.name)
+      return null
+    }
     return data.user
   },
 

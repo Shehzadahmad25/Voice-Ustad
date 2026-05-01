@@ -3,7 +3,7 @@
  * ----------------
  * Provider router for TTS generation.
  *
- * Current: OpenAI TTS primary (model=tts-1, voice=nova)
+ * Current: OpenAI TTS primary (model=tts-1-hd, voice=onyx — male Pakistani ustad tone)
  *
  * AZURE TTS — disabled, keeping for reference.
  * Re-enable by un-commenting the Azure block below and removing the OpenAI block.
@@ -30,12 +30,33 @@ const OPENAI_TTS_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 25_000);
 const URDU_TTS_ENABLED = process.env.URDU_TTS_ENABLED === 'true'; // default false
 
 /**
+ * Cleans Urdu text before passing to OpenAI TTS.
+ * Removes markdown, normalises whitespace, trims to 250 words.
+ */
+export function cleanUrduForTTS(text: string): string {
+  let cleaned = text
+    .replace(/\*\*/g, '')
+    .replace(/##?/g, '')
+    .replace(/--+/g, '')
+    .replace(/\(([^)]*)\)/g, '')
+    .replace(/\[([^\]]*)\]/g, '$1')
+    .replace(/\n{2,}/g, ' ۔۔۔ ')
+    .replace(/\n/g, '، ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  const words = cleaned.split(/\s+/);
+  if (words.length > 250) cleaned = words.slice(0, 250).join(' ');
+
+  return cleaned;
+}
+
+/**
  * Generates MP3 audio from text using OpenAI TTS.
  * Returns null when URDU_TTS_ENABLED=false.
  *
  * @param text      — TTS input text (Urdu or mixed)
- * @param voiceName — Reserved for future use (voice switching). Currently ignored;
- *                    all requests use nova. Re-enable Azure block to activate.
+ * @param voiceName — Reserved for future use. Currently ignored; all requests use onyx.
  */
 export async function generateSpeech(
   text:       string,
@@ -63,8 +84,9 @@ export async function generateSpeech(
   // }
 
   // ── OpenAI TTS — primary ───────────────────────────────────────────────────
-  const model = 'tts-1';
-  const voice = 'nova';
+  const model = 'tts-1-hd';
+  const voice = process.env.OPENAI_TTS_VOICE || 'onyx';
+  const speed = 0.88;
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('[tts] OPENAI_API_KEY is not set');
@@ -78,7 +100,7 @@ export async function generateSpeech(
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       signal:  controller.signal,
-      body:    JSON.stringify({ model, voice, response_format: 'mp3', input: text }),
+      body:    JSON.stringify({ model, voice, speed, response_format: 'mp3', input: cleanUrduForTTS(text) }),
     });
   } catch (err) {
     if ((err as Error)?.name === 'AbortError')

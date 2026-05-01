@@ -29,7 +29,20 @@
       "Bash(taskkill /F /IM node.exe)",
       "Bash(npm show:*)",
       "Bash(taskkill /F /IM \"next-router-worker.exe\")",
-      "Bash(node -e \"console.log\\(require\\('./node_modules/eslint-config-next/package.json'\\).version\\)\")"
+      "Bash(node -e \"console.log\\(require\\('./node_modules/eslint-config-next/package.json'\\).version\\)\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(cmd /c \"taskkill /F /IM node.exe\")",
+      "Bash(cmd /c \"for /f \\\\\"tokens=5\\\\\" %a in \\('netstat -aon ^| findstr :3001'\\) do taskkill /F /PID %a\")",
+      "Bash(cmd /c \"netstat -aon | findstr :3001\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:3000)",
+      "Bash(xargs grep *)",
+      "Bash(node -e ' *)",
+      "Bash(node)",
+      "Bash(node -e \"const pkg=require\\('./package.json'\\);console.log\\(JSON.stringify\\(pkg.dependencies,null,2\\)\\)\")",
+      "Bash(npx next *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\hp\\Desktop\\Voice-Ustad\\app\\chapter"
     ]
   }
 }

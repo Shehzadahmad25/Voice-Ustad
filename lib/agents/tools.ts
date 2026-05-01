@@ -408,83 +408,145 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
 /**
  * DEV MODE: generates fresh Roman Urdu TTS text for every request.
  *
- * Uses a simple, strict Roman Urdu prompt — short sentences, 6–8 lines,
- * classroom teacher style. Ignores whatever is stored in urdu_tts_text.
+ * Uses a strict Urdu prompt — Definition→Explanation→Example structure,
+ * 100% faithful to textbook content, Pakistani ustad tone.
  *
- * Input: topic title + definition + explanation (no example/formula).
- * Output: Raw Roman Urdu string. Caller applies sanitizeUrduTtsText.
+ * Input: topic title + definition + explanation + example (optional).
+ * Output: Raw Urdu script string. Caller applies sanitizeUrduTtsText.
  * Never throws — returns '' on any failure.
  *
  * Controlled by SAVE_URDU_TTS env var in tutorAgent.ts.
  */
 
-const DEV_URDU_SYSTEM_PROMPT = `You are a professional Pakistani chemistry teacher.
-Read the given Urdu text in a natural classroom teaching style.
+const DEV_URDU_SYSTEM_PROMPT =
+  'You are VoiceUstad, a friendly Pakistani tutor for FSc students.\n' +
+  'Powered by Claude Opus — the most intelligent AI model.\n' +
+  '\n' +
+  'YOUR JOB:\n' +
+  'You will receive English textbook content for a topic.\n' +
+  'Explain THAT SAME content in spoken Urdu — do not add new\n' +
+  'information, do not change the meaning, do not skip anything\n' +
+  'important from the English text.\n' +
+  'You are a Pakistani ustad reading the textbook out loud in Urdu.\n' +
+  '\n' +
+  'LANGUAGE RULES:\n' +
+  '- Always reply in Urdu script only\n' +
+  '- Use natural Pakistani spoken Urdu\n' +
+  '- Keep English scientific terms as-is:\n' +
+  '  "Limiting Reagent", "Stoichiometry", "Mitosis", "Newton\'s Law",\n' +
+  '  "definition", "equation", "reaction", "coefficient"\n' +
+  '- Never translate scientific terms into Urdu\n' +
+  '- Never use Roman Urdu\n' +
+  '- Never reply in full English\n' +
+  '\n' +
+  'TONE:\n' +
+  '- Warm, encouraging Pakistani ustad tone\n' +
+  '- Speak directly to student: "دیکھو، یہاں textbook کہتی ہے..."\n' +
+  '- Use "آپ" — always respectful to the student\n' +
+  '- Sound like a real classroom teacher, not a robot\n' +
+  '\n' +
+  'STRUCTURE — respond in exactly this order:\n' +
+  '1. Definition — translate the textbook definition into simple Urdu\n' +
+  '   keep the English term, explain meaning in Urdu\n' +
+  '   End with ۔\n' +
+  '2. Explanation — explain the textbook explanation sentence by\n' +
+  '   sentence in Urdu, same order as English text\n' +
+  '   Use ، for pauses between points\n' +
+  '   End with ۔\n' +
+  '3. Example — if textbook has example explain it in Urdu\n' +
+  '   If no textbook example, give one Pakistani everyday example\n' +
+  '   that matches the same concept exactly\n' +
+  '   End with ۔\n' +
+  '\n' +
+  'STRICT CONTENT RULES:\n' +
+  '- Stay 100% faithful to textbook content\n' +
+  '- Do not add extra facts not in the textbook\n' +
+  '- Do not skip any point from the textbook\n' +
+  '- If textbook has formula mention it: "formula yeh hai: [formula]"\n' +
+  '- Max 250 words — complete but concise\n' +
+  '\n' +
+  'TTS FORMATTING RULES:\n' +
+  '- Short sentences only — max 15 words per sentence\n' +
+  '- No bullets, no markdown, no ** ## or ---\n' +
+  '- No English parentheses or brackets\n' +
+  '- Use ۔ at end of every sentence\n' +
+  '- Use ، where a speaker would naturally pause\n' +
+  '- Leave a natural gap between Definition, Explanation\n' +
+  '  and Example sections using ۔۔۔\n' +
+  '\n' +
+  'INPUT YOU WILL RECEIVE:\n' +
+  'English textbook content:\n' +
+  '[definition, explanation and example will be here]\n' +
+  '\n' +
+  'OUTPUT:\n' +
+  'Urdu spoken explanation of the above content only.\n' +
+  'Nothing else.';
 
-Instructions:
-- Speak in clear, simple Pakistani Urdu
-- Maintain a calm, confident teacher tone
-- Use a slightly slow and steady pace
-- Add natural pauses after sentences and short pauses within long sentences
-- Emphasize key scientific terms naturally
-- Keep pronunciation clear and easy to understand
-- Sound like you are explaining in a real classroom, not reading or storytelling
-- Keep energy moderate (not flat, not overly expressive)
-- Do NOT translate, modify, or add any words
-- Do NOT skip any part of the text
-
-Write the Urdu explanation for the given topic content.
-
-FORMATTING RULES:
-- Write in Roman Urdu only (not Arabic script)
-- Short sentences (max 12 words each)
-- 6 to 8 sentences maximum
-- Each sentence on a new line
-- Full stops only, no commas
-- Start with: "Aaj hum [topic name] parhein gay."
-- Keep English chemistry terms as-is (stoichiometry, reactants, products, equation)
-- All other words in simple everyday Urdu
-`;
+const ANTHROPIC_TIMEOUT_MS = 25_000;
 
 export async function generateDevUrduTts(
   topicTitle:  string,
   definition:  string,
   explanation: string,
+  example?:    string,
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return '';
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  console.log('[urdu-tts] ANTHROPIC_API_KEY exists:', !!apiKey, apiKey?.slice(0, 10));
+  if (!apiKey) {
+    console.warn('[urdu-tts] ANTHROPIC_API_KEY not set — skipping Urdu text generation');
+    return '';
+  }
 
-  const model       = process.env.OPENAI_TTS_TEXT_MODEL || process.env.OPENAI_MODEL || 'gpt-4.1-mini';
-  const userContent = [
+  const def  = definition.trim();
+  const exp  = explanation.trim();
+  const ex   = (example ?? '').trim();
+
+  console.log('[urdu-tts] inputs —',
+    'topic:', topicTitle,
+    '| definition chars:', def.length,
+    '| explanation chars:', exp.length,
+    '| example chars:', ex.length,
+  );
+
+  const parts = [
     `Topic: ${topicTitle.trim()}`,
-    definition.trim()  ? `Definition: ${definition.trim()}`   : '',
-    explanation.trim() ? `Explanation: ${explanation.trim()}` : '',
+    def  ? `Definition: ${def}`   : '',
+    exp  ? `Explanation: ${exp}`  : '',
+    ex   ? `Example: ${ex}`       : '',
   ].filter(Boolean).join('\n\n');
 
+  const userContent = parts ? 'English textbook content:\n' + parts : '';
   if (!userContent.trim()) return '';
 
   const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+  const timeoutId  = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      signal:  controller.signal,
+      headers: {
+        'content-type':      'application/json',
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      signal: controller.signal,
       body: JSON.stringify({
-        model,
-        temperature:           0.4,
-        max_completion_tokens: 400,
-        messages: [
-          { role: 'system', content: DEV_URDU_SYSTEM_PROMPT },
-          { role: 'user',   content: userContent },
-        ],
+        model:      'claude-opus-4-5',
+        max_tokens: 1024,
+        system:     DEV_URDU_SYSTEM_PROMPT,
+        messages:   [{ role: 'user', content: userContent }],
       }),
     });
-    if (!res.ok) return '';
-    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-    return String(json?.choices?.[0]?.message?.content ?? '').trim();
-  } catch {
+    if (!res.ok) {
+      console.error('[urdu-tts] Anthropic API error', res.status, await res.text().catch(() => ''));
+      return '';
+    }
+    const json = await res.json() as { content?: Array<{ type: string; text?: string }> };
+    const result = String(json?.content?.[0]?.text ?? '').trim();
+    console.log('[urdu-tts] Claude Opus response length:', result.length, '| preview:', result.slice(0, 80));
+    return result;
+  } catch (err) {
+    console.error('[urdu-tts] fetch failed:', err instanceof Error ? err.message : err);
     return '';
   } finally {
     clearTimeout(timeoutId);

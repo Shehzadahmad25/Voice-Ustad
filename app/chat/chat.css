@@ -235,9 +235,10 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   border-top: 1px solid var(--border);
 }
 .sb-prev-list {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 2px 8px 8px;
-  overflow-y: visible;   /* sidebar itself scrolls */
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 2px 6px 6px;
+  max-height: 240px;
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 .sb-prev-empty {
@@ -268,49 +269,39 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 /* ── Session items (Supabase chat history in sidebar) ───────────────────── */
 .session-item {
   position: relative;
-  display: block;
-  padding: 10px 32px 10px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(255,255,255,0.03);
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 26px 4px 6px;
+  border-radius: 5px;
   cursor: pointer;
-  transition: background .13s, border-color .13s;
-  margin-bottom: 4px;
+  transition: background .13s;
   width: 100%;
   box-sizing: border-box;
 }
-.session-item:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: var(--brand-mid);
-}
-.session-item.active {
-  background: rgba(245,158,11,0.12);
-  border-color: rgba(245,158,11,0.35);
+.session-item:hover { background: rgba(255,255,255,0.06); }
+.session-item.active { background: rgba(245,158,11,0.10); }
+.session-icon {
+  flex-shrink: 0;
+  color: var(--t3);
+  opacity: 0.5;
 }
 .session-title {
-  font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9);
-  line-height: 1.35; margin-bottom: 4px;
+  flex: 1; min-width: 0;
+  font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.82);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.session-meta {
-  display: flex; justify-content: space-between; align-items: center; gap: 6px;
+.session-time-inline {
+  font-size: 10px; color: var(--t3); white-space: nowrap; flex-shrink: 0;
 }
-.session-last-msg {
-  font-size: 11px; color: var(--t2);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  max-width: 65%;
-}
-.session-time { font-size: 11px; color: var(--t3); white-space: nowrap; flex-shrink: 0; }
 .session-delete-btn {
-  position: absolute; top: 50%; right: 7px;
+  position: absolute; top: 50%; right: 3px;
   transform: translateY(-50%);
   background: transparent; border: none;
   color: var(--red, #ef4444); cursor: pointer;
-  font-size: 15px; line-height: 1; padding: 3px 5px;
-  border-radius: 5px; opacity: 0;
+  font-size: 12px; line-height: 1; padding: 2px 3px;
+  border-radius: 4px; opacity: 0;
   transition: opacity .15s, background .13s;
 }
-.session-item:hover .session-delete-btn { opacity: .7; }
+.session-item:hover .session-delete-btn { opacity: .6; }
 .session-delete-btn:hover { opacity: 1 !important; background: rgba(239,68,68,.1); }
 
 .sb-part {
@@ -1357,10 +1348,11 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
     -webkit-overflow-scrolling: touch !important;
   }
   .sidebar.on { transform: translateX(0); }
-  /* overlay restricted to chat area only; pointer-events off so touches reach sidebar */
+  /* overlay covers full screen; sidebar z-index 200 is above overlay z-index 90,
+     so taps on the sidebar hit the sidebar, taps outside close it */
   .overlay {
-    left: min(290px, 82vw);
-    pointer-events: none !important;
+    left: 0;
+    pointer-events: auto;
   }
   /* passthrough — sidebar itself scrolls */
   .sb-scroll-area {
@@ -1410,7 +1402,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   .vc-icon::before { font-size: .8rem; }
   .vc-label { font-size: .72rem; }
   .vc-sub   { font-size: .62rem; }
-  .vc-play  { width: 34px; height: 34px; }
+  .vc-play  { width: 44px; height: 44px; }
   .vc-wave  { height: 18px; }
   .vc-timer { font-size: .68rem; min-width: 32px; }
 
@@ -1503,6 +1495,13 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 @media (max-width: 720px) {
   .send-btn, .mic-btn, .sb-toggle { min-height: 44px; min-width: 44px; }
   .chip { min-height: 34px; padding: 6px 12px; }
+  /* Session delete: expand tap area with padding + negative margin trick */
+  .session-delete-btn {
+    min-width: 32px; min-height: 32px;
+    padding: 8px 6px;
+  }
+  /* Chapter pill: shrink gracefully on small topbars */
+  .tb-ch-pill { max-width: 110px; font-size: .62rem; padding: 3px 8px; }
 }
 
 /* ═══════════════════════════════════════
@@ -1510,6 +1509,50 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 ═══════════════════════════════════════ */
 @media (max-width: 400px) {
   .modal { max-width: calc(100vw - 24px); max-height: 88dvh; overflow-y: auto; }
+}
+
+/* ═══════════════════════════════════════
+   IPHONE SE / VERY SMALL — 375px
+   (SE is 375×667; most ≤390 rules cover it
+   but these add extra breathing room)
+═══════════════════════════════════════ */
+@media (max-width: 375px) {
+  .tb-ch-pill { max-width: 90px; font-size: .6rem; }
+  .tb-title   { font-size: .72rem; }
+  .tb-sub     { display: none; }
+  .wl-h       { font-size: 1.05rem; }
+  .ai-card    { padding: 9px 10px; }
+  .input-box  { padding: 8px 8px 8px 12px; }
+}
+
+/* ═══════════════════════════════════════
+   LANDSCAPE PHONES — short viewport
+   (rotated iPhone/Android)
+═══════════════════════════════════════ */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root { --topbar-h: 42px; }
+  .topbar { min-height: 42px; padding: 0 12px; }
+  .tb-sub { display: none; }
+  .tb-meta { display: none; }
+  .tb-title { font-size: .8rem; }
+  /* Sidebar fills full height in landscape */
+  .sidebar {
+    top: 42px !important;
+    height: calc(100dvh - 42px) !important;
+  }
+  /* Tighter message area */
+  .msgs { padding: 10px 0 8px; }
+  .msgs-inner { padding: 0 12px; }
+  .input-area { padding: 6px 0 8px; }
+  .input-inner { padding: 0 12px; }
+  /* Welcome screen: horizontal layout */
+  .welcome { padding: 12px 14px; }
+  .wl-logo { width: 36px; height: 36px; font-size: 1rem; margin-bottom: 8px; }
+  .wl-h { font-size: 1rem; margin-bottom: 4px; }
+  .wl-p { font-size: .78rem; margin-bottom: 10px; }
+  .wl-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  /* Hide waveform to save space */
+  .vc-wave { display: none; }
 }
 
 /* ═══════════════════════════════════════

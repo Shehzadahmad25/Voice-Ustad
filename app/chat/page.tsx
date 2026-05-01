@@ -36,6 +36,7 @@ const audioCacheKeys: any = {};
 const ttsLoading: any = {};
 const ttsReady: any = {};
 const audioErrors: any = {};
+const prefetchInFlight: any = {}; // tracks in-flight prefetch promises to prevent duplicate fetches
 const urduSummaries: any = {};
 const voiceSources: any = {};
 const cacheIdForId: any = {};     // DB row UUID for semantic-match cache hits
@@ -131,7 +132,7 @@ function chapterSoonResponse(i: number){
   };
 }
 
-/* â”€â”€â”€ localStorage conversation history â”€â”€â”€ */
+/* â"€â"€â"€ localStorage conversation history â"€â"€â"€ */
 const STORAGE_KEY='voiceustad_history';
 const AUDIO_CACHE_KEY='voiceustad_audio_cache_v1';
 const AUDIO_CACHE_MAX=24;
@@ -255,7 +256,7 @@ function getSavedChatIndexes(){
 /* Each history item: {type:'user'|'ai', text, time, response?} */
 let chatHistory: any[] = []; // in-memory for current chapter
 
-/* â”€â”€â”€ Web Speech API â”€â”€â”€ */
+/* â"€â"€â"€ Web Speech API â"€â"€â"€ */
 let recognition: any = null;
 function setupSpeechRecognition(){
   if (typeof window === 'undefined' || recognition) return;
@@ -494,6 +495,12 @@ function selCh(i: number){
         };
         const sorted = [...data].sort((a, b) => parseCode(a.topic_code) - parseCode(b.topic_code));
         if (_setScopeTopics) _setScopeTopics(sorted);
+        // Append chapter start page to the topbar title once we know it
+        const startPage = sorted[0]?.page;
+        if (startPage) {
+          const titleEl = document.getElementById('tbTitle');
+          if (titleEl) titleEl.textContent = activeCh + ' · Page ' + startPage;
+        }
       })
       .catch(() => {/* non-fatal */});
   }
@@ -529,7 +536,7 @@ function updateTopbarSub(i: number){
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   HISTORY â€” localStorage restore
+   HISTORY â€" localStorage restore
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function restoreHistory(){
   started=true;
@@ -688,6 +695,9 @@ function appendTopicView(r: any){
 
   const urduSummary = String(r?.urduTtsText || '').trim();
   urduSummaries[id] = urduSummary;
+  // Allow retryAudio to cache audio under the topic title
+  questionForId[id] = String(r?.topic || r?.chapter || '').trim();
+  cacheIdForId[id]  = null;
 
   if (r?.audioBase64) {
     audioUrls[id] = `data:audio/mpeg;base64,${r.audioBase64}`;
@@ -743,13 +753,13 @@ function appendTopicView(r: any){
   w2.__copyData = w2.__copyData || {};
   w2.__copyData[id] = copyText;
 
-  const voiceHtml = urduSummary ? `
+  const voiceHtml = (urduSummary || r?.definition || r?.explanation) ? `
     <div class="voice-card" role="region" aria-label="Urdu voice explanation">
       <div class="vc-top-row">
         <div class="vc-icon" aria-hidden="true">&#128266;</div>
         <div class="vc-info">
           <div class="vc-label">Urdu audio</div>
-          <div class="vc-sub" lang="ur" dir="ltr">Play &#8212; ${dur}s</div>
+          <div class="vc-sub" lang="ur" dir="ltr" data-default="Play — ${dur}s">Play — ${dur}s</div>
           <div class="vc-loading" id="vcload_${id}" aria-live="polite">
             <span class="vc-dot"></span><span class="vc-dot"></span><span class="vc-dot"></span>
             Preparing audio...
@@ -1135,7 +1145,7 @@ function retryLast(){
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   RENDER â€” User message
+   RENDER â€" User message
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function appendUser(t, time, save=true){
   const w=document.createElement('div');
@@ -1162,7 +1172,7 @@ function appendUser(t, time, save=true){
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   RENDER â€” AI message
+   RENDER â€" AI message
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function appendAI(r, time, save=true){
   const id='v'+Date.now();
@@ -1294,6 +1304,39 @@ function appendAI(r, time, save=true){
   _wcd.__copyData = _wcd.__copyData || {};
   _wcd.__copyData[id] = copyText;
 
+  const voiceCardHtml = (urduSummary || r?.audioBase64 || r?.audioUrl) ? `
+    <div class="voice-card" role="region" aria-label="Urdu voice explanation">
+      <div class="vc-top-row">
+        <div class="vc-icon" aria-hidden="true">🔊</div>
+        <div class="vc-info">
+          <div class="vc-label">Urdu audio</div>
+          <div class="vc-sub" lang="ur" dir="ltr" data-default="Play - ${actualDur}s">Play - ${actualDur}s</div>
+          <div class="vc-loading" id="vcload_${id}" aria-live="polite">
+            <span class="vc-dot"></span>
+            <span class="vc-dot"></span>
+            <span class="vc-dot"></span>
+            Preparing audio...
+          </div>
+        </div>
+        <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu</span>
+        <div class="vc-wave" id="wv_${id}" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="vc-timer" id="tm_${id}" aria-live="polite">${mm}:${ss}</div>
+        <button class="vc-play" id="btn_${id}" data-dur="${actualDur}" data-tts="${ttsText}" data-tts-ur="${ttsUrText}" aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay('${id}')">
+          <svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 9L5 21V3z"/></svg>
+          <svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+        </button>
+        <button class="vc-retry" id="retry_${id}" type="button" aria-label="Retry Urdu voice" onclick="retryAudio('${id}')">
+          Retry audio
+        </button>
+      </div>
+      <div class="vc-progress" id="prog_${id}" role="progressbar" aria-valuemin="0" aria-valuemax="${actualDur}" aria-valuenow="0">
+        <div class="vc-progress-bar" id="progbar_${id}"></div>
+      </div>
+    </div>` : '';
+
   const w=document.createElement('div');
   w.innerHTML=`
     <div class="msg-ai" role="log" aria-label="VoiceUstad answer">
@@ -1308,37 +1351,7 @@ function appendAI(r, time, save=true){
         ${formulaHtml}
         ${mcqHtml}
 
-        ${(r?.audioBase64 || r?.audioUrl) ? `<div class=”voice-card” role=”region” aria-label=”Urdu voice explanation”>
-          <div class=”vc-top-row”>
-            <div class=”vc-icon” aria-hidden=”true”>🔊</div>
-            <div class=”vc-info”>
-              <div class=”vc-label”>Urdu audio</div>
-              <div class=”vc-sub” lang=”ur” dir=”ltr”>Play - ${actualDur}s</div>
-              <div class=”vc-loading” id=”vcload_${id}” aria-live=”polite”>
-                <span class=”vc-dot”></span>
-                <span class=”vc-dot”></span>
-                <span class=”vc-dot”></span>
-                Preparing audio...
-              </div>
-            </div>
-            <span class=”vc-badge src-unknown” id=”badge_${id}” aria-label=”Urdu voice source”>Urdu</span>
-            <div class=”vc-wave” id=”wv_${id}” aria-hidden=”true”>
-              <span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span>
-            </div>
-            <div class=”vc-timer” id=”tm_${id}” aria-live=”polite”>${mm}:${ss}</div>
-            <button class=”vc-play” id=”btn_${id}” data-dur=”${actualDur}” data-tts=”${ttsText}” data-tts-ur=”${ttsUrText}” aria-label=”Play Urdu audio” aria-pressed=”false” onclick=”togglePlay('${id}')”>
-              <svg class=”ico-play” width=”13” height=”13” viewBox=”0 0 24 24” fill=”currentColor” aria-hidden=”true”><path d=”M5 3l14 9L5 21V3z”/></svg>
-              <svg class=”ico-stop” width=”11” height=”11” viewBox=”0 0 24 24” fill=”currentColor” aria-hidden=”true”><rect x=”4” y=”4” width=”16” height=”16” rx=”2”/></svg>
-            </button>
-            <button class=”vc-retry” id=”retry_${id}” type=”button” aria-label=”Retry Urdu voice” onclick=”retryAudio('${id}')”>
-              Retry audio
-            </button>
-          </div>
-          <div class=”vc-progress” id=”prog_${id}” role=”progressbar” aria-valuemin=”0” aria-valuemax=”${actualDur}” aria-valuenow=”0”>
-            <div class=”vc-progress-bar” id=”progbar_${id}”></div>
-          </div>
-        </div>` : ''}
+        ${voiceCardHtml}
 
         <div class="ai-actions" role="toolbar" aria-label="Response actions">
           <button class="ai-action-btn" id="copy_${id}" aria-label="Copy answer to clipboard" onclick="copyAnswer('${id}')">
@@ -1381,7 +1394,7 @@ function appendAI(r, time, save=true){
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   RENDER â€” Error message (item 10)
+   RENDER â€" Error message (item 10)
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function appendError(
   title='Response timed out',
@@ -1452,7 +1465,7 @@ async function prefetchUrduAudio(id){
     setVoiceSource(id, 'openai');
   }
   if (!audioUrls[id] && urduSummaries[id]) {
-    retryAudio(id, true);
+    prefetchInFlight[id] = retryAudio(id, true).finally(() => { prefetchInFlight[id] = null; });
     return;
   }
   if(!audioUrls[id]) return;
@@ -1474,7 +1487,7 @@ function copyAnswer(id: string){
   navigator.clipboard.writeText(text).then(()=>{
     btn.classList.add('copied');
     btn.innerHTML=`<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M20 6L9 17l-5-5"/></svg> Copied!`;
-    showToast('ðŸ“‹','Answer copied to clipboard');
+    showToast('ðŸ"‹','Answer copied to clipboard');
     setTimeout(()=>{
       btn.classList.remove('copied');
       btn.innerHTML=`<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy`;
@@ -1517,7 +1530,7 @@ function editMsg(btn, originalText){
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   VOICE â€” countdown + progress bar
+   VOICE â€" countdown + progress bar
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 async function togglePlay(id){
   const btn=document.getElementById('btn_'+id);
@@ -1551,15 +1564,19 @@ async function togglePlay(id){
   }
 
   ttsLoading[id]=true;
-  setLoading(true);
-  btn.setAttribute('disabled','true');
+  const needsFetch = !audioUrls[id];
+  if (needsFetch) setLoading(true);
 
-  btn.classList.add('playing');
-  btn.setAttribute('aria-pressed','true');
-  btn.setAttribute('aria-label','Stop Urdu audio');
   wv.classList.add('on');
   tm.classList.add('running');
   prog.classList.add('on');
+
+  const startPlaying = () => {
+    btn.classList.add('playing');
+    btn.setAttribute('aria-pressed','true');
+    btn.setAttribute('aria-label','Stop Urdu audio');
+    if (needsFetch) setLoading(false);
+  };
 
   try{
     if(audioPlayers[id]){
@@ -1568,24 +1585,29 @@ async function togglePlay(id){
     }
 
     if(!audioUrls[id]){
-      const ok = await retryAudio(id, true);
-      if (ok && audioUrls[id]) {
-        const audio = new Audio(audioUrls[id]);
-        audioPlayers[id]=audio;
-        audio.onended=()=>stopPlay(id);
-        audio.onerror=()=>stopPlay(id);
-        await audio.play();
-        setLoading(false);
-      } else {
-        const summary = String(urduSummaries[id] || '').trim();
-        if (summary && speakUrdu(summary)) {
-          setVoiceSource(id, 'browser');
-          setLoading(false);
-          return;
+      // If prefetch is in flight, await it first to avoid a duplicate TTS fetch.
+      if (prefetchInFlight[id]) await prefetchInFlight[id].catch(() => {});
+      if (!audioUrls[id]) {
+        const ok = await retryAudio(id, true);
+        if (!ok || !audioUrls[id]) {
+          const summary = String(urduSummaries[id] || '').trim();
+          if (summary && speakUrdu(summary)) {
+            setVoiceSource(id, 'browser');
+            startPlaying();
+            return;
+          }
+          const errMsg = audioErrors[id] || 'Voice unavailable — Retry';
+          throw new Error(errMsg);
         }
-        const errMsg = audioErrors[id] || 'Voice unavailable — Retry';
-        throw new Error(errMsg);
       }
+      // audioUrls[id] is now set (either by prefetch or our own fetch above)
+      const audio = new Audio(audioUrls[id]);
+      audioPlayers[id]=audio;
+      audio.onended=()=>stopPlay(id);
+      audio.onerror=()=>stopPlay(id);
+      await audio.play();
+      setVoiceSource(id, 'openai');
+      startPlaying();
     } else {
       const audio = new Audio(audioUrls[id]);
       audioPlayers[id]=audio;
@@ -1593,7 +1615,7 @@ async function togglePlay(id){
       audio.onerror=()=>stopPlay(id);
       await audio.play();
       setVoiceSource(id, 'openai');
-      setLoading(false);
+      startPlaying();
     }
   } catch(e){
     // Fallback to browser speech so the UI still works if API TTS fails.
@@ -1603,18 +1625,16 @@ async function togglePlay(id){
       utter.lang='ur-PK'; utter.rate=0.9;
       window.speechSynthesis.speak(utter);
       setVoiceSource(id, 'browser');
-      setLoading(false);
+      startPlaying();
     } else {
       stopPlay(id);
       showToast('Audio', (e as any)?.message || 'Urdu TTS failed');
       ttsLoading[id]=false;
-      btn.removeAttribute('disabled');
       return;
     }
   } finally {
     ttsLoading[id]=false;
-    btn.removeAttribute('disabled');
-    setLoading(false);
+    if (needsFetch) setLoading(false);
   }
 
   const startAt=Date.now();
@@ -1644,9 +1664,7 @@ function stopPlay(id){
   const cardForStop = btnForStop?.closest('.voice-card');
   const subForStop = cardForStop?.querySelector('.vc-sub');
   if (cardForStop) cardForStop.classList.remove('loading');
-  if (subForStop && subForStop.dataset?.default) {
-    subForStop.textContent = subForStop.dataset.default;
-  }
+  if (subForStop) subForStop.textContent = subForStop.dataset?.default || '';
   // Keep the generated audio blob URL cached for replaying the same response.
   ttsReady[id]=Boolean(audioUrls[id]);
   ttsLoading[id]=false;
@@ -1748,7 +1766,7 @@ async function retryAudio(id, silent=false){
     return false;
   } finally {
     if (card) card.classList.remove('loading');
-    if (sub && sub.dataset?.default) sub.textContent = sub.dataset.default;
+    if (sub) sub.textContent = sub.dataset?.default || '';
   }
 }
 
@@ -1791,7 +1809,7 @@ function appendDivider(label: string) {
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   MIC â€” Web Speech API
+   MIC â€" Web Speech API
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function toggleMic(){
   const micBtn=document.getElementById('micBtn');
@@ -2455,35 +2473,30 @@ export default function ChatPage() {
               No previous chats
             </div>
           ) : (
-            sessions.slice(0, visibleCount).map((s) => {
-              const dateStr = s.updated_at
-                ? new Date(s.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                : '';
-              return (
-                <div
-                  key={s.id}
-                  className={`session-item${activeSessionId === s.id ? ' active' : ''}`}
-                  onClick={() => (window as any).dbLoadSession(s.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && (window as any).dbLoadSession(s.id)}
-                  aria-label={`Open conversation: ${s.title || 'Untitled'}`}
-                  aria-current={activeSessionId === s.id ? 'true' : undefined}
-                >
-                  <div className="session-title">{s.title || 'Untitled conversation'}</div>
-                  <div className="session-meta">
-                    <span className="session-last-msg">{getTimeAgo(s.updated_at)}</span>
-                    <span className="session-time">{dateStr}</span>
-                  </div>
-                  <button
-                    className="session-delete-btn"
-                    onClick={(e) => (window as any).dbDeleteSession(s.id, e)}
-                    aria-label="Delete conversation"
-                    title="Delete"
-                  >×</button>
-                </div>
-              );
-            })
+            sessions.slice(0, visibleCount).map((s) => (
+              <div
+                key={s.id}
+                className={`session-item${activeSessionId === s.id ? ' active' : ''}`}
+                onClick={() => (window as any).dbLoadSession(s.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (window as any).dbLoadSession(s.id)}
+                aria-label={`Open conversation: ${s.title || 'Untitled'}`}
+                aria-current={activeSessionId === s.id ? 'true' : undefined}
+              >
+                <svg className="session-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span className="session-title">{s.title || 'Untitled'}</span>
+                <span className="session-time-inline">{getTimeAgo(s.updated_at)}</span>
+                <button
+                  className="session-delete-btn"
+                  onClick={(e) => (window as any).dbDeleteSession(s.id, e)}
+                  aria-label="Delete conversation"
+                  title="Delete"
+                >×</button>
+              </div>
+            ))
           )}
           {sessions.length > visibleCount && (
             <button
@@ -2669,8 +2682,8 @@ export default function ChatPage() {
               color: 'white',
               border: 'none',
               borderRadius: '50%',
-              width: '40px',
-              height: '40px',
+              width: '44px',
+              height: '44px',
               fontSize: '18px',
               cursor: 'pointer',
               zIndex: 100,

@@ -231,26 +231,34 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   const answer = generateAnswerFromDB(dbResult);
 
   // ── Step 6: Urdu TTS text ────────────────────────────────────────────────────
-  let urduSummary: string | null = null;
+  // Seed from DB topics table first (zero-cost fallback if OpenAI times out).
+  let urduSummary: string | null = dbResult.blocks.urduTtsText
+    ? (sanitizeUrduTtsText(dbResult.blocks.urduTtsText) || null)
+    : null;
   let audioError:  string | null = null;
 
   if (!URDU_TTS_ENABLED) {
     console.log('[urdu-tts] DISABLED — enable with URDU_TTS_ENABLED=true');
   } else {
     try {
+      // 20-second window — Claude Opus Urdu generation typically takes 5–12 s.
       const generated = await Promise.race([
         generateDevUrduTts(
           dbResult.topic,
           dbResult.blocks.definition  || '',
           dbResult.blocks.explanation || '',
+          dbResult.blocks.example     || '',
         ),
-        new Promise<string>((resolve) => setTimeout(() => resolve(''), 3_000)),
+        new Promise<string>((resolve) => setTimeout(() => resolve(''), 20_000)),
       ]);
-      urduSummary = generated ? (sanitizeUrduTtsText(generated) || null) : null;
+      if (generated) urduSummary = sanitizeUrduTtsText(generated) || urduSummary;
     } catch (err) {
       audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
     }
   }
+
+  // Propagate generated Urdu text into the answer so the client sees it on r.urduTtsText.
+  if (urduSummary) answer.urduTtsText = urduSummary;
 
   // ── Step 7: Attach board reference metadata ──────────────────────────────────
   Object.assign(answer, inferBoardRef(question, chapter));
@@ -274,7 +282,8 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
       chapterNumber,
       topic:       dbResult.topic,
       answerJson:  answer as unknown as StructuredAnswerJson,
-      urduTtsText: SAVE_URDU_TTS ? (urduSummary ?? '') : '',
+      // Always persist Urdu text — qa_cache.urdu_tts_text is the source for future cache hits.
+      urduTtsText: urduSummary ?? '',
       modelText:   'db',
       modelTts:    process.env.OPENAI_TTS_TEXT_MODEL || model,
     }).catch(() => {});

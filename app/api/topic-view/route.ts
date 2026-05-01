@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
+import { generateDevUrduTts, sanitizeUrduTtsText } from '@/lib/agents/tools';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Generate Urdu TTS text on-the-fly if the topics table doesn't have it yet.
+    // 25-second window — Claude Opus typically takes 8–20 s for detailed Urdu.
+    let urduTtsText = result.urduTtsText;
+    if (!urduTtsText && (result.definition || result.explanation)) {
+      console.log('[topic-view] urdu_tts_text empty — generating via Claude Opus');
+      console.log('[topic-view] ANTHROPIC_API_KEY present:', !!process.env.ANTHROPIC_API_KEY,
+        process.env.ANTHROPIC_API_KEY?.slice(0, 10));
+      try {
+        const generated = await Promise.race([
+          generateDevUrduTts(result.topic, result.definition, result.explanation, result.example || ''),
+          new Promise<string>((resolve) => setTimeout(() => resolve(''), 25_000)),
+        ]);
+        console.log('[topic-view] Claude Opus result length:', generated?.length,
+          '| preview:', generated?.slice(0, 80));
+        if (generated) urduTtsText = sanitizeUrduTtsText(generated) || '';
+      } catch (e) {
+        console.error('[topic-view] Claude Opus generation failed:', e);
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       result: {
@@ -47,7 +68,7 @@ export async function POST(request: NextRequest) {
         formula:     result.formula,
         flabel:      result.flabel,
         example:     result.example,
-        urduTtsText: result.urduTtsText,
+        urduTtsText,
       },
     });
 

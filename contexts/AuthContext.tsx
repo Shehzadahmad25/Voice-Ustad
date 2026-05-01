@@ -133,9 +133,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async () => {
     try {
       const nextProfile = await authService.getOrCreateProfile()
+      if (nextProfile === null) {
+        console.warn('[AuthProvider] getOrCreateProfile returned null — no active session or user not found')
+      }
       setProfile(nextProfile)
     } catch (error) {
-      console.error('Error fetching profile:', error)
+      console.error('[AuthProvider] fetchProfile error —',
+        'message:', (error as Error)?.message ?? '(none)',
+        '| name:',  (error as Error)?.name    ?? '(none)',
+        error,
+      )
       setProfile(null)
     } finally {
       setLoading(false)
