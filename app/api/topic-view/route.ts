@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }              from '@supabase/supabase-js';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
-import { generateDevUrduTts, sanitizeUrduTtsText, OPUS_MODEL, isEnglishResponse } from '@/lib/agents/tools';
+import { generateDevUrduTts, sanitizeUrduTtsText, isEnglishResponse } from '@/lib/agents/tools';
 
 function getSupabase() {
   return createClient(
@@ -66,15 +66,15 @@ export async function POST(request: NextRequest) {
     if (urduTtsText) {
       console.log('[topic-view] urduTtsText already cached — skipping generation | preview:', urduTtsText.slice(0, 80));
     } else if (result.definition || result.explanation) {
-      console.log('[topic-view] urdu_tts_text empty — generating via Claude Opus');
+      console.log('[topic-view] urdu_tts_text empty — generating via OpenAI gpt-4o');
       const englishAnswerText = [result.definition, result.explanation, result.example]
         .filter(Boolean).join(' ');
       try {
         const generated = await Promise.race([
-          generateDevUrduTts(result.topic, result.definition, result.explanation, result.example || '', englishAnswerText, OPUS_MODEL),
+          generateDevUrduTts(result.topic, result.definition, result.explanation, result.example || '', englishAnswerText),
           new Promise<string>((resolve) => setTimeout(() => resolve(''), 25_000)),
         ]);
-        console.log('[topic-view] Claude Opus result length:', generated?.length,
+        console.log('[topic-view] OpenAI gpt-4o result length:', generated?.length,
           '| preview:', generated?.slice(0, 80));
         if (generated) {
           urduTtsText = sanitizeUrduTtsText(generated) || '';

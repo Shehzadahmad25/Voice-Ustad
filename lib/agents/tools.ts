@@ -411,8 +411,6 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
  * Never throws — returns '' on any failure or non-Urdu response.
  */
 
-export const OPUS_MODEL = 'claude-opus-4-5-20251101';
-
 const DEV_URDU_SYSTEM_PROMPT =
   'آپ ایک پاکستانی سائنس استاد ہیں۔ صرف اردو میں جواب دیں۔ ' +
   'سائنسی اصطلاحات جیسے mole، atom، molecule، electron، valency انگریزی میں رکھیں، باقی سب اردو میں۔ ' +
@@ -420,7 +418,7 @@ const DEV_URDU_SYSTEM_PROMPT =
   'مسلسل بولنے والا متن لکھیں۔ ' +
   'طلباء سے براہ راست بات کریں: دیکھو، یاد رکھو، سمجھو۔';
 
-const ANTHROPIC_TIMEOUT_MS = 25_000;
+const OPENAI_SCRIPT_TIMEOUT_MS = 25_000;
 
 /** Returns true if >40% of non-whitespace chars are Latin — indicates stale English content. */
 export function isEnglishResponse(text: string): boolean {
@@ -431,26 +429,26 @@ export function isEnglishResponse(text: string): boolean {
 }
 
 export async function generateDevUrduTts(
-  topicTitle:    string,
-  definition:    string,
-  explanation:   string,
-  example?:      string,
+  topicTitle:     string,
+  definition:     string,
+  explanation:    string,
+  example?:       string,
   englishAnswer?: string,
-  model?:        string,
 ): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  console.log('[urdu-tts] ANTHROPIC_API_KEY exists:', !!apiKey, apiKey?.slice(0, 10));
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.warn('[urdu-tts] ANTHROPIC_API_KEY not set — skipping Urdu text generation');
+    console.warn('[urdu-script] OPENAI_API_KEY not set — skipping Urdu text generation');
     return '';
   }
 
-  const def  = definition.trim();
-  const exp  = explanation.trim();
-  const ex   = (example ?? '').trim();
-  const eng  = (englishAnswer ?? '').trim();
+  console.log('[urdu-script] using OpenAI gpt-4o');
 
-  console.log('[urdu-tts] inputs —',
+  const def = definition.trim();
+  const exp = explanation.trim();
+  const ex  = (example ?? '').trim();
+  const eng = (englishAnswer ?? '').trim();
+
+  console.log('[urdu-script] inputs —',
     'topic:', topicTitle,
     '| definition chars:', def.length,
     '| explanation chars:', exp.length,
@@ -458,13 +456,11 @@ export async function generateDevUrduTts(
     '| englishAnswer chars:', eng.length,
   );
 
-  // Skip only when ALL usable inputs are empty
   if (!def && !exp && !eng) {
-    console.log(`[urdu-tts] SKIPPED — all inputs empty for topic: ${topicTitle}`);
+    console.log(`[urdu-script] SKIPPED — all inputs empty for topic: ${topicTitle}`);
     return '';
   }
 
-  // Build content block — fallback to englishAnswer when def+exp are absent
   const contentParts = [
     def,
     exp,
@@ -476,81 +472,65 @@ export async function generateDevUrduTts(
     `موضوع: ${topicTitle.trim()}\n\nمواد:\n${contentParts}\n\n` +
     `150 سے 200 اردو الفاظ میں سمجھائیں۔ صرف اردو میں لکھیں۔`;
 
-  console.log('[urdu-tts] userContent preview:', userContent.slice(0, 100));
-
-  const activeModel = model ?? 'claude-sonnet-4-6';
-  console.log('[urdu-tts] using model:', activeModel);
+  console.log('[urdu-script] userContent preview:', userContent.slice(0, 100));
 
   const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
+  const timeoutId  = setTimeout(() => controller.abort(), OPENAI_SCRIPT_TIMEOUT_MS);
 
-  async function callAnthropic(m: string, content: string): Promise<Response> {
-    return fetch('https://api.anthropic.com/v1/messages', {
+  async function callOpenAI(content: string): Promise<Response> {
+    return fetch('https://api.openai.com/v1/chat/completions', {
       method:  'POST',
       headers: {
-        'content-type':      'application/json',
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'authorization': `Bearer ${apiKey}`,
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model:      m,
+        model:      'gpt-4o',
         max_tokens: 1024,
-        system:     DEV_URDU_SYSTEM_PROMPT,
-        messages:   [{ role: 'user', content }],
+        messages:   [
+          { role: 'system', content: DEV_URDU_SYSTEM_PROMPT },
+          { role: 'user',   content },
+        ],
       }),
     });
   }
 
   async function extractText(res: Response): Promise<string> {
-    const json = await res.json() as { content?: Array<{ type: string; text?: string }> };
-    return String(json?.content?.[0]?.text ?? '').trim();
+    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+    return String(json?.choices?.[0]?.message?.content ?? '').trim();
   }
 
   try {
-    let res = await callAnthropic(activeModel, userContent);
-    console.log('[urdu-tts] Anthropic HTTP status:', res.status, '| model:', activeModel);
-
-    if (res.status === 529) {
-      console.warn('[urdu-tts] 529 overloaded — waiting 2s and retrying...');
-      await new Promise<void>((r) => setTimeout(r, 2_000));
-      res = await callAnthropic(activeModel, userContent);
-      console.log('[urdu-tts] retry HTTP status:', res.status, '| model:', activeModel);
-
-      if (res.status === 529 && activeModel !== 'claude-sonnet-4-6') {
-        console.log('[urdu-tts] Opus overloaded — falling back to Sonnet');
-        res = await callAnthropic('claude-sonnet-4-6', userContent);
-        console.log('[urdu-tts] fallback HTTP status:', res.status, '| model: claude-sonnet-4-6');
-      }
-    }
+    const res = await callOpenAI(userContent);
+    console.log('[urdu-script] OpenAI HTTP status:', res.status);
 
     if (!res.ok) {
-      console.error('[urdu-tts] Anthropic API error', res.status, await res.text().catch(() => ''));
+      console.error('[urdu-script] OpenAI API error', res.status, await res.text().catch(() => ''));
       return '';
     }
 
     const result = await extractText(res);
-    console.log('[urdu-tts] response length:', result.length, '| preview:', result.slice(0, 80));
+    console.log('[urdu-script] response length:', result.length, '| preview:', result.slice(0, 80));
 
-    // Validate response is actually Urdu
     if (isEnglishResponse(result)) {
-      console.log('[urdu-tts] WARNING — English response detected, retrying');
+      console.log('[urdu-script] WARNING — English response detected, retrying');
       const retryContent = userContent + '\n\nیاد رہے: صرف اردو میں لکھنا ہے، انگریزی میں نہیں';
-      const retryRes = await callAnthropic(activeModel, retryContent);
-      console.log('[urdu-tts] urdu-retry HTTP status:', retryRes.status);
+      const retryRes = await callOpenAI(retryContent);
+      console.log('[urdu-script] urdu-retry HTTP status:', retryRes.status);
       if (!retryRes.ok) return '';
       const retryResult = await extractText(retryRes);
       if (isEnglishResponse(retryResult)) {
-        console.log('[urdu-tts] WARNING — still English after retry, hiding voice card');
+        console.log('[urdu-script] WARNING — still English after retry, hiding voice card');
         return '';
       }
-      console.log('[urdu-tts] urdu-retry success, length:', retryResult.length);
+      console.log('[urdu-script] urdu-retry success, length:', retryResult.length);
       return retryResult;
     }
 
     return result;
   } catch (err) {
-    console.error('[urdu-tts] fetch failed:', err instanceof Error ? err.message : err);
+    console.error('[urdu-script] fetch failed:', err instanceof Error ? err.message : err);
     return '';
   } finally {
     clearTimeout(timeoutId);
