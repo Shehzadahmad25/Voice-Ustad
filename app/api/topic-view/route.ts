@@ -32,13 +32,16 @@ export async function POST(request: NextRequest) {
 
     const body          = await request.json();
     const topicTitle    = String(body?.topicTitle    ?? '').trim();
+    const topicCode     = String(body?.topicCode     ?? '').trim();
     const chapterNumber = Number(body?.chapterNumber ?? 0);
 
-    if (!topicTitle) {
-      return NextResponse.json({ ok: false, error: 'topicTitle is required' }, { status: 400 });
+    if (!topicTitle && !topicCode) {
+      return NextResponse.json({ ok: false, error: 'topicTitle or topicCode is required' }, { status: 400 });
     }
 
-    const result = await retrieveTopicContent(topicTitle, chapterNumber);
+    console.log('[topic-view] request — title:', topicTitle, '| code:', topicCode, '| chapter:', chapterNumber);
+
+    const result = await retrieveTopicContent(topicTitle, chapterNumber, topicCode);
 
     if (!result) {
       return NextResponse.json(

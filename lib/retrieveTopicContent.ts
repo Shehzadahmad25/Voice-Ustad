@@ -64,9 +64,11 @@ const SELECT_COLS =
 // ── Core lookup ───────────────────────────────────────────────────────────────
 
 /**
- * Queries topics table with two strategies only:
- *   1. topic_title ILIKE '%query%'
- *   2. keywords @> ARRAY[query]  (exact keyword match)
+ * Queries topics table with strategies in priority order:
+ *   0. topic_code exact match (highest priority — bypasses title search entirely)
+ *   1. topic_title ILIKE exact match
+ *   2. topic_title ILIKE partial match
+ *   3. keywords @> ARRAY[query]
  *
  * No definition/content text search — that causes false positives.
  * Returns null when no row matches.
@@ -74,11 +76,27 @@ const SELECT_COLS =
 async function fetchTopicRow(
   chapterNumber: number,
   query:         string,
+  topicCode?:    string,
 ): Promise<TopicRow | null> {
   const db = getClient();
   const q  = query.toLowerCase().trim();
 
-  console.log('[retrieveTopicContent] raw user question:', query);
+  console.log('[retrieveTopicContent] raw user question:', query, '| topicCode:', topicCode || '(none)');
+
+  // Strategy 0: direct topic_code lookup — exact match, no ambiguity
+  if (topicCode) {
+    const { data: codeData } = await db
+      .from('topics')
+      .select(SELECT_COLS)
+      .eq('topic_code', topicCode)
+      .limit(1);
+    if (codeData?.[0]) {
+      console.log(`[retrieveTopicContent] TOPIC_CODE MATCH — "${(codeData[0] as TopicRow).topic_title}"`);
+      return codeData[0] as TopicRow;
+    }
+  }
+
+  if (!q) return null;
   console.log('[retrieveTopicContent] extracted query term:', q);
 
   // Strategy 1: exact title match (highest priority)
@@ -143,10 +161,12 @@ async function fetchTopicRow(
 export async function retrieveTopicContent(
   query:         string,
   chapterNumber: number,
+  topicCode?:    string,
 ): Promise<TopicViewResult | null> {
-  if (!query?.trim() || !chapterNumber || chapterNumber <= 0) return null;
+  if (!query?.trim() && !topicCode?.trim()) return null;
+  if (!topicCode && (!chapterNumber || chapterNumber <= 0)) return null;
 
-  const row = await fetchTopicRow(chapterNumber, query.trim());
+  const row = await fetchTopicRow(chapterNumber, query.trim(), topicCode?.trim());
   if (!row) return null;
 
   const formula  = (row.formula      ?? '').trim();

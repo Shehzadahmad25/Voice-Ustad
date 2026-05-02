@@ -418,8 +418,9 @@ async function toggleChapterPanel(idx, chId) {
     return;
   }
   try {
+    const chapterNum = Number(CHS[idx]?.n ?? 0);
     const [topicsRes, mcqRes, exRes, sqRes, nqRes, dqRes] = await Promise.all([
-      _sbClient.from('topics').select('section, title').eq('chapter_id', chId).order('section'),
+      _sbClient.from('topics').select('topic_code, topic_title').eq('chapter_number', chapterNum).not('topic_code', 'like', '%.MCQ%').order('topic_code'),
       _sbClient.from('mcqs').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('examples').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('short_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
@@ -430,19 +431,18 @@ async function toggleChapterPanel(idx, chId) {
     const mcqCount = mcqRes.count || 0;
     const exCount = exRes.count || 0;
     const exerciseCount = (sqRes.count || 0) + (nqRes.count || 0) + (dqRes.count || 0);
-    const chN = CHS[idx]?.n || String(idx + 1);
     let html = '<div class="sb-panel">';
     if (topics.length > 0) {
       html += '<div class="sb-panel-topics">';
       window.__topicData = window.__topicData || {};
       topics.forEach(function(t, ti) {
         const key = 'tp_'+idx+'_'+ti;
-        window.__topicData[key] = { title: String(t.title || '').replace(/\s+/g, ' ').trim(), chN: Number(CHS[idx]?.n ?? 0) };
+        window.__topicData[key] = { title: String(t.topic_title || '').replace(/\s+/g, ' ').trim(), code: String(t.topic_code || ''), chN: chapterNum };
         html += '<div class="sb-panel-topic" role="button" tabindex="0"'
-          +' onclick="viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN);closeSb()"'
-          +' onkeydown="if(event.key===\'Enter\'){viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN);closeSb()}">'
-          +'<span class="sb-panel-sec">'+esc(t.section)+'</span>'
-          +'<span class="sb-panel-ttl">'+esc(t.title)+'</span>'
+          +' onclick="viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()"'
+          +' onkeydown="if(event.key===\'Enter\'){viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()}">'
+          +'<span class="sb-panel-sec">'+esc(t.topic_code)+'</span>'
+          +'<span class="sb-panel-ttl">'+esc(t.topic_title)+'</span>'
           +'</div>';
       });
       html += '</div>';
@@ -598,15 +598,14 @@ function closeScope(){
   if (bg) bg.classList.remove('on');
 }
 
-function askScopeTopic(topic: string){
-  // Strip section number (e.g. "1.1 ") and page ref (e.g. " (p.1)")
-  const clean = String(topic || '')
+function askScopeTopic(topicTitle: string, topicCode?: string){
+  const clean = String(topicTitle || '')
     .replace(/^\d+\.\d+\s+/, '')           // strip leading "1.1 "
     .replace(/\s*[\((]p\.\d+[)\)].*$/i, '') // strip "(p.5)" suffix
     .replace(/\s*—.*$/, '')                 // strip " — ..." suffix
     .trim();
   closeScope();
-  viewTopic(clean, Number(CHS[activeChIdx]?.n ?? 0));
+  viewTopic(clean, Number(CHS[activeChIdx]?.n ?? 0), topicCode);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -614,11 +613,12 @@ function askScopeTopic(topic: string){
    Called when a topic is clicked in sidebar panel or scope modal.
    Uses /api/topic-view — completely separate from question mode.
 ═══════════════════════════════════════════════════════════════ */
-async function viewTopic(topicTitle: string, chN: number){
+async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
   if (busy) return;
   const title = String(topicTitle || '').replace(/\s+/g, ' ').trim();
-  console.log("VIEW TOPIC CALLED:", title);
-  if (!title) return;
+  const code  = String(topicCode  || '').trim();
+  console.log('[viewTopic] title:', title, '| code:', code, '| chN:', chN);
+  if (!title && !code) return;
   if (_setViewedTopics) _setViewedTopics((prev) => new Set([...prev, title]));
 
   if (!started){
@@ -653,7 +653,7 @@ async function viewTopic(topicTitle: string, chN: number){
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
-      body: JSON.stringify({ topicTitle: title, chapterNumber: chN }),
+      body: JSON.stringify({ topicTitle: title, topicCode: code || undefined, chapterNumber: chN }),
     });
 
     if (timedOut) return;
@@ -2371,7 +2371,7 @@ export default function ChatPage() {
           <ul className="scope-list">
             {scopeTopics.map((topic) => (
               <li key={topic.topic_code}>
-                <button type="button" className="scope-item-btn" onClick={() => askScopeTopic(topic.topic_title)}>
+                <button type="button" className="scope-item-btn" onClick={() => askScopeTopic(topic.topic_title, topic.topic_code)}>
                   <span className="scope-topic-code">{topic.topic_code}</span>
                   <span className="scope-topic-title">{topic.topic_title}</span>
                   {topic.page != null && <span className="scope-topic-page">p.{topic.page}</span>}
