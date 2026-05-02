@@ -422,6 +422,14 @@ const DEV_URDU_SYSTEM_PROMPT =
 
 const ANTHROPIC_TIMEOUT_MS = 25_000;
 
+/** Returns true if >40% of non-whitespace chars are Latin — indicates stale English content. */
+export function isEnglishResponse(text: string): boolean {
+  const nonSpace = text.replace(/\s/g, '');
+  if (!nonSpace) return false;
+  const latinCount = (text.match(/[a-zA-Z]/g) ?? []).length;
+  return latinCount / nonSpace.length > 0.4;
+}
+
 export async function generateDevUrduTts(
   topicTitle:    string,
   definition:    string,
@@ -492,14 +500,6 @@ export async function generateDevUrduTts(
         messages:   [{ role: 'user', content }],
       }),
     });
-  }
-
-  // Returns true if >40% of non-whitespace chars are Latin — indicates English response
-  function isEnglishResponse(text: string): boolean {
-    const nonSpace = text.replace(/\s/g, '');
-    if (!nonSpace) return false;
-    const latinCount = (text.match(/[a-zA-Z]/g) ?? []).length;
-    return latinCount / nonSpace.length > 0.4;
   }
 
   async function extractText(res: Response): Promise<string> {

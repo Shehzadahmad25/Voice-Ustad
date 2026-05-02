@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }              from '@supabase/supabase-js';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
-import { generateDevUrduTts, sanitizeUrduTtsText, OPUS_MODEL } from '@/lib/agents/tools';
+import { generateDevUrduTts, sanitizeUrduTtsText, OPUS_MODEL, isEnglishResponse } from '@/lib/agents/tools';
 
 function getSupabase() {
   return createClient(
@@ -57,6 +57,11 @@ export async function POST(request: NextRequest) {
       '| definition chars:', result.definition?.length ?? 0,
       '| explanation chars:', result.explanation?.length ?? 0,
     );
+
+    if (urduTtsText && isEnglishResponse(urduTtsText)) {
+      console.log('[topic-view] cached urduTtsText is English — regenerating | preview:', urduTtsText.slice(0, 60));
+      urduTtsText = '';
+    }
 
     if (urduTtsText) {
       console.log('[topic-view] urduTtsText already cached — skipping generation | preview:', urduTtsText.slice(0, 80));
