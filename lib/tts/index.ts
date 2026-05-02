@@ -88,6 +88,8 @@ export async function generateSpeech(
   const voice = process.env.OPENAI_TTS_VOICE || 'onyx';
   const speed = 1.05;
 
+  console.log(`[tts] OpenAI ${model} ${voice} speed:${speed}`);
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('[tts] OPENAI_API_KEY is not set');
 

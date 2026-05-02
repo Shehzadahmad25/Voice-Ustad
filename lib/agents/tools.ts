@@ -406,59 +406,19 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
 // ── Tool: generateDevUrduTts ──────────────────────────────────────────────────
 
 /**
- * DEV MODE: generates fresh Roman Urdu TTS text for every request.
- *
- * Uses a strict Urdu prompt — Definition→Explanation→Example structure,
- * 100% faithful to textbook content, Pakistani ustad tone.
- *
- * Input: topic title + definition + explanation + example (optional).
- * Output: Raw Urdu script string. Caller applies sanitizeUrduTtsText.
- * Never throws — returns '' on any failure.
- *
- * Controlled by SAVE_URDU_TTS env var in tutorAgent.ts.
+ * Generates Urdu TTS script from textbook content.
+ * Uses Opus for topic-view (high accuracy), Sonnet for chat (speed).
+ * Never throws — returns '' on any failure or non-Urdu response.
  */
 
+export const OPUS_MODEL = 'claude-opus-4-5-20251101';
+
 const DEV_URDU_SYSTEM_PROMPT =
-  'You are VoiceUstad, a Pakistani classroom teacher explaining FSc topics to Class 9-12 students (KPK/Punjab board).\n' +
-  'You are reading textbook content aloud in Urdu — exactly like a ustad speaking naturally in class.\n' +
-  '\n' +
-  'LANGUAGE RULES:\n' +
-  '- Always reply in Urdu script only — never Roman Urdu, never full English\n' +
-  '- Use natural Pakistani spoken Urdu at Class 9-12 level\n' +
-  '- Keep English scientific terms exactly as written — NEVER translate them into Urdu:\n' +
-  '  mole, atom, molecule, ion, electron, Stoichiometry, Limiting Reagent,\n' +
-  '  Mitosis, DNA, Newton\'s Law, force, energy, cell, reaction, equation,\n' +
-  '  coefficient, formula, definition, solution, acid, base\n' +
-  '- Mix Urdu naturally with these kept English terms\n' +
-  '\n' +
-  'STYLE:\n' +
-  '- Warm, encouraging Pakistani ustad tone — speak like a real classroom teacher\n' +
-  '- Address the student directly: "دیکھو..." "یاد رکھو..." "سمجھو بات..."\n' +
-  '- Use "آپ" — always respectful\n' +
-  '- Continuous flowing speech — like speaking, not writing\n' +
-  '- No bullet points, no numbered lists, no headings, no labels\n' +
-  '\n' +
-  'FLOW — explain in this natural order without section labels:\n' +
-  'First state what the topic is and give its definition in simple Urdu.\n' +
-  'Then explain the concept step by step, same order as the textbook.\n' +
-  'Then explain or give the example.\n' +
-  'All three flow as one continuous speech.\n' +
-  '\n' +
-  'TTS FORMATTING:\n' +
-  '- Short sentences — max 12 Urdu words per sentence\n' +
-  '- No markdown: no ** ## --- or dashes\n' +
-  '- No English parentheses or brackets\n' +
-  '- End every sentence with ۔\n' +
-  '- Use ، for natural mid-sentence pauses\n' +
-  '- Use ۔۔۔ between major topic shifts for a natural breath\n' +
-  '- Max 200 words total — concise and clear\n' +
-  '\n' +
-  'CONTENT RULES:\n' +
-  '- Stay 100% faithful to the textbook content provided\n' +
-  '- Do not add facts not in the textbook\n' +
-  '- If a formula is given, say: "اس کی formula ہے: [formula]"\n' +
-  '\n' +
-  'OUTPUT: Urdu spoken explanation only. Nothing else.';
+  'آپ ایک پاکستانی سائنس استاد ہیں۔ صرف اردو میں جواب دیں۔ ' +
+  'سائنسی اصطلاحات جیسے mole، atom، molecule، electron، valency انگریزی میں رکھیں، باقی سب اردو میں۔ ' +
+  'کوئی heading یا bullet point نہ لکھیں۔ ' +
+  'مسلسل بولنے والا متن لکھیں۔ ' +
+  'طلباء سے براہ راست بات کریں: دیکھو، یاد رکھو، سمجھو۔';
 
 const ANTHROPIC_TIMEOUT_MS = 25_000;
 
@@ -496,19 +456,17 @@ export async function generateDevUrduTts(
     return '';
   }
 
-  let userContent: string;
-  if (!def && !exp) {
-    // definition and explanation both missing — use englishAnswer as source
-    userContent = `Translate and summarize the following English answer in simple Urdu for a Pakistani student:\n${eng}`;
-  } else {
-    const parts = [
-      `Topic: ${topicTitle.trim()}`,
-      def  ? `Definition: ${def}`   : '',
-      exp  ? `Explanation: ${exp}`  : '',
-      ex   ? `Example: ${ex}`       : '',
-    ].filter(Boolean).join('\n\n');
-    userContent = 'English textbook content:\n' + parts;
-  }
+  // Build content block — fallback to englishAnswer when def+exp are absent
+  const contentParts = [
+    def,
+    exp,
+    ex,
+    (!def && !exp && eng) ? eng : '',
+  ].filter(Boolean).join('\n');
+
+  const userContent =
+    `موضوع: ${topicTitle.trim()}\n\nمواد:\n${contentParts}\n\n` +
+    `150 سے 200 اردو الفاظ میں سمجھائیں۔ صرف اردو میں لکھیں۔`;
 
   console.log('[urdu-tts] userContent preview:', userContent.slice(0, 100));
 
@@ -518,7 +476,7 @@ export async function generateDevUrduTts(
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
 
-  async function callAnthropic(m: string): Promise<Response> {
+  async function callAnthropic(m: string, content: string): Promise<Response> {
     return fetch('https://api.anthropic.com/v1/messages', {
       method:  'POST',
       headers: {
@@ -531,24 +489,37 @@ export async function generateDevUrduTts(
         model:      m,
         max_tokens: 1024,
         system:     DEV_URDU_SYSTEM_PROMPT,
-        messages:   [{ role: 'user', content: userContent }],
+        messages:   [{ role: 'user', content }],
       }),
     });
   }
 
+  // Returns true if >40% of non-whitespace chars are Latin — indicates English response
+  function isEnglishResponse(text: string): boolean {
+    const nonSpace = text.replace(/\s/g, '');
+    if (!nonSpace) return false;
+    const latinCount = (text.match(/[a-zA-Z]/g) ?? []).length;
+    return latinCount / nonSpace.length > 0.4;
+  }
+
+  async function extractText(res: Response): Promise<string> {
+    const json = await res.json() as { content?: Array<{ type: string; text?: string }> };
+    return String(json?.content?.[0]?.text ?? '').trim();
+  }
+
   try {
-    let res = await callAnthropic(activeModel);
+    let res = await callAnthropic(activeModel, userContent);
     console.log('[urdu-tts] Anthropic HTTP status:', res.status, '| model:', activeModel);
 
     if (res.status === 529) {
       console.warn('[urdu-tts] 529 overloaded — waiting 2s and retrying...');
       await new Promise<void>((r) => setTimeout(r, 2_000));
-      res = await callAnthropic(activeModel);
+      res = await callAnthropic(activeModel, userContent);
       console.log('[urdu-tts] retry HTTP status:', res.status, '| model:', activeModel);
 
       if (res.status === 529 && activeModel !== 'claude-sonnet-4-6') {
         console.log('[urdu-tts] Opus overloaded — falling back to Sonnet');
-        res = await callAnthropic('claude-sonnet-4-6');
+        res = await callAnthropic('claude-sonnet-4-6', userContent);
         console.log('[urdu-tts] fallback HTTP status:', res.status, '| model: claude-sonnet-4-6');
       }
     }
@@ -557,9 +528,26 @@ export async function generateDevUrduTts(
       console.error('[urdu-tts] Anthropic API error', res.status, await res.text().catch(() => ''));
       return '';
     }
-    const json = await res.json() as { content?: Array<{ type: string; text?: string }> };
-    const result = String(json?.content?.[0]?.text ?? '').trim();
+
+    const result = await extractText(res);
     console.log('[urdu-tts] response length:', result.length, '| preview:', result.slice(0, 80));
+
+    // Validate response is actually Urdu
+    if (isEnglishResponse(result)) {
+      console.log('[urdu-tts] WARNING — English response detected, retrying');
+      const retryContent = userContent + '\n\nیاد رہے: صرف اردو میں لکھنا ہے، انگریزی میں نہیں';
+      const retryRes = await callAnthropic(activeModel, retryContent);
+      console.log('[urdu-tts] urdu-retry HTTP status:', retryRes.status);
+      if (!retryRes.ok) return '';
+      const retryResult = await extractText(retryRes);
+      if (isEnglishResponse(retryResult)) {
+        console.log('[urdu-tts] WARNING — still English after retry, hiding voice card');
+        return '';
+      }
+      console.log('[urdu-tts] urdu-retry success, length:', retryResult.length);
+      return retryResult;
+    }
+
     return result;
   } catch (err) {
     console.error('[urdu-tts] fetch failed:', err instanceof Error ? err.message : err);

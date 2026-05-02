@@ -11,9 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }              from '@supabase/supabase-js';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
-import { generateDevUrduTts, sanitizeUrduTtsText } from '@/lib/agents/tools';
-
-const OPUS_MODEL = 'claude-opus-4-5-20251101';
+import { generateDevUrduTts, sanitizeUrduTtsText, OPUS_MODEL } from '@/lib/agents/tools';
 
 function getSupabase() {
   return createClient(
