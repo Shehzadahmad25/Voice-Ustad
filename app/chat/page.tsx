@@ -1488,7 +1488,9 @@ async function prefetchUrduAudio(id){
   }
   if (!audioUrls[id] && urduSummaries[id]) {
     console.log('[prefetch] id:', id, '| urduSummaries length:', urduSummaries[id]?.length, '| starting audio fetch');
-    prefetchInFlight[id] = retryAudio(id, true).finally(() => { prefetchInFlight[id] = null; });
+    prefetchInFlight[id] = retryAudio(id, true)
+      .then((ok) => { console.log('[prefetch] audio ready:', !!audioUrls[id], '| ok:', ok); })
+      .finally(() => { prefetchInFlight[id] = null; });
     return;
   }
   if(!audioUrls[id]) return;
@@ -1556,8 +1558,9 @@ function editMsg(btn, originalText){
    VOICE â€" countdown + progress bar
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 async function togglePlay(id){
+  console.log('[togglePlay] clicked id:', id);
   const btn=document.getElementById('btn_'+id);
-  if(!btn) return;
+  if(!btn) { console.log('[togglePlay] btn element not found for id:', id); return; }
   const tm=document.getElementById('tm_'+id);
   const wv=document.getElementById('wv_'+id);
   const prog=document.getElementById('prog_'+id);
@@ -1588,6 +1591,7 @@ async function togglePlay(id){
 
   ttsLoading[id]=true;
   const needsFetch = !audioUrls[id];
+  console.log('[audio check]', audioUrls[id] ? 'url set len:' + audioUrls[id].length : 'MISSING');
   if (needsFetch) setLoading(true);
 
   wv.classList.add('on');
@@ -1624,27 +1628,31 @@ async function togglePlay(id){
         }
       }
       // audioUrls[id] is now set (either by prefetch or our own fetch above)
+      console.log('[audio src]', audioUrls[id]?.slice(0, 60));
       const audio = new Audio(audioUrls[id]);
       audioPlayers[id]=audio;
       audio.onended=()=>stopPlay(id);
       audio.onerror=()=>stopPlay(id);
-      await audio.play();
+      await audio.play().then(() => console.log('[audio] playing', id)).catch(err => { console.error('[audio error]', err); throw err; });
       setVoiceSource(id, 'openai');
       startPlaying();
     } else {
+      console.log('[audio src]', audioUrls[id]?.slice(0, 60));
       const audio = new Audio(audioUrls[id]);
       audioPlayers[id]=audio;
       audio.onended=()=>stopPlay(id);
       audio.onerror=()=>stopPlay(id);
-      await audio.play();
+      await audio.play().then(() => console.log('[audio] playing', id)).catch(err => { console.error('[audio error]', err); throw err; });
       setVoiceSource(id, 'openai');
       startPlaying();
     }
   } catch(e){
-    // Fallback to browser speech so the UI still works if API TTS fails.
-    if(window.speechSynthesis){
+    console.error('[togglePlay catch]', (e as any)?.message);
+    // Fallback to browser speech — use in-memory urduSummaries[id] (data-tts-ur attr is empty by design)
+    const fallbackText = String(urduSummaries[id] || ttsUrText || ttsText || '').trim();
+    if(window.speechSynthesis && fallbackText){
       window.speechSynthesis.cancel();
-      const utter=new SpeechSynthesisUtterance(ttsUrText || ttsText);
+      const utter=new SpeechSynthesisUtterance(fallbackText);
       utter.lang='ur-PK'; utter.rate=0.9;
       window.speechSynthesis.speak(utter);
       setVoiceSource(id, 'browser');
