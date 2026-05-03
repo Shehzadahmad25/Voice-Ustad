@@ -829,6 +829,12 @@ function appendTopicView(r: any){
   const inner0 = getInner();
   if (!inner0) return;
   inner0.appendChild(w);
+  const card = w.querySelector('.voice-card');
+  console.log('[voice-card check]', card ? 'EXISTS in DOM' : 'NULL - not in DOM', '| urduSummary len:', urduSummary.length);
+  if (card) {
+    const style = window.getComputedStyle(card);
+    console.log('[voice-card style] display:', style.display, '| visibility:', style.visibility, '| opacity:', style.opacity, '| height:', style.height);
+  }
   scrollDn();
   setVoiceSource(id, voiceSources[id] || 'unknown');
   prefetchUrduAudio(id);

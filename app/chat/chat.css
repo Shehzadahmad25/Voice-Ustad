@@ -867,11 +867,14 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .voice-card {
   margin-top: 12px;
   background: rgba(245,158,11,.04);
-  border: 1px solid rgba(245,158,11,.14);
+  border: 2px solid red !important;
   border-radius: 16px;
-  display: flex; align-items: center; gap: 12px;
+  display: flex !important; align-items: center; gap: 12px;
   flex-wrap: wrap; padding: 12px 14px;
   transition: border-color .18s, box-shadow .18s;
+  opacity: 1 !important;
+  visibility: visible !important;
+  min-height: 60px;
 }
 .voice-card:hover { border-color: var(--brand-mid); box-shadow: 0 0 0 3px var(--brand-ring); }
 .vc-top-row { display: flex; align-items: center; gap: 12px; width: 100%; }
