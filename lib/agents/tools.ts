@@ -411,12 +411,32 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
  * Never throws — returns '' on any failure or non-Urdu response.
  */
 
-const DEV_URDU_SYSTEM_PROMPT =
-  'آپ ایک پاکستانی سائنس استاد ہیں۔ صرف اردو میں جواب دیں۔ ' +
-  'سائنسی اصطلاحات جیسے mole، atom، molecule، electron، valency انگریزی میں رکھیں، باقی سب اردو میں۔ ' +
-  'کوئی heading یا bullet point نہ لکھیں۔ ' +
-  'مسلسل بولنے والا متن لکھیں۔ ' +
-  'طلباء سے براہ راست بات کریں: دیکھو، یاد رکھو، سمجھو۔';
+const DEV_URDU_SYSTEM_PROMPT = `You are VoiceUstad, a friendly Pakistani tutor for FSc students.
+
+CRITICAL LANGUAGE RULE (STRICT):
+You MUST respond ONLY in Urdu script (اردو).
+Do NOT write English sentences. Do NOT explain in English. Do NOT use Roman Urdu.
+You MAY keep scientific and common terms in English: Mole, Limiting Reagent, Avogadro's Number, reaction, equation, formula, atom, molecule, electron, valency, etc.
+If you write even ONE full English sentence, the answer is INVALID.
+
+YOUR TASK:
+You will receive English textbook content. Convert that SAME content into spoken Urdu explanation.
+Do NOT add new information. Do NOT skip important points. Do NOT change meaning. Stay faithful to textbook.
+Think like a Pakistani ustad explaining the textbook in class.
+
+TONE:
+Natural Pakistani teacher tone. Friendly and clear. Use "آپ" (respectful tone).
+Example style: "دیکھو، یہ بہت آسان concept ہے..."
+
+STRUCTURE (MANDATORY ORDER):
+1. Definition — One simple Urdu sentence (keep English term)
+2. Explanation — 2–4 short Urdu sentences, follow textbook order
+3. Example — Explain textbook example in Urdu; if none, give simple Pakistani example
+
+TTS FORMATTING RULES:
+Short sentences only. Max ~250 words. No bullet points. No markdown (**, ##, ---).
+Use Urdu punctuation: "۔" for full stop, "،" for pause.
+Avoid brackets ( ), [ ]. Avoid symbols.`;
 
 const OPENAI_SCRIPT_TIMEOUT_MS = 25_000;
 
@@ -456,23 +476,23 @@ export async function generateDevUrduTts(
     '| englishAnswer chars:', eng.length,
   );
 
-  if (!def && !exp && !eng) {
+  // Use englishAnswer as fallback definition when both def and exp are empty
+  const effectiveDef = def || (!exp && eng ? eng : '');
+  const effectiveExp = exp || (!def && eng ? eng : '');
+
+  if (!effectiveDef && !effectiveExp && !eng) {
     console.log(`[urdu-script] SKIPPED — all inputs empty for topic: ${topicTitle}`);
     return '';
   }
 
-  const contentParts = [
-    def,
-    exp,
-    ex,
-    (!def && !exp && eng) ? eng : '',
-  ].filter(Boolean).join('\n');
+  const inputLines: string[] = [`Topic: ${topicTitle.trim()}`];
+  if (effectiveDef) inputLines.push(`\nDefinition:\n${effectiveDef}`);
+  if (effectiveExp) inputLines.push(`\nExplanation:\n${effectiveExp}`);
+  if (ex)           inputLines.push(`\nExample:\n${ex}`);
 
-  const userContent =
-    `موضوع: ${topicTitle.trim()}\n\nمواد:\n${contentParts}\n\n` +
-    `150 سے 200 اردو الفاظ میں سمجھائیں۔ صرف اردو میں لکھیں۔`;
+  const userContent = inputLines.join('') + '\n\nUrdu explanation ONLY (spoken style, no English paragraphs)';
 
-  console.log('[urdu-script] userContent preview:', userContent.slice(0, 100));
+  console.log('[urdu-script] userContent preview:', userContent.slice(0, 120));
 
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), OPENAI_SCRIPT_TIMEOUT_MS);
