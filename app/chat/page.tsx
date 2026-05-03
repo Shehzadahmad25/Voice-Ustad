@@ -668,6 +668,9 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
     }
 
     const data = await apiRes.json();
+    console.log('[viewTopic] raw response keys:', Object.keys(data?.result ?? {}).join(', '));
+    console.log('[viewTopic] urduTtsText chars:', data?.result?.urduTtsText?.length ?? 0);
+    console.log('[viewTopic] urduTtsText preview:', data?.result?.urduTtsText?.slice(0, 100) ?? 'EMPTY');
     if (!data?.ok || !data?.result) {
       appendError('Topic not found', 'Content for this topic is not yet available in the database.');
       return;
@@ -694,6 +697,7 @@ function appendTopicView(r: any){
   const id = 'v' + Date.now();
 
   const urduSummary = String(r?.urduTtsText || '').trim();
+  console.log('[viewTopic] urduSummary being set:', urduSummary?.length ?? 0, '| preview:', urduSummary.slice(0, 60) || 'EMPTY');
   urduSummaries[id] = urduSummary;
   // Allow retryAudio to cache audio under the topic title
   questionForId[id] = String(r?.topic || r?.chapter || '').trim();
@@ -753,6 +757,7 @@ function appendTopicView(r: any){
   w2.__copyData = w2.__copyData || {};
   w2.__copyData[id] = copyText;
 
+  console.log('[viewTopic] voiceHtml will render:', !!urduSummary);
   const voiceHtml = urduSummary ? `
     <div class="voice-card" role="region" aria-label="Urdu voice explanation">
       <div class="vc-top-row">

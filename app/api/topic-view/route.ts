@@ -25,8 +25,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[topic-view] ANTHROPIC_API_KEY present:', !!process.env.ANTHROPIC_API_KEY,
-      process.env.ANTHROPIC_API_KEY?.slice(0, 10));
+    console.log('[topic-view] OPENAI_API_KEY present:', !!process.env.OPENAI_API_KEY,
+      process.env.OPENAI_API_KEY?.slice(0, 8));
 
     const body          = await request.json();
     const topicTitle    = String(body?.topicTitle    ?? '').trim();
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
             });
         }
       } catch (e) {
-        console.error('[topic-view] Claude Opus generation failed:', e);
+        console.error('[topic-view] OpenAI gpt-4o generation failed:', e);
       }
     } else {
       console.log('[topic-view] SKIPPED — urduTtsText empty and no definition/explanation in DB');
@@ -98,23 +98,24 @@ export async function POST(request: NextRequest) {
 
     console.log('[topic-view] urduTtsText in response:', urduTtsText?.length ?? 0, 'chars');
 
-    return NextResponse.json({
-      ok: true,
-      result: {
-        mode:        'topic_view',
-        chapter:     result.chapter,
-        topic:       result.topic,
-        section:     result.section,
-        page_start:  result.page_start,
-        page_end:    result.page_end,
-        definition:  result.definition,
-        explanation: result.explanation,
-        formula:     result.formula,
-        flabel:      result.flabel,
-        example:     result.example,
-        urduTtsText,
-      },
-    });
+    const responseResult = {
+      mode:        'topic_view',
+      chapter:     result.chapter,
+      topic:       result.topic,
+      section:     result.section,
+      page_start:  result.page_start,
+      page_end:    result.page_end,
+      definition:  result.definition,
+      explanation: result.explanation,
+      formula:     result.formula,
+      flabel:      result.flabel,
+      example:     result.example,
+      urduTtsText,
+    };
+    console.log('[topic-view] FINAL RESPONSE urduTtsText chars:', responseResult.urduTtsText?.length ?? 0);
+    console.log('[topic-view] FINAL RESPONSE keys:', Object.keys(responseResult).join(', '));
+
+    return NextResponse.json({ ok: true, result: responseResult });
 
   } catch (err) {
     console.error('[topic-view] error:', err);
