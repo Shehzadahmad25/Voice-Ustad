@@ -35,6 +35,7 @@ import {
   normalizeStructuredAnswer,
   repairStructuredAnswer,
   sanitizeUrduTtsText,
+  isEnglishResponse,
   type StructuredAnswer,
   type RetrievalResult,
 }                                       from './tools';
@@ -235,31 +236,37 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
   let urduSummary: string | null = dbResult.blocks.urduTtsText
     ? (sanitizeUrduTtsText(dbResult.blocks.urduTtsText) || null)
     : null;
-  let audioError:  string | null = null;
 
-  if (!URDU_TTS_ENABLED) {
-    console.log('[urdu-tts] DISABLED — enable with URDU_TTS_ENABLED=true');
-  } else {
-    try {
-      // 20-second window — Claude Sonnet Urdu generation typically takes 5–12 s.
-      const englishAnswerText = [answer.definition, answer.explanation, answer.example]
-        .filter(Boolean).join(' ');
-      const generated = await Promise.race([
-        generateDevUrduTts(
-          dbResult.topic,
-          dbResult.blocks.definition  || '',
-          dbResult.blocks.explanation || '',
-          dbResult.blocks.example     || '',
-          englishAnswerText,
-        ),
-        new Promise<string>((resolve) => setTimeout(() => resolve(''), 20_000)),
-      ]);
-      console.log('[tutor] urdu generated length:', generated?.length ?? 0, '| preview:', generated?.slice(0, 80) || 'EMPTY');
-      if (generated) urduSummary = sanitizeUrduTtsText(generated) || urduSummary;
-      console.log('[tutor] urduSummary final:', urduSummary ? urduSummary.slice(0, 60) + '...' : 'NULL');
-    } catch (err) {
-      audioError = err instanceof Error ? err.message : 'Urdu TTS generation failed';
-    }
+  // Discard stale English content cached before the Urdu prompt was fixed.
+  if (urduSummary && isEnglishResponse(urduSummary)) {
+    console.log('[tutor] DB urduTtsText is English — discarding | preview:', urduSummary.slice(0, 60));
+    urduSummary = null;
+  }
+
+  let audioError: string | null = null;
+
+  // Always generate Urdu script via GPT-4o when content is available.
+  // URDU_TTS_ENABLED only gates TTS audio synthesis, not Urdu text generation.
+  try {
+    const englishAnswerText = [answer.definition, answer.explanation, answer.example]
+      .filter(Boolean).join(' ');
+    console.log('[tutor] generating Urdu script via OpenAI gpt-4o | topic:', dbResult.topic);
+    const generated = await Promise.race([
+      generateDevUrduTts(
+        dbResult.topic,
+        dbResult.blocks.definition  || '',
+        dbResult.blocks.explanation || '',
+        dbResult.blocks.example     || '',
+        englishAnswerText,
+      ),
+      new Promise<string>((resolve) => setTimeout(() => resolve(''), 20_000)),
+    ]);
+    console.log('[tutor] urdu generated length:', generated?.length ?? 0, '| preview:', generated?.slice(0, 80) || 'EMPTY');
+    if (generated) urduSummary = sanitizeUrduTtsText(generated) || urduSummary;
+    console.log('[tutor] urduSummary final:', urduSummary ? urduSummary.slice(0, 60) + '...' : 'NULL');
+  } catch (err) {
+    audioError = err instanceof Error ? err.message : 'Urdu script generation failed';
+    console.error('[tutor] Urdu script generation error:', audioError);
   }
 
   // Propagate generated Urdu text into the answer so the client sees it on r.urduTtsText.
