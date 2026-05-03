@@ -439,8 +439,8 @@ async function toggleChapterPanel(idx, chId) {
         const key = 'tp_'+idx+'_'+ti;
         window.__topicData[key] = { title: String(t.topic_title || '').replace(/\s+/g, ' ').trim(), code: String(t.topic_code || ''), chN: chapterNum };
         html += '<div class="sb-panel-topic" role="button" tabindex="0"'
-          +' onclick="viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()"'
-          +' onkeydown="if(event.key===\'Enter\'){viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()}">'
+          +' onclick="event.stopPropagation();event.preventDefault();console.log(\'[topic-chip] clicked:\',window.__topicData[\''+key+'\'].title,\'| code:\',window.__topicData[\''+key+'\'].code);viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()"'
+          +' onkeydown="if(event.key===\'Enter\'){event.stopPropagation();event.preventDefault();console.log(\'[topic-chip] clicked:\',window.__topicData[\''+key+'\'].title);viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()}">'
           +'<span class="sb-panel-sec">'+esc(t.topic_code)+'</span>'
           +'<span class="sb-panel-ttl">'+esc(t.topic_title)+'</span>'
           +'</div>';
@@ -604,6 +604,7 @@ function askScopeTopic(topicTitle: string, topicCode?: string){
     .replace(/\s*[\((]p\.\d+[)\)].*$/i, '') // strip "(p.5)" suffix
     .replace(/\s*—.*$/, '')                 // strip " — ..." suffix
     .trim();
+  console.log('[askScopeTopic] clean:', clean, '| topicCode:', topicCode, '| chN:', Number(CHS[activeChIdx]?.n ?? 0));
   closeScope();
   viewTopic(clean, Number(CHS[activeChIdx]?.n ?? 0), topicCode);
 }
@@ -706,6 +707,11 @@ function appendTopicView(r: any){
   if (r?.audioBase64) {
     audioUrls[id] = `data:audio/mpeg;base64,${r.audioBase64}`;
     audioCacheKeys[id] = putCachedAudio(urduSummary, String(r.audioBase64));
+    ttsReady[id] = true;
+    setVoiceSource(id, 'openai');
+  } else if (r?.audioUrl) {
+    const sep = String(r.audioUrl).includes('?') ? '&' : '?';
+    audioUrls[id] = `${r.audioUrl}${sep}v=${Date.now()}`;
     ttsReady[id] = true;
     setVoiceSource(id, 'openai');
   } else {
@@ -2376,7 +2382,7 @@ export default function ChatPage() {
           <ul className="scope-list">
             {scopeTopics.map((topic) => (
               <li key={topic.topic_code}>
-                <button type="button" className="scope-item-btn" onClick={() => askScopeTopic(topic.topic_title, topic.topic_code)}>
+                <button type="button" className="scope-item-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); console.log('[topic-chip] clicked:', topic.topic_title, '| code:', topic.topic_code); askScopeTopic(topic.topic_title, topic.topic_code); }}>
                   <span className="scope-topic-code">{topic.topic_code}</span>
                   <span className="scope-topic-title">{topic.topic_title}</span>
                   {topic.page != null && <span className="scope-topic-page">p.{topic.page}</span>}
