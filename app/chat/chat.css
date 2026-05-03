@@ -864,17 +864,39 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 /* ═══════════════════════════════════════
    VOICE CARD
 ═══════════════════════════════════════ */
+.msg-ai, .ai-col {
+  height: auto !important;
+  overflow: visible !important;
+}
 .voice-card {
   margin-top: 12px;
   background: rgba(245,158,11,.04);
   border: 2px solid red !important;
   border-radius: 16px;
-  display: flex !important; align-items: center; gap: 12px;
-  flex-wrap: wrap; padding: 12px 14px;
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
   transition: border-color .18s, box-shadow .18s;
   opacity: 1 !important;
   visibility: visible !important;
-  min-height: 60px;
+  height: auto !important;
+  min-height: 48px;
+  position: relative;
+  z-index: 10;
+}
+.play-btn {
+  background: #e6a817;
+  color: #000;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
 .voice-card:hover { border-color: var(--brand-mid); box-shadow: 0 0 0 3px var(--brand-ring); }
 .vc-top-row { display: flex; align-items: center; gap: 12px; width: 100%; }

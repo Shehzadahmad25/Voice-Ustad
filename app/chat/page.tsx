@@ -764,36 +764,32 @@ function appendTopicView(r: any){
   w2.__copyData[id] = copyText;
 
   console.log('[viewTopic] voiceHtml will render:', !!urduSummary);
-  const voiceHtml = urduSummary ? `
-    <div class="voice-card" role="region" aria-label="Urdu voice explanation">
-      <div class="vc-top-row">
-        <div class="vc-icon" aria-hidden="true">&#128266;</div>
-        <div class="vc-info">
-          <div class="vc-label">Urdu audio</div>
-          <div class="vc-sub" lang="ur" dir="ltr" data-default="Play — ${dur}s">Play — ${dur}s</div>
-          <div class="vc-loading" id="vcload_${id}" aria-live="polite">
-            <span class="vc-dot"></span><span class="vc-dot"></span><span class="vc-dot"></span>
-            Preparing audio...
-          </div>
-        </div>
-        <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu</span>
-        <div class="vc-wave" id="wv_${id}" aria-hidden="true">
-          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <div class="vc-timer" id="tm_${id}" aria-live="polite">${mm}:${ss}</div>
-        <button class="vc-play" id="btn_${id}" data-dur="${dur}" data-tts="" data-tts-ur="${ttsUrText}"
-          aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay('${id}')">
-          <svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 9L5 21V3z"/></svg>
-          <svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-        </button>
-        <button class="vc-retry" id="retry_${id}" type="button" aria-label="Retry Urdu voice" onclick="retryAudio('${id}')">
-          Retry audio
-        </button>
-      </div>
-      <div class="vc-progress" id="prog_${id}" role="progressbar" aria-valuemin="0" aria-valuemax="${dur}" aria-valuenow="0">
-        <div class="vc-progress-bar" id="progbar_${id}"></div>
-      </div>
-    </div>` : '';
+  // NOTE: ttsUrText is NOT embedded in data-tts-ur to avoid huge encoded strings
+  // breaking HTML parsing. urduSummaries[id] (in-memory) is the primary source for togglePlay.
+  const voiceCardHtml = urduSummary
+    ? '<div class="voice-card" data-id="' + id + '">'
+      + '<div class="vc-top-row">'
+      + '<div class="vc-icon" aria-hidden="true"></div>'
+      + '<div class="vc-info">'
+      + '<div class="vc-label">Urdu audio</div>'
+      + '<div class="vc-sub" data-default="Play — ' + dur + 's">Play — ' + dur + 's</div>'
+      + '<div class="vc-loading"><span class="vc-dot"></span><span class="vc-dot"></span><span class="vc-dot"></span> Preparing audio...</div>'
+      + '</div>'
+      + '<span class="vc-badge src-unknown" id="badge_' + id + '">Urdu</span>'
+      + '<div class="vc-wave" id="wv_' + id + '"><span></span><span></span><span></span><span></span></div>'
+      + '<div class="vc-timer" id="tm_' + id + '">' + mm + ':' + ss + '</div>'
+      + '<button class="vc-play play-btn" id="btn_' + id + '" data-dur="' + dur + '" data-tts="" data-tts-ur=""'
+      + ' aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay(\'' + id + '\')">'
+      + '<svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9L5 21V3z"/></svg>'
+      + '<svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>'
+      + '</button>'
+      + '<button class="vc-retry" id="retry_' + id + '" type="button" onclick="retryAudio(\'' + id + '\')">Retry</button>'
+      + '</div>'
+      + '<div class="vc-progress" id="prog_' + id + '">'
+      + '<div class="vc-progress-bar" id="progbar_' + id + '"></div>'
+      + '</div>'
+      + '</div>'
+    : '';
 
   const w = document.createElement('div');
   w.innerHTML = `
@@ -812,7 +808,7 @@ function appendTopicView(r: any){
 
         <div class="tv-sections">${sectionsHtml}</div>
 
-        ${voiceHtml}
+        ${voiceCardHtml}
 
         <div class="ai-actions" role="toolbar" aria-label="Topic actions">
           <button class="ai-action-btn" id="copy_${id}" aria-label="Copy topic content"
@@ -829,11 +825,22 @@ function appendTopicView(r: any){
   const inner0 = getInner();
   if (!inner0) return;
   inner0.appendChild(w);
-  const card = w.querySelector('.voice-card');
-  console.log('[voice-card check]', card ? 'EXISTS in DOM' : 'NULL - not in DOM', '| urduSummary len:', urduSummary.length);
+  const card = w.querySelector('.voice-card') as HTMLElement | null;
+  console.log('[voice-card check]', card ? 'EXISTS' : 'NULL', '| urduSummary len:', urduSummary?.length);
   if (card) {
     const style = window.getComputedStyle(card);
-    console.log('[voice-card style] display:', style.display, '| visibility:', style.visibility, '| opacity:', style.opacity, '| height:', style.height);
+    console.log('[voice-card style]',
+      'display:', style.display,
+      '| visibility:', style.visibility,
+      '| opacity:', style.opacity,
+      '| height:', card.offsetHeight + 'px'
+    );
+    // Step 7: fixed-position debug — if card appears bottom-left, layout issue confirmed
+    card.style.position = 'fixed';
+    card.style.bottom = '20px';
+    card.style.left = '20px';
+    card.style.zIndex = '9999';
+    card.style.width = '320px';
   }
   scrollDn();
   setVoiceSource(id, voiceSources[id] || 'unknown');
