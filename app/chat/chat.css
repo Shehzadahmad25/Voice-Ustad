@@ -869,9 +869,10 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   overflow: visible !important;
 }
 .voice-card {
-  margin-top: 12px;
+  position: relative;
+  margin-top: 10px;
   background: rgba(245,158,11,.04);
-  border: 2px solid red !important;
+  border: 1px solid rgba(245,158,11,.14);
   border-radius: 16px;
   display: flex !important;
   align-items: center;
@@ -883,8 +884,6 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   visibility: visible !important;
   height: auto !important;
   min-height: 48px;
-  position: relative;
-  z-index: 10;
 }
 .play-btn {
   background: #e6a817;

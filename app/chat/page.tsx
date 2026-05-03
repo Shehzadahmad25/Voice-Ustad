@@ -835,12 +835,6 @@ function appendTopicView(r: any){
       '| opacity:', style.opacity,
       '| height:', card.offsetHeight + 'px'
     );
-    // Step 7: fixed-position debug — if card appears bottom-left, layout issue confirmed
-    card.style.position = 'fixed';
-    card.style.bottom = '20px';
-    card.style.left = '20px';
-    card.style.zIndex = '9999';
-    card.style.width = '320px';
   }
   scrollDn();
   setVoiceSource(id, voiceSources[id] || 'unknown');
