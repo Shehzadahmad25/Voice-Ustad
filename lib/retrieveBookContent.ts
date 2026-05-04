@@ -30,7 +30,7 @@ export interface RetrievedBlocks {
   formula:      string;
   flabel:       string;
   example:      string;
-  urduTtsText?: string;   // pre-stored Urdu TTS text from topics table
+  urduTtsText?: string;
 }
 
 export interface RetrievalResult {
@@ -61,24 +61,23 @@ function getClient() {
   return createClient(url, key);
 }
 
-// ── Topic row type (new schema) ───────────────────────────────────────────────
+// ── content_chunks row type ───────────────────────────────────────────────────
 
 interface TopicRow {
-  id:             string;
-  chapter_number: number;
-  chapter_title:  string;
-  topic_code:     string;
-  topic_title:    string;
-  page:           number | null;
-  definition:     string | null;
-  explanation:    string | null;
-  example:        string | null;
-  formula:        string | null;
-  urdu_tts_text:  string | null;
-  keywords:       string[] | null;
+  id:                string;
+  chapter:           number;
+  section:           string;
+  term:              string;
+  topic_slug:        string;
+  page_ref:          number | null;
+  book_definition:   string | null;
+  guide_explanation: string | null;
+  example_q:         string | null;
+  formula:           string | null;
+  keywords:          string[] | null;
 }
 
-const SELECT_COLS = 'id,chapter_number,chapter_title,topic_code,topic_title,page,definition,explanation,example,formula,urdu_tts_text,keywords';
+const SELECT_COLS = 'id,chapter,section,term,topic_slug,page_ref,book_definition,guide_explanation,example_q,formula,keywords';
 
 // ── Keyword extraction ────────────────────────────────────────────────────────
 
@@ -193,69 +192,68 @@ async function fetchTopicByTerms(
 ): Promise<TopicRow | null> {
   const db = getClient();
 
-  // Strategy 1: exact topic_title match (highest priority)
+  // Strategy 1: exact term match (highest priority)
   for (const term of terms) {
     const { data } = await db
-      .from('topics')
+      .from('content_chunks')
       .select(SELECT_COLS)
-      .eq('chapter_number', chapterNumber)
-      .ilike('topic_title', term)
+      .eq('chapter', chapterNumber)
+      .ilike('term', term)
       .limit(1);
 
     if (data?.[0]) {
-      console.log(`[retrieveBookContent] EXACT MATCH via topic_title — term="${term}" matched topic="${(data[0] as TopicRow).topic_title}"`);
-      return data[0] as TopicRow;
+      console.log(`[retrieveBookContent] EXACT MATCH via term — term="${term}" matched topic="${(data[0] as unknown as TopicRow).term}"`);
+      return data[0] as unknown as TopicRow;
     }
   }
 
-  // Strategy 2: partial topic_title match — prefer longer (more specific) titles
+  // Strategy 2: partial term match — prefer longer (more specific) terms
   for (const term of terms) {
     const { data } = await db
-      .from('topics')
+      .from('content_chunks')
       .select(SELECT_COLS)
-      .eq('chapter_number', chapterNumber)
-      .ilike('topic_title', `%${term}%`)
-      .order('topic_title', { ascending: false })
+      .eq('chapter', chapterNumber)
+      .ilike('term', `%${term}%`)
+      .order('term', { ascending: false })
       .limit(1);
 
     if (data?.[0]) {
-      console.log(`[retrieveBookContent] PARTIAL MATCH via topic_title — term="${term}" matched topic="${(data[0] as TopicRow).topic_title}"`);
-      return data[0] as TopicRow;
+      console.log(`[retrieveBookContent] PARTIAL MATCH via term — term="${term}" matched topic="${(data[0] as unknown as TopicRow).term}"`);
+      return data[0] as unknown as TopicRow;
     }
   }
 
   // Strategy 3: keywords array exact match
   for (const term of terms) {
     const { data } = await db
-      .from('topics')
+      .from('content_chunks')
       .select(SELECT_COLS)
-      .eq('chapter_number', chapterNumber)
+      .eq('chapter', chapterNumber)
       .contains('keywords', [term])
       .limit(1);
 
     if (data?.[0]) {
-      console.log(`[retrieveBookContent] MATCH via keywords — term="${term}" matched topic="${(data[0] as TopicRow).topic_title}"`);
-      return data[0] as TopicRow;
+      console.log(`[retrieveBookContent] MATCH via keywords — term="${term}" matched topic="${(data[0] as unknown as TopicRow).term}"`);
+      return data[0] as unknown as TopicRow;
     }
   }
 
-  // No match in title or keywords — do NOT fall back to definition search
   console.log(`[retrieveBookContent] NO MATCH — terms=${JSON.stringify(terms)} chapter=${chapterNumber}`);
   return null;
 }
 
-/** Maps a raw topic row to RetrievedBlocks. Zero transformation — DB values only. */
+/** Maps a raw content_chunks row to RetrievedBlocks. Zero transformation — DB values only. */
 function topicToBlocks(row: TopicRow): RetrievedBlocks {
   const formula = (row.formula ?? '').trim();
-  const flabel  = formula ? row.topic_title.toUpperCase() : '';
+  const flabel  = formula ? row.term.toUpperCase() : '';
 
   return {
-    definition:  (row.definition    ?? '').trim(),
-    explanation: (row.explanation   ?? '').trim(),
+    definition:  (row.book_definition    ?? '').trim(),
+    explanation: (row.guide_explanation  ?? '').trim(),
     formula,
     flabel,
-    example:     (row.example       ?? '').trim(),
-    urduTtsText: (row.urdu_tts_text ?? '').trim() || undefined,
+    example:     (row.example_q          ?? '').trim(),
+    urduTtsText: undefined,  // generated on-demand; not stored in content_chunks
   };
 }
 
@@ -321,22 +319,20 @@ export async function retrieveBookContent(
   const hasAnyContent =
     blocks.definition || blocks.explanation || blocks.formula || blocks.example;
   if (!hasAnyContent) {
-    console.log(`[retrieveBookContent] EMPTY FIELDS — topic matched but all content fields are null: "${row.topic_title}"`);
+    console.log(`[retrieveBookContent] EMPTY FIELDS — topic matched but all content fields are null: "${row.term}"`);
     return { ...EMPTY_RESULT };
   }
 
-  const chTitle = row.chapter_title
-    ? `Unit ${row.chapter_number} — ${row.chapter_title}`
-    : `Chapter ${row.chapter_number}`;
+  const chTitle = `Chapter ${row.chapter}`;
 
-  console.log(`[retrieveBookContent] FOUND — topic="${row.topic_title}" chapter="${chTitle}" page=${row.page}`);
+  console.log(`[retrieveBookContent] FOUND — topic="${row.term}" chapter="${chTitle}" page=${row.page_ref}`);
 
   return {
     found:         true,
     chapter:       chTitle,
-    chapterNumber: row.chapter_number,
-    topic:         row.topic_title,
-    page:          row.page ?? null,
+    chapterNumber: row.chapter,
+    topic:         row.term,
+    page:          row.page_ref ?? null,
     blocks,
   };
 }

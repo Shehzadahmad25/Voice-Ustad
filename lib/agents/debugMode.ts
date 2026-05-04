@@ -6,26 +6,26 @@ export async function runDebugMode(chapterNumber: number): Promise<string> {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const { data: topics, error } = await supabase
-    .from('topics')
-    .select('*')
-    .eq('chapter_number', chapterNumber)
-    .order('topic_code', { ascending: true });
+  const { data: chunks, error } = await supabase
+    .from('content_chunks')
+    .select('section, term, page_ref, book_definition, guide_explanation, example_q, formula, keywords')
+    .eq('chapter', chapterNumber)
+    .order('section', { ascending: true });
 
   if (error) return `Error: ${error.message}`;
-  if (!topics?.length) return `No topics found for chapter ${chapterNumber}`;
+  if (!chunks?.length) return `No topics found for chapter ${chapterNumber}`;
 
   let output = `DEBUG MODE — CONTENT VERIFICATION\n`;
-  output += `Chapter ${chapterNumber} — Topics: ${topics.length}\n`;
+  output += `Chapter ${chapterNumber} — Topics: ${chunks.length}\n`;
   output += `${'─'.repeat(40)}\n\n`;
 
-  for (const topic of topics) {
-    output += `[${topic.topic_code}] ${topic.topic_title} — p.${topic.page ?? 'MISSING'}\n`;
-    output += `Definition: ${topic.definition ? '✓' : 'MISSING'}\n`;
-    output += `Explanation: ${topic.explanation ? '✓' : 'MISSING'}\n`;
-    output += `Example: ${topic.example ? '✓' : 'MISSING'}\n`;
-    output += `Formula: ${topic.formula ? '✓' : 'MISSING'}\n`;
-    output += `Keywords: ${topic.keywords?.length ? topic.keywords.join(', ') : 'MISSING'}\n`;
+  for (const c of chunks) {
+    output += `[${c.section}] ${c.term} — p.${c.page_ref ?? 'MISSING'}\n`;
+    output += `Definition: ${c.book_definition   ? '✓' : 'MISSING'}\n`;
+    output += `Explanation: ${c.guide_explanation ? '✓' : 'MISSING'}\n`;
+    output += `Example: ${c.example_q             ? '✓' : 'MISSING'}\n`;
+    output += `Formula: ${c.formula               ? '✓' : 'MISSING'}\n`;
+    output += `Keywords: ${c.keywords?.length ? c.keywords.join(', ') : 'MISSING'}\n`;
     output += `${'─'.repeat(40)}\n\n`;
   }
 

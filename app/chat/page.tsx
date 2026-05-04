@@ -15,7 +15,7 @@ const CHS: Array<{p:number; n:string; t:string; chips:string[]; followups:string
 // TODO: Re-enable after all chapter topics are added to DB
 const SHOW_CHAPTER_SCOPE = true;
 
-interface ScopeTopic { topic_code: string; topic_title: string; page: number | null; }
+interface ScopeTopic { topic_slug: string; term: string; page_ref: number | null; section: string; }
 interface QuizChapterInfo { id: string; title: string; }
 
 let _setScopeTopics: ((t: ScopeTopic[]) => void) | null = null;
@@ -420,7 +420,7 @@ async function toggleChapterPanel(idx, chId) {
   try {
     const chapterNum = Number(CHS[idx]?.n ?? 0);
     const [topicsRes, mcqRes, exRes, sqRes, nqRes, dqRes] = await Promise.all([
-      _sbClient.from('topics').select('topic_code, topic_title').eq('chapter_number', chapterNum).not('topic_code', 'like', '%.MCQ%').order('topic_code'),
+      _sbClient.from('content_chunks').select('topic_slug, term, section').eq('chapter', chapterNum).order('section'),
       _sbClient.from('mcqs').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('examples').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('short_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
@@ -437,12 +437,12 @@ async function toggleChapterPanel(idx, chId) {
       window.__topicData = window.__topicData || {};
       topics.forEach(function(t, ti) {
         const key = 'tp_'+idx+'_'+ti;
-        window.__topicData[key] = { title: String(t.topic_title || '').replace(/\s+/g, ' ').trim(), code: String(t.topic_code || ''), chN: chapterNum };
+        window.__topicData[key] = { title: String(t.term || '').replace(/\s+/g, ' ').trim(), code: String(t.topic_slug || ''), chN: chapterNum };
         html += '<div class="sb-panel-topic" role="button" tabindex="0"'
-          +' onclick="event.stopPropagation();event.preventDefault();console.log(\'[topic-chip] clicked:\',window.__topicData[\''+key+'\'].title,\'| code:\',window.__topicData[\''+key+'\'].code);viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()"'
+          +' onclick="event.stopPropagation();event.preventDefault();console.log(\'[topic-chip] clicked:\',window.__topicData[\''+key+'\'].title,\'| slug:\',window.__topicData[\''+key+'\'].code);viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()"'
           +' onkeydown="if(event.key===\'Enter\'){event.stopPropagation();event.preventDefault();console.log(\'[topic-chip] clicked:\',window.__topicData[\''+key+'\'].title);viewTopic(window.__topicData[\''+key+'\'].title,window.__topicData[\''+key+'\'].chN,window.__topicData[\''+key+'\'].code);closeSb()}">'
-          +'<span class="sb-panel-sec">'+esc(t.topic_code)+'</span>'
-          +'<span class="sb-panel-ttl">'+esc(t.topic_title)+'</span>'
+          +'<span class="sb-panel-sec">'+esc(t.section)+'</span>'
+          +'<span class="sb-panel-ttl">'+esc(t.term)+'</span>'
           +'</div>';
       });
       html += '</div>';
@@ -478,25 +478,24 @@ function selCh(i: number){
   CHS.forEach((c,j)=>c.on=j===i);
   activeChIdx=i;
   ri=0;
-  // Load scope topics from new topics table by chapter_number
+  // Load scope topics from content_chunks by chapter number
   const chapterNum = parseInt(CHS[i]?.n ?? String(i + 1), 10);
   if (_sbClient && _setScopeTopics) {
     _sbClient
-      .from('topics')
-      .select('topic_code, topic_title, page')
-      .eq('chapter_number', chapterNum)
-      .not('topic_code', 'like', '%.MCQ%')
-      .order('topic_code', { ascending: true })
-      .then(({ data }: { data: Array<{ topic_code: string; topic_title: string; page: number | null }> | null }) => {
+      .from('content_chunks')
+      .select('topic_slug, term, page_ref, section')
+      .eq('chapter', chapterNum)
+      .order('section', { ascending: true })
+      .then(({ data }: { data: Array<{ topic_slug: string; term: string; page_ref: number | null; section: string }> | null }) => {
         if (!data || data.length === 0) return;
-        const parseCode = (c: string) => {
-          const p = c.split('.');
+        const parseSection = (s: string) => {
+          const p = String(s || '').split('.');
           return parseFloat(p[0]) * 1000 + parseFloat(p[1] || '0');
         };
-        const sorted = [...data].sort((a, b) => parseCode(a.topic_code) - parseCode(b.topic_code));
+        const sorted = [...data].sort((a, b) => parseSection(a.section) - parseSection(b.section));
         if (_setScopeTopics) _setScopeTopics(sorted);
         // Append chapter start page to the topbar title once we know it
-        const startPage = sorted[0]?.page;
+        const startPage = sorted[0]?.page_ref;
         if (startPage) {
           const titleEl = document.getElementById('tbTitle');
           if (titleEl) titleEl.textContent = activeCh + ' · Page ' + startPage;
@@ -2396,11 +2395,11 @@ export default function ChatPage() {
           <p>This chapter&apos;s AI is focused on the following topics. For best answers, ask directly from this list.</p>
           <ul className="scope-list">
             {scopeTopics.map((topic) => (
-              <li key={topic.topic_code}>
-                <button type="button" className="scope-item-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); console.log('[topic-chip] clicked:', topic.topic_title, '| code:', topic.topic_code); askScopeTopic(topic.topic_title, topic.topic_code); }}>
-                  <span className="scope-topic-code">{topic.topic_code}</span>
-                  <span className="scope-topic-title">{topic.topic_title}</span>
-                  {topic.page != null && <span className="scope-topic-page">p.{topic.page}</span>}
+              <li key={topic.topic_slug}>
+                <button type="button" className="scope-item-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); console.log('[topic-chip] clicked:', topic.term, '| slug:', topic.topic_slug); askScopeTopic(topic.term, topic.topic_slug); }}>
+                  <span className="scope-topic-code">{topic.section}</span>
+                  <span className="scope-topic-title">{topic.term}</span>
+                  {topic.page_ref != null && <span className="scope-topic-page">p.{topic.page_ref}</span>}
                 </button>
               </li>
             ))}

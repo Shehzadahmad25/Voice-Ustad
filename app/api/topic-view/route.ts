@@ -78,16 +78,7 @@ export async function POST(request: NextRequest) {
           '| preview:', generated?.slice(0, 80));
         if (generated) {
           urduTtsText = sanitizeUrduTtsText(generated) || '';
-          // Save to topics table so future requests skip generation
-          getSupabase()
-            .from('topics')
-            .update({ urdu_tts_text: urduTtsText })
-            .eq('topic_title', result.topic)
-            .eq('chapter_number', chapterNumber)
-            .then(({ error }) => {
-              if (error) console.error('[topic-view] failed to save urduTtsText to topics:', error.message);
-              else console.log('[topic-view] urduTtsText saved to topics table for:', result.topic);
-            });
+          // content_chunks has no urdu_tts_text column — generated text returned in response only
         }
       } catch (e) {
         console.error('[topic-view] OpenAI gpt-4o generation failed:', e);

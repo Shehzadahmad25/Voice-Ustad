@@ -202,14 +202,14 @@ ABSOLUTE RULES:
 13. Return ONLY the JSON object — nothing else.`;
 
 function buildTopicUserMessage(result: TopicViewResult): string {
-  const { blocks, page_start, page_end, topic } = result;
+  const { definition, explanation, formula, flabel, example, page_start, page_end, topic } = result;
   const lines: string[] = [];
 
-  if (blocks.definition)  lines.push(`DEFINITION: ${blocks.definition}`);
-  if (blocks.explanation) lines.push(`EXPLANATION: ${blocks.explanation}`);
-  if (blocks.formula)     lines.push(`FORMULA: ${blocks.formula}`);
-  if (blocks.flabel)      lines.push(`FORMULA_LABEL: ${blocks.flabel}`);
-  if (blocks.example)     lines.push(`EXAMPLE: ${blocks.example}`);
+  if (definition)  lines.push(`DEFINITION: ${definition}`);
+  if (explanation) lines.push(`EXPLANATION: ${explanation}`);
+  if (formula)     lines.push(`FORMULA: ${formula}`);
+  if (flabel)      lines.push(`FORMULA_LABEL: ${flabel}`);
+  if (example)     lines.push(`EXAMPLE: ${example}`);
 
   const pageStr =
     page_start && page_end && page_start !== page_end
@@ -296,7 +296,7 @@ export async function formatTopicWithLLM(
     definition:  str(parsed.definition),
     explanation: str(parsed.explanation),
     formula:     str(parsed.formula),
-    flabel:      str(parsed.flabel) || result.blocks.flabel,
+    flabel:      str(parsed.flabel) || result.flabel,
     example:     str(parsed.example),
     urduTtsText: str(parsed.urduTtsText),
     refPageNo:   '',     // not needed for topic view (page range comes from retrieval)

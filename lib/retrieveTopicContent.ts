@@ -4,8 +4,8 @@
  * Topic-View mode retrieval — used when a student clicks a topic in the sidebar.
  *
  * STRICT DATABASE MODE:
- *   Queries ONLY the `topics` table.
- *   Matches via topic_title ILIKE '%query%' OR keywords @> ARRAY[query].
+ *   Queries ONLY the `content_chunks` table.
+ *   Matches via topic_slug exact match, then term ILIKE, then keywords.
  *   Returns null if no row is found — caller must NOT fall back to AI.
  *   Returns raw DB column values with no modification.
  */
@@ -40,155 +40,141 @@ function getClient() {
   return createClient(url, key);
 }
 
-// ── Topic row type ────────────────────────────────────────────────────────────
+// ── content_chunks row type ───────────────────────────────────────────────────
 
-interface TopicRow {
-  id:             string;
-  chapter_number: number;
-  chapter_title:  string;
-  topic_code:     string;
-  topic_title:    string;
-  page:           number | null;
-  definition:     string | null;
-  explanation:    string | null;
-  example:        string | null;
-  formula:        string | null;
-  urdu_tts_text:  string | null;
-  keywords:       string[] | null;
+interface ChunkRow {
+  id:                string;
+  chapter:           number;
+  section:           string;
+  term:              string;
+  topic_slug:        string;
+  page_ref:          number | null;
+  book_definition:   string | null;
+  guide_explanation: string | null;
+  example_q:         string | null;
+  formula:           string | null;
+  keywords:          string[] | null;
 }
 
 const SELECT_COLS =
-  'id,chapter_number,chapter_title,topic_code,topic_title,page,' +
-  'definition,explanation,example,formula,urdu_tts_text,keywords';
+  'id,chapter,section,term,topic_slug,page_ref,' +
+  'book_definition,guide_explanation,example_q,formula,keywords';
 
 // ── Core lookup ───────────────────────────────────────────────────────────────
 
 /**
- * Queries topics table with strategies in priority order:
- *   0. topic_code exact match (highest priority — bypasses title search entirely)
- *   1. topic_title ILIKE exact match
- *   2. topic_title ILIKE partial match
+ * Queries content_chunks with strategies in priority order:
+ *   0. topic_slug exact match (highest priority — bypasses title search entirely)
+ *   1. term ILIKE exact match
+ *   2. term ILIKE partial match
  *   3. keywords @> ARRAY[query]
  *
- * No definition/content text search — that causes false positives.
  * Returns null when no row matches.
  */
-async function fetchTopicRow(
+async function fetchChunkRow(
   chapterNumber: number,
   query:         string,
-  topicCode?:    string,
-): Promise<TopicRow | null> {
+  topicSlug?:    string,
+): Promise<ChunkRow | null> {
   const db = getClient();
   const q  = query.toLowerCase().trim();
 
-  console.log('[retrieveTopicContent] raw user question:', query, '| topicCode:', topicCode || '(none)');
+  console.log('[retrieveTopicContent] query:', query, '| topicSlug:', topicSlug || '(none)');
 
-  // Strategy 0: direct topic_code lookup — exact match, no ambiguity
-  if (topicCode) {
-    const { data: codeData } = await db
-      .from('topics')
+  // Strategy 0: direct slug lookup — exact match, no ambiguity
+  if (topicSlug) {
+    const { data } = await db
+      .from('content_chunks')
       .select(SELECT_COLS)
-      .eq('topic_code', topicCode)
+      .eq('topic_slug', topicSlug)
       .limit(1);
-    if (codeData?.[0]) {
-      console.log(`[retrieveTopicContent] TOPIC_CODE MATCH — "${(codeData[0] as TopicRow).topic_title}"`);
-      return codeData[0] as TopicRow;
+    if (data?.[0]) {
+      console.log(`[retrieveTopicContent] SLUG MATCH — "${(data[0] as unknown as unknown as ChunkRow).term}"`);
+      return data[0] as unknown as unknown as ChunkRow;
     }
   }
 
   if (!q) return null;
-  console.log('[retrieveTopicContent] extracted query term:', q);
 
-  // Strategy 1: exact title match (highest priority)
+  // Strategy 1: exact term match
   const { data: exactData } = await db
-    .from('topics')
+    .from('content_chunks')
     .select(SELECT_COLS)
-    .eq('chapter_number', chapterNumber)
-    .ilike('topic_title', q)
+    .eq('chapter', chapterNumber)
+    .ilike('term', q)
     .limit(1);
 
   if (exactData?.[0]) {
-    console.log(`[retrieveTopicContent] EXACT MATCH — "${(exactData[0] as TopicRow).topic_title}"`);
-    return exactData[0] as TopicRow;
+    console.log(`[retrieveTopicContent] EXACT MATCH — "${(exactData[0] as unknown as ChunkRow).term}"`);
+    return exactData[0] as unknown as ChunkRow;
   }
 
-  // Strategy 2: partial title match, prefer longer (more specific) titles
+  // Strategy 2: partial term match, prefer longer (more specific) terms
   const { data: partialData } = await db
-    .from('topics')
+    .from('content_chunks')
     .select(SELECT_COLS)
-    .eq('chapter_number', chapterNumber)
-    .ilike('topic_title', `%${q}%`)
-    .order('topic_title', { ascending: false })
+    .eq('chapter', chapterNumber)
+    .ilike('term', `%${q}%`)
+    .order('term', { ascending: false })
     .limit(1);
 
   if (partialData?.[0]) {
-    console.log(`[retrieveTopicContent] PARTIAL MATCH — "${(partialData[0] as TopicRow).topic_title}"`);
-    return partialData[0] as TopicRow;
+    console.log(`[retrieveTopicContent] PARTIAL MATCH — "${(partialData[0] as unknown as ChunkRow).term}"`);
+    return partialData[0] as unknown as ChunkRow;
   }
 
   // Strategy 3: keywords @> ARRAY[query]
   const { data: kwData } = await db
-    .from('topics')
+    .from('content_chunks')
     .select(SELECT_COLS)
-    .eq('chapter_number', chapterNumber)
+    .eq('chapter', chapterNumber)
     .contains('keywords', [q])
     .limit(1);
 
   if (kwData?.[0]) {
-    console.log(`[retrieveTopicContent] KEYWORD MATCH — "${(kwData[0] as TopicRow).topic_title}"`);
-    return kwData[0] as TopicRow;
+    console.log(`[retrieveTopicContent] KEYWORD MATCH — "${(kwData[0] as unknown as ChunkRow).term}"`);
+    return kwData[0] as unknown as ChunkRow;
   }
 
-  console.log(`[retrieveTopicContent] NO MATCH — query="${q}"`);
+  console.log(`[retrieveTopicContent] NO MATCH — query="${q}" chapter=${chapterNumber}`);
   return null;
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
- * Retrieves all content for a topic by title or keyword match.
+ * Retrieves all content for a topic by slug, title, or keyword match.
  * Used exclusively for topic_view_mode (sidebar/scope topic clicks).
  *
  * Returns null when no matching topic exists in the database.
  * Caller must treat null as "not found" — no AI fallback permitted.
- *
- * All returned field values are exactly as stored in the database.
- * No reformatting, no AI enrichment, no text generation.
- *
- * @param query         - Topic title or search term from the user
- * @param chapterNumber - 1-based chapter number
  */
 export async function retrieveTopicContent(
-  query:         string,
+  query:      string,
   chapterNumber: number,
-  topicCode?:    string,
+  topicSlug?: string,
 ): Promise<TopicViewResult | null> {
-  if (!query?.trim() && !topicCode?.trim()) return null;
-  if (!topicCode && (!chapterNumber || chapterNumber <= 0)) return null;
+  if (!query?.trim() && !topicSlug?.trim()) return null;
+  if (!topicSlug && (!chapterNumber || chapterNumber <= 0)) return null;
 
-  const row = await fetchTopicRow(chapterNumber, query.trim(), topicCode?.trim());
+  const row = await fetchChunkRow(chapterNumber, query.trim(), topicSlug?.trim());
   if (!row) return null;
 
-  const formula  = (row.formula      ?? '').trim();
-  const chTitle  = row.chapter_title
-    ? `Unit ${row.chapter_number} — ${row.chapter_title}`
-    : `Chapter ${row.chapter_number}`;
-  const page     = row.page ?? null;
+  const formula = (row.formula ?? '').trim();
 
   return {
     found:         true,
-    chapter:       chTitle,
-    chapterNumber: row.chapter_number,
-    topic:         row.topic_title,
-    section:       row.topic_code    ?? '',
-    page_start:    page,
-    page_end:      page,
-    // Raw DB values — zero modification
-    definition:    row.definition    ?? '',
-    explanation:   row.explanation   ?? '',
+    chapter:       `Chapter ${row.chapter}`,
+    chapterNumber: row.chapter,
+    topic:         row.term,
+    section:       row.topic_slug ?? row.section ?? '',
+    page_start:    row.page_ref,
+    page_end:      row.page_ref,
+    definition:    row.book_definition    ?? '',
+    explanation:   row.guide_explanation  ?? '',
     formula,
-    flabel:        formula ? row.topic_title.toUpperCase() : '',
-    example:       row.example       ?? '',
-    urduTtsText:   row.urdu_tts_text ?? '',
+    flabel:        formula ? row.term.toUpperCase() : '',
+    example:       row.example_q          ?? '',
+    urduTtsText:   '',  // generated on-demand; not stored in content_chunks
   };
 }
