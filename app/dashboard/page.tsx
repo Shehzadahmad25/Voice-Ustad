@@ -53,6 +53,7 @@ export default function DashboardPage() {
   const [chaptersActive,  setChaptersActive]  = useState(0)
   const [studySessions,   setStudySessions]   = useState(0)
   const [chapterProgress, setChapterProgress] = useState<any[]>([])
+  const [chapters,        setChapters]        = useState<any[]>([])
   const [loading,         setLoading]         = useState(true)
 
   useEffect(() => {
@@ -77,6 +78,15 @@ export default function DashboardPage() {
         if (!u) {
           setUser(MOCK_USER)
           setProfile(MOCK_PROFILE)
+          if (supabase) {
+            const { data: chData } = await supabase
+              .from('chapters')
+              .select('id, unit_number, title, subject, class, board')
+              .eq('class', 11)
+              .eq('board', 'KPK')
+              .order('unit_number')
+            setChapters(chData || [])
+          }
           setLoading(false)
           return
         }
@@ -86,12 +96,13 @@ export default function DashboardPage() {
 
         if (!supabase) { setLoading(false); return }
 
-        const [profileRes, streakRes, sessionsRes, chaptersRes, progressRes] = await Promise.all([
+        const [profileRes, streakRes, sessionsRes, chaptersRes, progressRes, chapterListRes] = await Promise.all([
           supabase.from('profiles').select('*').eq('id', u.id).single(),
           supabase.from('study_streaks').select('*').eq('user_id', u.id).single(),
           supabase.from('study_sessions').select('id', { count: 'exact' }).eq('user_id', u.id),
           supabase.from('chapter_progress').select('*').eq('user_id', u.id),
           supabase.from('chapter_progress').select('chapter_id', { count: 'exact' }).eq('user_id', u.id).gt('progress_pct', 0),
+          supabase.from('chapters').select('id, unit_number, title, subject, class, board').eq('class', 11).eq('board', 'KPK').order('unit_number'),
         ])
 
         setProfile(profileRes.data)
@@ -99,6 +110,7 @@ export default function DashboardPage() {
         setStudySessions(sessionsRes.count || 0)
         setChapterProgress(chaptersRes.data || [])
         setChaptersActive(progressRes.count || 0)
+        setChapters(chapterListRes.data || [])
 
         const { count } = await supabase
           .from('chat_messages')
@@ -237,42 +249,54 @@ export default function DashboardPage() {
             <p style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
               Textbook Chapters
             </p>
-            <button
-              onClick={() => router.push('/chapter/1')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '14px',
-                width: '100%', textAlign: 'left',
-                background: '#141929',
-                border: '1px solid rgba(245,158,11,0.2)',
-                borderRadius: '12px', padding: '16px 20px',
-                cursor: 'pointer', fontFamily: 'inherit',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'rgba(245,158,11,0.45)'
-                e.currentTarget.style.background = '#1a1600'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(245,158,11,0.2)'
-                e.currentTarget.style.background = '#141929'
-              }}
-            >
-              <div style={{
-                width: '42px', height: '42px', borderRadius: '11px', flexShrink: 0,
-                background: 'rgba(245,158,11,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '20px',
-              }}>🧪</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '14px', fontWeight: '700', color: '#f1f5f9', margin: '0 0 3px' }}>
-                  Chapter 1: Stoichiometry
-                </p>
-                <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                  Chemistry · Class 11 · All topics in order
-                </p>
+            {loading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <Skeleton height="74px" style={{ borderRadius: '12px' }} />
+                <Skeleton height="74px" style={{ borderRadius: '12px' }} />
               </div>
-              <span style={{ color: '#f59e0b', fontSize: '16px', flexShrink: 0 }}>→</span>
-            </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {chapters.map((ch) => (
+                  <button
+                    key={ch.id}
+                    onClick={() => router.push(`/chapter/${ch.unit_number}`)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '14px',
+                      width: '100%', textAlign: 'left',
+                      background: '#141929',
+                      border: '1px solid rgba(245,158,11,0.2)',
+                      borderRadius: '12px', padding: '16px 20px',
+                      cursor: 'pointer', fontFamily: 'inherit',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'rgba(245,158,11,0.45)'
+                      e.currentTarget.style.background = '#1a1600'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'rgba(245,158,11,0.2)'
+                      e.currentTarget.style.background = '#141929'
+                    }}
+                  >
+                    <div style={{
+                      width: '42px', height: '42px', borderRadius: '11px', flexShrink: 0,
+                      background: 'rgba(245,158,11,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '20px',
+                    }}>🧪</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#f1f5f9', margin: '0 0 3px' }}>
+                        Chapter {ch.unit_number}: {ch.title}
+                      </p>
+                      <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                        Chemistry · Class 11 · All topics in order
+                      </p>
+                    </div>
+                    <span style={{ color: '#f59e0b', fontSize: '16px', flexShrink: 0 }}>→</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* TWO COL */}
