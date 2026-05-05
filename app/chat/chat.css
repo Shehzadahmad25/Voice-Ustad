@@ -812,6 +812,48 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   white-space: pre-wrap;
   word-break: break-word;
 }
+/* Formula lines — each in its own mono block */
+.tv-formula-line {
+  display: block;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: .93rem;
+  color: var(--formula-ac);
+  background: rgba(25,195,125,.06);
+  border: 1px solid rgba(25,195,125,.18);
+  border-radius: 6px;
+  padding: 5px 10px;
+  margin-bottom: 5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.tv-formula-line:last-child { margin-bottom: 0; }
+
+/* Example answer */
+.tv-ex-ans {
+  margin-top: 8px;
+  padding: 7px 10px;
+  background: rgba(245,158,11,.06);
+  border-left: 3px solid var(--brand-mid);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--t2);
+}
+
+/* Keywords list */
+.tv-kw-list {
+  margin: 0; padding: 0;
+  list-style: none;
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.tv-kw-list li {
+  font-size: .74rem;
+  background: var(--chip-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: var(--t2);
+}
+
 .tv-empty {
   padding: 18px 16px;
   font-size: .85rem;

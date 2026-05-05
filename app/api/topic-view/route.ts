@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }              from '@supabase/supabase-js';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
-import { generateDevUrduTts, sanitizeUrduTtsText, isEnglishResponse } from '@/lib/agents/tools';
+import { sanitizeUrduTtsText } from '@/lib/agents/tools';
 
 function getSupabase() {
   return createClient(
@@ -48,60 +48,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate Urdu TTS text on-the-fly if the topics table doesn't have it yet.
-    // 25-second window — Claude Sonnet typically takes 5–12 s for Urdu.
-    let urduTtsText = result.urduTtsText;
-
-    console.log('[topic-view] guard check —',
-      'urduTtsText chars:', urduTtsText?.length ?? 0,
-      '| definition chars:', result.definition?.length ?? 0,
-      '| explanation chars:', result.explanation?.length ?? 0,
-    );
-
-    if (urduTtsText && isEnglishResponse(urduTtsText)) {
-      console.log('[topic-view] cached urduTtsText is English — regenerating | preview:', urduTtsText.slice(0, 60));
-      urduTtsText = '';
-    }
-
-    if (urduTtsText) {
-      console.log('[topic-view] urduTtsText already cached — skipping generation | preview:', urduTtsText.slice(0, 80));
-    } else if (result.definition || result.explanation) {
-      console.log('[topic-view] urdu_tts_text empty — generating via OpenAI gpt-4o');
-      const englishAnswerText = [result.definition, result.explanation, result.example]
-        .filter(Boolean).join(' ');
-      try {
-        const generated = await Promise.race([
-          generateDevUrduTts(result.topic, result.definition, result.explanation, result.example || '', englishAnswerText),
-          new Promise<string>((resolve) => setTimeout(() => resolve(''), 25_000)),
-        ]);
-        console.log('[topic-view] OpenAI gpt-4o result length:', generated?.length,
-          '| preview:', generated?.slice(0, 80));
-        if (generated) {
-          urduTtsText = sanitizeUrduTtsText(generated) || '';
-          // content_chunks has no urdu_tts_text column — generated text returned in response only
-        }
-      } catch (e) {
-        console.error('[topic-view] OpenAI gpt-4o generation failed:', e);
-      }
-    } else {
-      console.log('[topic-view] SKIPPED — urduTtsText empty and no definition/explanation in DB');
-    }
-
-    console.log('[topic-view] urduTtsText in response:', urduTtsText?.length ?? 0, 'chars');
+    // guide_explanation (Roman Urdu) is used directly for TTS — no GPT-4o generation needed.
+    // It is NEVER rendered as visible text; only sent to TTS API when play is tapped.
+    const urduTtsText = sanitizeUrduTtsText(result.explanation) || '';
+    console.log('[topic-view] urduTtsText from guide_explanation:', urduTtsText?.length ?? 0, 'chars');
 
     const responseResult = {
-      mode:        'topic_view',
-      chapter:     result.chapter,
-      topic:       result.topic,
-      section:     result.section,
-      page_start:  result.page_start,
-      page_end:    result.page_end,
-      definition:  result.definition,
-      explanation: result.explanation,
-      formula:     result.formula,
-      flabel:      result.flabel,
-      example:     result.example,
+      mode:           'topic_view',
+      chapter:        result.chapter,
+      topic:          result.topic,
+      section:        result.section,
+      page_start:     result.page_start,
+      page_end:       result.page_end,
+      definition:     result.definition,
+      formula:        result.formula,
+      flabel:         result.flabel,
+      example:        result.example,
+      example_answer: result.example_answer,
+      keywords:       result.keywords,
       urduTtsText,
+      // explanation (guide_explanation) intentionally excluded — TTS only via urduTtsText
     };
     console.log('[topic-view] FINAL RESPONSE urduTtsText chars:', responseResult.urduTtsText?.length ?? 0);
     console.log('[topic-view] FINAL RESPONSE keys:', Object.keys(responseResult).join(', '));

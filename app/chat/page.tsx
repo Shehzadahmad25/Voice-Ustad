@@ -734,28 +734,35 @@ function appendTopicView(r: any){
     return '';
   })();
 
-  // Duration
-  const allText = [r.definition, r.explanation, r.example].filter(Boolean).join(' ');
-  const wordCount = allText.split(/\s+/).filter(Boolean).length;
-  const dur = Math.max(r.dur || 0, Math.round(wordCount / 2.8), 30);
+  // Duration — estimate from urduSummary (guide_explanation) word count
+  const ttsWordCount = urduSummary ? urduSummary.split(/\s+/).filter(Boolean).length : 0;
+  const engWordCount = [r.definition, r.example, r.example_answer].filter(Boolean).join(' ').split(/\s+/).filter(Boolean).length;
+  const dur = Math.max(r.dur || 0, Math.round((ttsWordCount || engWordCount) / 2.5), 30);
   const mm = Math.floor(dur / 60);
   const ss = String(dur % 60).padStart(2, '0');
-  const ttsUrText = encodeURIComponent(urduSummary);
 
-  // Content sections
+  // Content sections — English only. guide_explanation (urduSummary) never rendered as text.
+  const formulas = Array.isArray(r.formula) ? r.formula : (r.formula ? [String(r.formula)] : []);
+  const formulaLines = formulas.map((f: any) => String(f).trim()).filter(Boolean);
+  const keywords = Array.isArray(r.keywords) ? r.keywords : (r.keywords ? [String(r.keywords)] : []);
+  const kwItems = keywords.map((k: any) => String(k).trim()).filter(Boolean);
+
   let sectionsHtml = '';
   if (r.definition)
-    sectionsHtml += `<div class="tv-section tv-section--definition"><div class="tv-sec-lbl">Definition</div><div class="tv-sec-body">${esc(r.definition)}</div></div>`;
-  if (r.explanation)
-    sectionsHtml += `<div class="tv-section tv-section--explanation"><div class="tv-sec-lbl">Explanation</div><div class="tv-sec-body">${fmtNumbered(r.explanation)}</div></div>`;
-  if (r.formula)
-    sectionsHtml += `<div class="tv-section tv-formula-sec"><div class="tv-sec-lbl">${esc(r.flabel || 'Formula')}</div><div class="tv-formula-body">${fmtBody(r.formula)}</div></div>`;
-  if (r.example)
-    sectionsHtml += `<div class="tv-section tv-section--example"><div class="tv-sec-lbl">Example</div><div class="tv-sec-body">${fmtExample(r.example)}</div></div>`;
+    sectionsHtml += '<div class="tv-section tv-section--definition"><div class="tv-sec-lbl">Definition</div><div class="tv-sec-body">' + esc(r.definition) + '</div></div>';
+  if (formulaLines.length)
+    sectionsHtml += '<div class="tv-section tv-formula-sec"><div class="tv-sec-lbl">' + esc(r.flabel || 'Formula') + '</div><div class="tv-formula-body">' + formulaLines.map((f: string) => '<code class="tv-formula-line">' + esc(f) + '</code>').join('') + '</div></div>';
+  if (r.example || r.example_answer)
+    sectionsHtml += '<div class="tv-section tv-section--example"><div class="tv-sec-lbl">Example</div><div class="tv-sec-body">'
+      + (r.example ? fmtExample(r.example) : '')
+      + (r.example_answer ? '<div class="tv-ex-ans">' + esc(r.example_answer) + '</div>' : '')
+      + '</div></div>';
+  if (kwItems.length)
+    sectionsHtml += '<div class="tv-section tv-section--keywords"><div class="tv-sec-lbl">Key Points</div><div class="tv-sec-body"><ul class="tv-kw-list">' + kwItems.map((k: string) => '<li>' + esc(k) + '</li>').join('') + '</ul></div></div>';
   if (!sectionsHtml)
     sectionsHtml = '<div class="tv-empty">No textbook content available for this topic yet.</div>';
 
-  const copyText = [r.definition, r.explanation, r.formula, r.example]
+  const copyText = [r.definition, formulaLines.join(' | '), r.example, r.example_answer, kwItems.join(', ')]
     .filter(Boolean).join('\n\n');
 
   // Store copy text out of band — avoids JSON.stringify double-quotes breaking onclick="..."

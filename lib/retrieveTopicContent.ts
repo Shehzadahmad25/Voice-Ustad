@@ -15,19 +15,21 @@ import { createClient } from '@supabase/supabase-js';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface TopicViewResult {
-  found:         true;
-  chapter:       string;
-  chapterNumber: number;
-  topic:         string;
-  section:       string;
-  page_start:    number | null;
-  page_end:      number | null;
-  definition:    string;
-  explanation:   string;
-  formula:       string;
-  flabel:        string;
-  example:       string;
-  urduTtsText:   string;
+  found:           true;
+  chapter:         string;
+  chapterNumber:   number;
+  topic:           string;
+  section:         string;
+  page_start:      number | null;
+  page_end:        number | null;
+  definition:      string;
+  explanation:     string;   // guide_explanation — TTS only, never rendered
+  formula:         string;
+  flabel:          string;
+  example:         string;
+  example_answer:  string;
+  keywords:        string[];
+  urduTtsText:     string;   // = guide_explanation, sent to TTS API
 }
 
 // ── Supabase client ───────────────────────────────────────────────────────────
@@ -52,13 +54,14 @@ interface ChunkRow {
   book_definition:   string | null;
   guide_explanation: string | null;
   example_q:         string | null;
+  example_answer:    string | null;
   formula:           string | null;
   keywords:          string[] | null;
 }
 
 const SELECT_COLS =
   'id,chapter,section,term,topic_slug,page_ref,' +
-  'book_definition,guide_explanation,example_q,formula,keywords';
+  'book_definition,guide_explanation,example_q,example_answer,formula,keywords';
 
 // ── Core lookup ───────────────────────────────────────────────────────────────
 
@@ -160,21 +163,25 @@ export async function retrieveTopicContent(
   const row = await fetchChunkRow(chapterNumber, query.trim(), topicSlug?.trim());
   if (!row) return null;
 
-  const formula = (row.formula ?? '').trim();
+  const formula   = (row.formula ?? '').trim();
+  const guideExp  = (row.guide_explanation ?? '').trim();
+  const kw        = Array.isArray(row.keywords) ? row.keywords : [];
 
   return {
-    found:         true,
-    chapter:       `Chapter ${row.chapter}`,
-    chapterNumber: row.chapter,
-    topic:         row.term,
-    section:       row.topic_slug ?? row.section ?? '',
-    page_start:    row.page_ref,
-    page_end:      row.page_ref,
-    definition:    row.book_definition    ?? '',
-    explanation:   row.guide_explanation  ?? '',
+    found:          true,
+    chapter:        `Chapter ${row.chapter}`,
+    chapterNumber:  row.chapter,
+    topic:          row.term,
+    section:        row.topic_slug ?? row.section ?? '',
+    page_start:     row.page_ref,
+    page_end:       row.page_ref,
+    definition:     row.book_definition  ?? '',
+    explanation:    guideExp,              // guide_explanation — TTS only, never rendered
     formula,
-    flabel:        formula ? row.term.toUpperCase() : '',
-    example:       row.example_q          ?? '',
-    urduTtsText:   '',  // generated on-demand; not stored in content_chunks
+    flabel:         formula ? row.term.toUpperCase() : '',
+    example:        row.example_q        ?? '',
+    example_answer: row.example_answer   ?? '',
+    keywords:       kw,
+    urduTtsText:    guideExp,              // same — sent to TTS API on play
   };
 }
