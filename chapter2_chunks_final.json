@@ -1,0 +1,1114 @@
+[
+  {
+    "id": "ch2_discharge_tube",
+    "chapter": 2,
+    "section": "2.1",
+    "type": "concept",
+    "term": "Discharge Tube and Discovery of Electron",
+    "book_definition": "Electrons were discovered through discharge tube experiments. The discharge tube was devised by William Crookes. It consists of a glass tube with two metallic electrodes (cathode and anode), a gas at very low pressure, a high voltage DC source (5000-10000V), and a vacuum pump.",
+    "guide_explanation": "Jab pressure 0.1 mmHg tak kam ki jaye aur high voltage lagaya jaye to cathode se rays nikalti hain — inhe cathode rays kehte hain. Goldstein ne 1886 mein cathode rays naam diya kyunki ye rays cathode se shuru hoti hain. J.J. Thomson ne aage proof kiya ke ye negatively charged particles hain. G.J. Stoney ne inhe 1891 mein electron naam diya. Alag alag gas aur electrodes use karne par bhi same rays milti hain — matlab rays gas ya electrode par depend nahi karti.",
+    "formula": null,
+    "example_q": "Why are cathode rays independent of the nature of the gas and electrode material?",
+    "example_solution": "When different gases and metals were used in the discharge tube, the same cathode rays were produced. This proves cathode rays are made of universal particles (electrons) present in all matter — not specific to any gas or metal.",
+    "example_answer": "Cathode rays are independent because they are composed of electrons which are fundamental particles present in all matter.",
+    "keywords": [
+      "discharge tube",
+      "cathode rays",
+      "electron",
+      "William Crookes",
+      "Goldstein",
+      "J.J. Thomson",
+      "G.J. Stoney",
+      "fluorescence",
+      "anode",
+      "cathode"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "discharge-tube-electron-discovery",
+    "page_ref": "p.27-28",
+    "exam_tags": [
+      "ETEA 2008"
+    ]
+  },
+  {
+    "id": "ch2_cathode_ray_properties",
+    "chapter": 2,
+    "section": "2.1.1",
+    "type": "concept",
+    "term": "Characteristics of Cathode Rays",
+    "book_definition": "Cathode rays travel in straight lines perpendicular to cathode, produce fluorescence, heat metals, can rotate a pin-wheel, produce X-rays on hitting heavy metal anode, ionize gases, penetrate thin metallic sheets, are deflected towards positive plate (electric field) and by magnetic field. e/m = 1.7588×10¹¹ C/kg, charge = 1.6022×10⁻¹⁹ C.",
+    "guide_explanation": "Cathode rays ki 13 important khususiyat yaad karein: (1) Seedhi lines mein chalti hain. (2) Opaque object ki shadow banati hain. (3) Fluorescence paida karti hain. (4) Dhatu ko garam karti hain. (5) Pin-wheel ghumati hain — matlab mass aur kinetic energy hai. (6) X-rays banati hain jab heavy metal se takrain. (7) Gas ionize karti hain. (8) Chemical change karti hain (reducing effect). (9) Al aur Au jaise metallic sheets se guzar sakti hain. (10) Electric field mein positive plate ki taraf mudti hain — yani negatively charged hain. (11) Magnetic field mein bhi mudti hain. (12) e/m ratio = 1.7588×10¹¹ C/kg. (13) Charge = 1.6022×10⁻¹⁹ C.",
+    "formula": [
+      "e/m ratio of electron = 1.7588 × 10¹¹ C/kg",
+      "Charge on electron (e) = 1.6022 × 10⁻¹⁹ C"
+    ],
+    "example_q": "How do cathode rays prove that they carry negative charge?",
+    "example_solution": "When cathode rays are passed through an electric field, they deflect towards the positively charged plate (anode). Since unlike charges attract, the cathode rays must carry negative charge. This was demonstrated by Jean Perrine (1895) and J.J. Thomson (1897).",
+    "example_answer": "Cathode rays deflect towards positive plate in electric field, proving they carry negative charge.",
+    "keywords": [
+      "cathode rays properties",
+      "e/m ratio",
+      "fluorescence",
+      "pin-wheel",
+      "X-rays",
+      "ionization",
+      "magnetic deflection",
+      "electric deflection",
+      "negatively charged"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "cathode-rays-characteristics",
+    "page_ref": "p.29-30",
+    "exam_tags": [
+      "ETEA 2018",
+      "BISE D.I.Khan 2017"
+    ]
+  },
+  {
+    "id": "ch2_electron_mass",
+    "chapter": 2,
+    "section": "2.1.2",
+    "type": "formula",
+    "term": "Mass of Electron",
+    "book_definition": "Mass of electron is calculated using e/m ratio by J.J. Thomson (1.7588×10¹¹ C/kg) and charge by R.A. Millikan (1.6022×10⁻¹⁹ C). Result: m = 9.11×10⁻³¹ kg = 9.11×10⁻²⁸ g = 0.00055 amu.",
+    "guide_explanation": "Mass nikalna ka tarika: m = e ÷ (e/m). Thomson ne e/m ratio diya aur Millikan ne oil drop experiment se charge measure kiya. Value substitute kar ke mass milta hai. Electron proton se 1836 guna halka hai.",
+    "formula": [
+      "m = e / (e/m)",
+      "m = 1.6022×10⁻¹⁹ / 1.7588×10¹¹",
+      "m = 9.11×10⁻³¹ kg",
+      "m = 9.11×10⁻²⁸ g = 0.00055 amu"
+    ],
+    "example_q": "Calculate the mass of an electron given e/m = 1.7588×10¹¹ C/kg and e = 1.6022×10⁻¹⁹ C.",
+    "example_solution": "Step 1: e/m = 1.7588×10¹¹ C/kg ... (i)\nStep 2: e = 1.6022×10⁻¹⁹ C ... (ii)\nStep 3: Substitute (ii) into (i):\n1.6022×10⁻¹⁹ / m = 1.7588×10¹¹\nStep 4: m = 1.6022×10⁻¹⁹ / 1.7588×10¹¹\nm = 9.11×10⁻³¹ kg",
+    "example_answer": "m = 9.11×10⁻³¹ kg = 9.11×10⁻²⁸ g = 0.00055 amu",
+    "keywords": [
+      "electron mass",
+      "e/m ratio",
+      "Millikan",
+      "Thomson",
+      "9.11×10⁻³¹",
+      "oil drop experiment"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "mass-of-electron",
+    "page_ref": "p.30",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_canal_rays_proton",
+    "chapter": 2,
+    "section": "2.1.3",
+    "type": "concept",
+    "term": "Canal Rays and Discovery of Proton",
+    "book_definition": "Canal rays (positive rays) were discovered by Eugen Goldstein in 1886 using a discharge tube with perforated cathode. These are positively charged particles formed when cathode rays knock electrons out of gas molecules. When hydrogen gas is used, maximum e/m = 9.54×10⁷ C/kg — these particles are called protons (named by Rutherford). Proton charge = +1.6022×10⁻¹⁹ C, mass = 1.6726×10⁻²⁷ kg = 1.0073 amu.",
+    "guide_explanation": "Canal rays ki daryaft: Goldstein ne cathode mein holes (perforations) banaye — inhe canals kehte hain. Cathode rays gas molecules se electrons nikarti hain aur positive ions bante hain jo cathode ki taraf jate hain aur holes se guzarte hain. Ye canal rays hain. Jab H₂ gas ho to maximum e/m ratio milta hai — ye proton hai. Rutherford ne proton naam suggest kiya (Greek: protos = first).",
+    "formula": [
+      "M + e⁻ → M⁺ + 2e⁻  (production of positive ions)",
+      "e/m of proton (H₂ gas) = 9.54×10⁷ C/kg",
+      "Charge of proton = +1.6022×10⁻¹⁹ C",
+      "Mass of proton = 1.6726×10⁻²⁷ kg = 1.0073 amu"
+    ],
+    "example_q": "Why does the e/m ratio of canal rays change with different gases but cathode rays always give same e/m?",
+    "example_solution": "Cathode rays are electrons — the same fundamental particle regardless of gas, so e/m is always constant = 1.7588×10¹¹ C/kg. Canal rays are positive ions of the gas used — different gases have different masses, so the e/m ratio changes. Maximum e/m is for H₂ (lightest gas) = 9.54×10⁷ C/kg (proton).",
+    "example_answer": "e/m of canal rays depends on the gas because they are positive ions of that gas. e/m of cathode rays is constant because they are electrons.",
+    "keywords": [
+      "canal rays",
+      "positive rays",
+      "proton",
+      "Goldstein",
+      "perforated cathode",
+      "Rutherford",
+      "e/m ratio",
+      "hydrogen gas",
+      "1836 times"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "canal-rays-proton-discovery",
+    "page_ref": "p.31-32",
+    "exam_tags": [
+      "BISE Swat 2017"
+    ]
+  },
+  {
+    "id": "ch2_neutron_discovery",
+    "chapter": 2,
+    "section": "2.1.6",
+    "type": "concept",
+    "term": "Discovery of Neutron",
+    "book_definition": "Neutron was discovered by Sir James Chadwick in 1932. He bombarded Beryllium with alpha particles from Polonium and found highly penetrating neutral particles — called neutrons. Neutron mass = 1.6749×10⁻²⁷ kg = 1.0087 amu, charge = 0. Chadwick received Nobel Prize for this discovery.",
+    "guide_explanation": "Neutron ki zaroorat kyu padi: electron aur proton ka total mass atom ke mass se kam tha — isliye scientists ne socha koi aur bhari neutral particle bhi hogi. Rutherford ne 1920 mein predict kiya. Chadwick ne 1932 mein Be ko alpha particles se bombard kar ke prove kiya. Neutral hai isliye electric ya magnetic field se nahi mudta. Nuclear reactions: ⁹₄Be + ⁴₂He → ¹²₆C + ¹₀n. Chadwick ko Nobel Prize mila.",
+    "formula": [
+      "⁹₄Be + ⁴₂He → ¹²₆C + ¹₀n (neutron)",
+      "²⁷₁₃Al + ⁴₂He → ³⁰₁₅P + ¹₀n (neutron)",
+      "Mass of neutron = 1.6749×10⁻²⁷ kg = 1.0087 amu",
+      "Charge of neutron = 0"
+    ],
+    "example_q": "Why did scientists predict the existence of a neutron before it was discovered?",
+    "example_solution": "The total mass of electrons + protons in an atom was always less than the actual atomic mass. For example, Helium has 2 protons + 2 electrons but its mass is ~4 amu — the extra ~2 amu could not be explained. Scientists predicted there must be another heavy, neutral particle. Rutherford proposed this in 1920, and Chadwick confirmed it in 1932.",
+    "example_answer": "The atomic mass was always greater than the mass of electrons + protons combined, suggesting another neutral particle (neutron) must exist.",
+    "keywords": [
+      "neutron",
+      "Chadwick",
+      "1932",
+      "Beryllium",
+      "alpha particles",
+      "Nobel Prize",
+      "neutral particle",
+      "1.0087 amu"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "neutron-discovery",
+    "page_ref": "p.32-33",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_subatomic_particles_table",
+    "chapter": 2,
+    "section": "2.1",
+    "type": "concept",
+    "term": "Three Fundamental Sub-atomic Particles",
+    "book_definition": "The three fundamental subatomic particles are electron, proton and neutron. Electron: mass 9.1069×10⁻³¹ kg, charge -1, 0.00055 amu. Proton: mass 1.6726×10⁻²⁷ kg, charge +1, 1.0073 amu. Neutron: mass 1.6749×10⁻²⁷ kg, charge 0, 1.0087 amu. Proton and neutron are in the nucleus; electrons revolve around it.",
+    "guide_explanation": "Teen zaruri particles yaad karein: Electron — mass 9.11×10⁻³¹ kg, charge -1, amu 0.00055. Proton — mass 1.67×10⁻²⁷ kg, charge +1, amu 1.0073. Neutron — mass 1.67×10⁻²⁷ kg, charge 0, amu 1.0087. Proton aur neutron nucleus mein hain. Electron nucleus ke gird chakkar lagate hain. In particles ki tartib hi atom ki physical aur chemical properties decide karti hai.",
+    "formula": [
+      "Mass of electron = 9.1069×10⁻³¹ kg = 0.00055 amu",
+      "Mass of proton = 1.6726×10⁻²⁷ kg = 1.0073 amu",
+      "Mass of neutron = 1.6749×10⁻²⁷ kg = 1.0087 amu",
+      "Proton is 1836 times heavier than electron",
+      "Neutron is 1842 times heavier than electron"
+    ],
+    "example_q": "Compare the masses and charges of electron, proton and neutron.",
+    "example_solution": "Electron: mass = 9.11×10⁻³¹ kg = 0.00055 amu, charge = -1. Proton: mass = 1.6726×10⁻²⁷ kg = 1.0073 amu, charge = +1. Neutron: mass = 1.6749×10⁻²⁷ kg = 1.0087 amu, charge = 0. Proton is 1836× heavier than electron. Neutron is 1842× heavier than electron.",
+    "example_answer": "Electron is lightest (-1 charge), proton and neutron are ~1836-1842× heavier. Neutron has no charge.",
+    "keywords": [
+      "electron proton neutron",
+      "subatomic particles",
+      "0.00055 amu",
+      "1.0073 amu",
+      "1.0087 amu",
+      "1836 times"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "subatomic-particles-summary",
+    "page_ref": "p.33",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_bohr_model_postulates",
+    "chapter": 2,
+    "section": "2.2",
+    "type": "concept",
+    "term": "Bohr's Atomic Model — Postulates",
+    "book_definition": "Bohr proposed his atomic model in 1913 to fix Rutherford's defects. 7 main postulates: (1) Electrons revolve in fixed circular orbits (energy levels). (2) Energy increases with distance from nucleus. (3) No energy emitted/absorbed while in fixed orbit. (4) Electron absorbs energy jumping to higher orbit. (5) Electron emits energy falling to lower orbit: ΔE = hν. (6) Energy emitted/absorbed in form of light: ΔE = E₂-E₁ = hν. (7) Angular momentum is quantized: mvr = nh/2π.",
+    "guide_explanation": "Bohr ne 1913 mein Rutherford model ki kami door ki. Iska model Planck ki quantum theory par based hai. 7 postulates: Electrons nucleus ke gird circular paths (orbits/shells) mein ghumte hain. Har orbit ki apni energy hoti hai. Orbit mein ghoomte hue electron energy emit/absorb nahi karta. Electron energy gain kare to upar jata hai, energy de to niche aata hai. ΔE = hν formula: E₂-E₁ = hν. Angular momentum quantized: mvr = nh/2π jahan n = shell number, h = Planck constant = 6.626×10⁻³⁴ J.s.",
+    "formula": [
+      "ΔE = E₂ - E₁ = hν",
+      "mvr = nh/2π",
+      "h = Planck's constant = 6.626×10⁻³⁴ J·s",
+      "n = shell number = 1, 2, 3, 4..."
+    ],
+    "example_q": "Why did Bohr propose that electrons in fixed orbits do not radiate energy?",
+    "example_solution": "According to classical physics, an electron moving in a circular path should continuously lose energy and spiral into the nucleus. Bohr postulated that electrons in fixed orbits are in stationary states and do NOT emit energy. Energy is only emitted or absorbed when an electron jumps between orbits. This explained the stability of the atom.",
+    "example_answer": "Bohr postulated that electrons in fixed orbits are stationary states — they emit/absorb energy only when jumping between orbits, not while revolving.",
+    "keywords": [
+      "Bohr model",
+      "postulates",
+      "energy levels",
+      "shells",
+      "angular momentum",
+      "quantized",
+      "mvr = nh/2π",
+      "ΔE = hν",
+      "Planck constant"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "bohr-model-postulates",
+    "page_ref": "p.33-35",
+    "exam_tags": [
+      "ETEA 2008",
+      "ETEA 2010",
+      "ETEA 2015",
+      "ETEA 2019",
+      "BISE Mardan 2018",
+      "BISE D.I.Khan 2019",
+      "BISE Kohat 2019"
+    ]
+  },
+  {
+    "id": "ch2_bohr_radius_derivation",
+    "chapter": 2,
+    "section": "2.2.1",
+    "type": "formula",
+    "term": "Derivation of Radius of Bohr's Orbit",
+    "book_definition": "The radius of nth orbit is derived by equating Coulombic force and centrifugal force, combined with angular momentum quantization. Result: rₙ = n² × 0.529 Å for hydrogen. Values: r₁=0.529Å, r₂=2.116Å, r₃=4.761Å, r₄=8.464Å, r₅=13.225Å. Spacing between orbits increases as we move outward.",
+    "guide_explanation": "Derivation ke steps: (1) Coulombic force = Ze²/4πε₀r². (2) Centrifugal force = mv²/r. (3) Stable orbit mein: mv²/r = Ze²/4πε₀r² → mv² = Ze²/4πε₀r. (4) Angular momentum: mvr = nh/2π → v² = n²h²/4π²m²r². (5) Equations combine karo: r = ε₀n²h²/Ze²πm. (6) Hydrogen (Z=1) ke liye: rₙ = n² × 0.529 Å. Yaad rakho: r ∝ n², yani orbit number 2 guna ho to radius 4 guna ho jati hai.",
+    "formula": [
+      "F_coulombic = Ze²/4πε₀r²",
+      "F_centrifugal = mv²/r",
+      "For stable orbit: mv²/r = Ze²/4πε₀r²",
+      "rₙ = n² × (ε₀h²/πe²m)",
+      "rₙ = n² × 0.529 Å  (for hydrogen, Z=1)",
+      "r₁=0.529Å, r₂=2.116Å, r₃=4.761Å, r₄=8.464Å, r₅=13.225Å"
+    ],
+    "example_q": "Calculate the radius of 3rd and 4th orbits of hydrogen atom.",
+    "example_solution": "Using formula: rₙ = n² × 0.529 Å\nFor n=3: r₃ = (3)² × 0.529 = 9 × 0.529 = 4.761 Å\nFor n=4: r₄ = (4)² × 0.529 = 16 × 0.529 = 8.464 Å",
+    "example_answer": "r₃ = 4.761 Å, r₄ = 8.464 Å",
+    "keywords": [
+      "Bohr radius",
+      "0.529 Å",
+      "Bohr orbit radius",
+      "n² formula",
+      "Coulomb force",
+      "centrifugal force",
+      "rn = n² × 0.529"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "bohr-radius-derivation",
+    "page_ref": "p.35-37",
+    "exam_tags": [
+      "ETEA 2015",
+      "ETEA 2018",
+      "BISE Swat 2019",
+      "BISE Bannu 2019"
+    ]
+  },
+  {
+    "id": "ch2_bohr_energy_derivation",
+    "chapter": 2,
+    "section": "2.2.1",
+    "type": "formula",
+    "term": "Derivation of Energy of Electron in Bohr's Orbit",
+    "book_definition": "Total energy = KE + PE. KE = Ze²/8πε₀r (positive). PE = -Ze²/4πε₀r (negative). Total: Eₙ = -Z²e⁴m/8ε₀²n²h². For hydrogen: Eₙ = -1313/n² kJ/mol. Values: E₁=-1313, E₂=-328, E₃=-146, E₄=-82 kJ/mol. Energy is negative because electron is bound to nucleus.",
+    "guide_explanation": "Total energy = KE + PE. KE positive hoti hai (motion se), PE negative hoti hai (attraction force se). Negative sign matlab electron nucleus se bandha hua hai. n badhne par energy badhti hai (kam negative hoti hai). n=1 ground state hai (sabse kam energy). n>1 excited states hain. Formula: Eₙ = -1313/n² kJ/mol. n=1: -1313, n=2: -328, n=3: -146, n=4: -82 kJ/mol.",
+    "formula": [
+      "E = KE + PE",
+      "KE = Ze²/8πε₀r",
+      "PE = -Ze²/4πε₀r",
+      "Eₙ = -Z²e⁴m / 8ε₀²n²h²",
+      "Eₙ = -2.18×10⁻¹⁸ (1/n²) J/atom  [for H, Z=1]",
+      "Eₙ = -1313 (1/n²) kJ/mol  [for H, Z=1]",
+      "E₁=-1313, E₂=-328, E₃=-146, E₄=-82 kJ/mol"
+    ],
+    "example_q": "What will be the energy (kJ/mol) of an electron residing in n=3 in hydrogen atom?",
+    "example_solution": "Using formula: Eₙ = -1313 × (1/n²) kJ/mol\nFor n=3: E₃ = -1313 × (1/3²) = -1313 × (1/9)\nE₃ = -145.88 ≈ -146 kJ/mol",
+    "example_answer": "E₃ = -145.88 kJ/mol ≈ -146 kJ/mol",
+    "keywords": [
+      "Bohr energy",
+      "ground state",
+      "excited state",
+      "-1313 kJ/mol",
+      "energy formula",
+      "En = -1313/n²",
+      "KE PE total energy"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "bohr-energy-derivation",
+    "page_ref": "p.37-39",
+    "exam_tags": [
+      "ETEA 2010",
+      "ETEA 2012",
+      "ETEA 2018",
+      "BISE D.I.Khan 2019"
+    ]
+  },
+  {
+    "id": "ch2_energy_difference_orbits",
+    "chapter": 2,
+    "section": "2.2.1",
+    "type": "formula",
+    "term": "Energy Difference Between Two Orbits",
+    "book_definition": "ΔE = E₂ - E₁ = 1313(1/n₁² - 1/n₂²) kJ/mol for hydrogen. In J/atom: ΔE = 2.18×10⁻¹⁸(1/n₁² - 1/n₂²). n₁ = lower orbit, n₂ = higher orbit. Energy is absorbed when electron goes up (n₁→n₂) and emitted when it comes down (n₂→n₁).",
+    "guide_explanation": "Do orbits ke beech energy difference nikalna: ΔE = 1313(1/n₁² - 1/n₂²) kJ/mol. n₁ neeche wala orbit, n₂ upar wala orbit. Jab electron upar jaye to energy absorb hoti hai (ΔE positive). Jab electron neeche aaye to energy emit hoti hai. Yaad rakho: Lyman series se energy difference sabse zyada hoti hai kyunki n₁=1 sabse kam hai.",
+    "formula": [
+      "ΔE = 1313 (1/n₁² - 1/n₂²) kJ/mol",
+      "ΔE = 2.18×10⁻¹⁸ (1/n₁² - 1/n₂²) J/atom",
+      "n₁ = lower orbit, n₂ = higher orbit"
+    ],
+    "example_q": "How much energy is lost when an electron in hydrogen atom jumps from n₂=3 to n₁=1?",
+    "example_solution": "Formula: ΔE = 1313(1/n₁² - 1/n₂²) kJ/mol\nn₁=1, n₂=3\nΔE = 1313(1/1² - 1/3²)\nΔE = 1313(1/1 - 1/9)\nΔE = 1313 × (9-1)/9\nΔE = 1313 × 8/9\nΔE = 10504/9 = 1167 kJ/mol",
+    "example_answer": "ΔE = 1167 kJ/mol",
+    "keywords": [
+      "energy difference",
+      "ΔE formula",
+      "1313 kJ/mol",
+      "n1 n2",
+      "orbit transition",
+      "energy absorbed emitted"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "energy-difference-orbits",
+    "page_ref": "p.39-40",
+    "exam_tags": [
+      "ETEA 2017"
+    ]
+  },
+  {
+    "id": "ch2_frequency_wavelength_wavenumber",
+    "chapter": 2,
+    "section": "2.2.1",
+    "type": "formula",
+    "term": "Frequency, Wavelength and Wave Number of Radiation",
+    "book_definition": "Frequency: ν = ΔE/h = (e⁴m/8ε₀²h³)(1/n₁²-1/n₂²) Hz. Wave number: ν̄ = R(1/n₁²-1/n₂²) m⁻¹, where Rydberg constant R = 1.097×10⁷ m⁻¹. Wavelength: λ = 1/ν̄. Relations: c=νλ, ν=c/λ, ν̄=1/λ, ν=cν̄. c = 3×10⁸ m/s.",
+    "guide_explanation": "Jab electron orbit change kare to radiation ki frequency aur wavelength: ν = ΔE/h. Wave number (ν̄) wavelength ka reciprocal hai: ν̄ = 1/λ. Rydberg constant R = 1.097×10⁷ m⁻¹. Formula: ν̄ = R(1/n₁²-1/n₂²) m⁻¹. Wavelength se wave number nikalo: λ = 1/ν̄. Frequency se wavelength: λ = c/ν. Sab relations: c = νλ, ν = c/λ, ν̄ = 1/λ, ν = cν̄.",
+    "formula": [
+      "ν = ΔE/h  (frequency)",
+      "ν̄ = 1/λ  (wave number = reciprocal of wavelength)",
+      "ν̄ = R(1/n₁² - 1/n₂²) m⁻¹",
+      "R = Rydberg's constant = 1.097×10⁷ m⁻¹",
+      "λ = 1/ν̄",
+      "c = νλ  (c = 3×10⁸ m/s)",
+      "ν = c/λ = c·ν̄"
+    ],
+    "example_q": "What will be the wave number of spectral line when electron jumps from n₂=4 to n₁=2?",
+    "example_solution": "Formula: ν̄ = 1.097×10⁷(1/n₁² - 1/n₂²) m⁻¹\nn₁=2, n₂=4\nν̄ = 1.097×10⁷(1/4 - 1/16)\nν̄ = 1.097×10⁷(4-1)/16\nν̄ = 1.097×10⁷ × 3/16\nν̄ = 1.097×10⁷ × 0.1875\nν̄ = 0.2058×10⁷ = 20.58×10⁵ m⁻¹",
+    "example_answer": "ν̄ = 20.58×10⁵ m⁻¹",
+    "keywords": [
+      "wave number",
+      "Rydberg constant",
+      "1.097×10⁷",
+      "frequency formula",
+      "wavelength formula",
+      "n1 n2 spectral"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "frequency-wavelength-wavenumber",
+    "page_ref": "p.40-42",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_spectrum_types",
+    "chapter": 2,
+    "section": "2.2.2",
+    "type": "concept",
+    "term": "Spectrum — Continuous and Line Spectrum",
+    "book_definition": "Spectrum: band of radiations in order of wavelengths/frequencies. Two types: (1) Continuous spectrum: no dark or bright spaces between lines — no clear boundary (e.g., rainbow). (2) Line spectrum (atomic spectrum): lines with clear dark or bright spaces between them. Line spectrum may be emission (bright lines on dark background) or absorption (dark lines on bright background).",
+    "guide_explanation": "Spectrum ki 2 qismain: (1) Continuous spectrum mein rango ke beech koi space nahi — jaise rainbow. (2) Line spectrum mein rango ke beech clear spaces hain — ise atomic spectrum bhi kehte hain. Line spectrum bhi 2 tarah ka: Emission spectrum = dark background par bright lines (element garam karne par). Absorption spectrum = bright background par dark lines (white light cooled substance se guzarne par). Interesting: emission aur absorption spectrum mein lines bilkul same position par hoti hain.",
+    "formula": null,
+    "example_q": "How does a line emission spectrum differ from a line absorption spectrum?",
+    "example_solution": "Line Emission Spectrum: bright/coloured lines on dark background. Formed when element is heated — atoms emit specific wavelengths. Line Absorption Spectrum: dark lines on bright background. Formed when white light passes through cooled substance — atoms absorb specific wavelengths. The positions of bright lines in emission and dark lines in absorption are EXACTLY the same.",
+    "example_answer": "Emission = bright lines on dark background. Absorption = dark lines on bright background. Same line positions.",
+    "keywords": [
+      "continuous spectrum",
+      "line spectrum",
+      "emission spectrum",
+      "absorption spectrum",
+      "atomic spectrum",
+      "rainbow",
+      "spectral lines"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "spectrum-types",
+    "page_ref": "p.42-43",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_hydrogen_spectrum_series",
+    "chapter": 2,
+    "section": "2.2.2",
+    "type": "concept",
+    "term": "Hydrogen Spectrum — Five Spectral Series",
+    "book_definition": "Hydrogen spectrum has 5 spectral series: (1) Lyman (UV): n₁=1, n₂=2,3,4... (2) Balmer (Visible): n₁=2, n₂=3,4,5... — 4 lines: red 656.2nm, blue-green 486.1nm, blue-violet 434.0nm, violet 410.0nm. (3) Paschen (Near IR): n₁=3. (4) Brackett (Mid IR): n₁=4. (5) Pfund (Far IR): n₁=5. Balmer Series discovered by J.J. Balmer in 1884.",
+    "guide_explanation": "Hydrogen spectrum 5 series: Lyman (UV, n₁=1), Balmer (visible, n₁=2), Paschen (near IR, n₁=3), Brackett (mid IR, n₁=4), Pfund (far IR, n₁=5). Yaad karne ka trick: L-B-P-Br-Pf (Lyman-Balmer-Paschen-Brackett-Pfund). Balmer ne 1884 mein 4 visible lines dekhi thi. n₂ hamesha n₁ se bada hota hai. Jab electron kisi bhi upar wale orbit se n₁ par wapas aata hai to us series ki line banti hai.",
+    "formula": [
+      "ν̄ = R(1/n₁² - 1/n₂²) m⁻¹  [for any series]",
+      "Lyman: n₁=1, n₂=2,3,4,5... (UV)",
+      "Balmer: n₁=2, n₂=3,4,5,6... (Visible)",
+      "Paschen: n₁=3, n₂=4,5,6... (Near IR)",
+      "Brackett: n₁=4, n₂=5,6,7... (Mid IR)",
+      "Pfund: n₁=5, n₂=6,7... (Far IR)"
+    ],
+    "example_q": "An electron jumps from n=4 to n=2 in hydrogen atom. To which spectral series does this transition belong?",
+    "example_solution": "The electron falls to n₁=2 (lower orbit). The spectral series where electron returns to n₁=2 is the Balmer Series. Since Balmer series is in the visible region, this transition produces a visible light line. The wavelength corresponds to the blue-green line at 486.1 nm.",
+    "example_answer": "Balmer Series (Visible region) — electron returns to n₁=2.",
+    "keywords": [
+      "Lyman",
+      "Balmer",
+      "Paschen",
+      "Brackett",
+      "Pfund",
+      "spectral series",
+      "hydrogen spectrum",
+      "UV visible IR",
+      "n1 n2",
+      "656.2 nm"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "hydrogen-spectrum-series",
+    "page_ref": "p.44-46",
+    "exam_tags": [
+      "ETEA 2005",
+      "ETEA 2007",
+      "ETEA 2012",
+      "ETEA 2015",
+      "ETEA 2016",
+      "ETEA 2018",
+      "BISE Mardan 2018"
+    ]
+  },
+  {
+    "id": "ch2_bohr_model_defects",
+    "chapter": 2,
+    "section": "2.2.3",
+    "type": "concept",
+    "term": "Defects of Bohr's Atomic Model",
+    "book_definition": "Bohr's model fails to: (1) Explain spectra of multi-electron atoms. (2) Explain fine structure (multiplicity) of spectral lines under high resolving spectrometer. (3) Explain Zeeman effect (magnetic field splitting) and Stark effect (electric field splitting). (4) Modern research no longer believes in well-defined electron orbits. (5) Cannot explain chemical bond formation.",
+    "guide_explanation": "Bohr model sirf hydrogen aur hydrogen-like ions (He⁺, Li²⁺, Be³⁺) ke liye kaam karta hai — multi-electron atoms ka spectrum explain nahi karta. High resolution spectrometer par spectral lines ki fine structure explain nahi hoti. Magnetic field mein lines ka phootna (Zeeman effect) aur electric field mein (Stark effect) explain nahi hota. Modern science kehti hai electrons ke exact orbits nahi hote. Chemical bond banana bhi explain nahi hota.",
+    "formula": [
+      "Zeeman Effect: splitting of spectral lines in magnetic field",
+      "Stark Effect: splitting of spectral lines in electric field"
+    ],
+    "example_q": "Why does Bohr's model fail for multi-electron atoms?",
+    "example_solution": "Bohr's model considers only the attraction between one electron and the nucleus. In multi-electron atoms, there are also repulsion forces between electrons. The model has no provision for electron-electron repulsions, so it cannot accurately predict energy levels or spectral lines for atoms with more than one electron.",
+    "example_answer": "Bohr's model ignores electron-electron repulsions, which become significant in multi-electron atoms, making its predictions inaccurate.",
+    "keywords": [
+      "Bohr model defects",
+      "Zeeman effect",
+      "Stark effect",
+      "multi-electron",
+      "fine structure",
+      "well-defined orbits",
+      "limitations"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "bohr-model-defects",
+    "page_ref": "p.46",
+    "exam_tags": [
+      "ETEA 2016"
+    ]
+  },
+  {
+    "id": "ch2_planck_quantum_theory",
+    "chapter": 2,
+    "section": "2.3",
+    "type": "concept",
+    "term": "Planck's Quantum Theory",
+    "book_definition": "Proposed by Max Planck in 1900. Main postulates: (1) Energy emitted/absorbed discontinuously in small packets called quanta (quantum of light = photon). (2) E = hν (Planck's equation). h = 6.626×10⁻³⁴ J·s. (3) A body emits/absorbs only whole number multiples: E = nhν.",
+    "guide_explanation": "Planck ne 1900 mein theory di. Energy continuously nahi balki quanta (packets) mein emit/absorb hoti hai. Ek quantum ki energy = hν jahan h = 6.626×10⁻³⁴ J·s (Planck constant) aur ν = frequency. Roshni ke quantum ko photon kehte hain. E = nhν mein n = 1,2,3... Matlab energy quantized hai — kisi bhi value mein nahi ho sakti sirf hν ke integer multiples mein.",
+    "formula": [
+      "E = hν  (Planck's equation)",
+      "E = nhν  (n = 1, 2, 3...)",
+      "h = Planck's constant = 6.626×10⁻³⁴ J·s",
+      "ν = frequency of emitted radiation"
+    ],
+    "example_q": "What is a photon? Why is energy said to be quantized?",
+    "example_solution": "A photon is the quantum (smallest unit) of light energy. Energy is said to be quantized because according to Planck's theory, a body can only emit or absorb energy in whole number multiples of hν (where h is Planck's constant and ν is frequency). Energy cannot take any arbitrary value — only specific values: hν, 2hν, 3hν, etc.",
+    "example_answer": "Photon is the quantum of light energy. Energy is quantized because it can only be in whole number multiples of hν.",
+    "keywords": [
+      "Planck quantum theory",
+      "photon",
+      "quanta",
+      "E = hν",
+      "Planck constant",
+      "quantized energy",
+      "discontinuous",
+      "Max Planck 1900"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "planck-quantum-theory",
+    "page_ref": "p.47-48",
+    "exam_tags": [
+      "ETEA 2015",
+      "BISE D.I.Khan 2017",
+      "BISE Malakand 2018",
+      "BISE Swat 2019",
+      "BISE Abbottabad 2019"
+    ]
+  },
+  {
+    "id": "ch2_radiation_properties_definitions",
+    "chapter": 2,
+    "section": "2.3.1",
+    "type": "concept",
+    "term": "Properties of Radiation — Wavelength, Frequency, Wave Number, Speed",
+    "book_definition": "Wavelength (λ): distance between two adjacent crests/troughs. Unit: Angstrom (Å = 10⁻¹⁰ m), nm (10⁻⁹ m). Frequency (ν): waves passing per second. Unit: Hz. ν ∝ 1/λ. Speed (c): 3×10⁸ m/s. Wave number (ν̄): waves per unit length = 1/λ. Unit: m⁻¹, cm⁻¹. E = hν = hc/λ = hcν̄.",
+    "guide_explanation": "Wavelength (λ): do adjacent crests ke beech fasla. Unit: Angstrom = 10⁻¹⁰ m ya nm = 10⁻⁹ m. Frequency (ν): ek second mein ek point se guzarni wali waves ki tadad. Unit: Hz. Frequency aur wavelength ka inverse relation: ν = c/λ. Speed c = 3×10⁸ m/s (constant for light). Wave number (ν̄): per unit length waves ki tadad = 1/λ. Sab relations: c = νλ, ν = c/λ, ν̄ = 1/λ, E = hν = hc/λ = hcν̄.",
+    "formula": [
+      "c = νλ  (c = 3×10⁸ m/s)",
+      "ν = c/λ",
+      "ν̄ = 1/λ  (wave number)",
+      "E = hν = hc/λ = hcν̄",
+      "1 Å = 10⁻¹⁰ m",
+      "1 nm = 10⁻⁹ m",
+      "1 pm = 10⁻¹² m"
+    ],
+    "example_q": "The frequency of a green light is 6×10¹⁴ Hz. Calculate its wavelength.",
+    "example_solution": "Formula: λ = c/ν\nGiven: ν = 6×10¹⁴ Hz, c = 3×10⁸ m/s\nλ = 3×10⁸ / 6×10¹⁴\nλ = 0.5×10⁸⁻¹⁴ m = 0.5×10⁻⁶ m\nλ = 0.5×10⁻⁶ / 10⁻⁹ nm = 500 nm",
+    "example_answer": "λ = 500 nm",
+    "keywords": [
+      "wavelength",
+      "frequency",
+      "wave number",
+      "speed of light",
+      "Angstrom",
+      "nanometer",
+      "hertz",
+      "c = νλ",
+      "E = hcν̄"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "radiation-properties",
+    "page_ref": "p.48-49",
+    "exam_tags": [
+      "ETEA 2015"
+    ]
+  },
+  {
+    "id": "ch2_proof_E_hcv",
+    "chapter": 2,
+    "section": "2.3.1",
+    "type": "formula",
+    "term": "Proof of E = hcν̄",
+    "book_definition": "From E = hν and ν = c/λ: E = hc/λ. Since ν̄ = 1/λ: E = hcν̄. This proves energy of photon is related to frequency, wavelength and wave number.",
+    "guide_explanation": "Proof ka tarika: Shuru karo E = hν se. ν aur λ ka relation: ν = c/λ. Value substitute karo: E = h × (c/λ) = hc/λ. Ab ν̄ = 1/λ substitute karo: E = hcν̄. Proof mukammal. ETEA aur BISE mein yeh proof aksar puchha jata hai.",
+    "formula": [
+      "E = hν  ... (1)",
+      "ν = c/λ  ... (2)",
+      "Substitute (2) into (1): E = hc/λ",
+      "Since ν̄ = 1/λ:",
+      "E = hcν̄  (proved)"
+    ],
+    "example_q": "Prove that E = hcν̄.",
+    "example_solution": "Step 1: According to Planck's equation: E = hν\nStep 2: Relationship between frequency and wavelength: ν = c/λ\nStep 3: Substitute ν into E: E = h × (c/λ) = hc/λ\nStep 4: Since wave number ν̄ = 1/λ, substitute: E = hcν̄\nHence proved.",
+    "example_answer": "E = hν, ν = c/λ → E = hc/λ, since ν̄ = 1/λ → E = hcν̄  [Proved]",
+    "keywords": [
+      "E = hcν̄",
+      "proof",
+      "Planck equation",
+      "wave number",
+      "wavelength frequency relation"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "proof-E-hcv",
+    "page_ref": "p.49",
+    "exam_tags": [
+      "ETEA 2015",
+      "BISE D.I.Khan 2017",
+      "BISE Malakand 2018",
+      "BISE Swat 2019",
+      "BISE Abbottabad 2019"
+    ]
+  },
+  {
+    "id": "ch2_xrays_production_properties_uses",
+    "chapter": 2,
+    "section": "2.4",
+    "type": "concept",
+    "term": "X-Rays — Production, Properties and Uses",
+    "book_definition": "X-rays: electromagnetic radiations with very high frequency, wavelength 10⁻² to 10⁺² Å. Discovered by W.C. Roentgen in 1895 accidentally. Produced when high speed cathode rays hit heavy metal anode. Properties: neutral, not deflected by fields, ionize gases, fluorescence, penetrate matter, blacken photographic plate. Uses: medicine (fractures), XRD analysis, DNA structure, gas ionization.",
+    "guide_explanation": "X-rays ki daryaft 1895 mein Roentgen ne ki jab wo cathode rays study kar raha tha. Jab cathode rays heavy metal anode se takrati hain to X-rays nikalti hain. Khasiyat: neutral hain isliye electric/magnetic field se nahi mudti. Gas ionize karti hain. NaCl, uranium mein fluorescence. Different substances se different penetrating power. Photographic plate blacken karti hain. Diffract hoti hain crystalline substances se. Istamal: haddi ka fracture dekhna, DNA double helix (Watson & Crick), XRD crystal analysis.",
+    "formula": [
+      "Wavelength range of X-rays: 10⁻² Å to 10⁺² Å (0.001 nm to 10 nm)"
+    ],
+    "example_q": "How are X-rays produced in Roentgen's method?",
+    "example_solution": "Roentgen used a special discharge tube at pressure 10⁻³ mmHg with 30,000-50,000V potential difference. The high potential accelerates electrons from cathode. These high-speed electrons (cathode rays) strike the heavy metal anode (target) with great momentum. The sudden deceleration of electrons at the anode releases energy in the form of X-ray photons. The cathode is concave-shaped to focus electrons on a small spot of the anode.",
+    "example_answer": "High speed cathode rays (electrons) strike the heavy metal anode → sudden deceleration → X-ray photons emitted.",
+    "keywords": [
+      "X-rays",
+      "Roentgen",
+      "1895",
+      "electromagnetic radiation",
+      "cathode rays anode",
+      "penetration",
+      "fluorescence",
+      "DNA Watson Crick",
+      "XRD",
+      "fracture"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "xrays-production-properties-uses",
+    "page_ref": "p.49-51",
+    "exam_tags": [
+      "ETEA 2015",
+      "ETEA 2016",
+      "BISE D.I.Khan 2017",
+      "BISE Mardan 2019",
+      "BISE Kohat 2019"
+    ]
+  },
+  {
+    "id": "ch2_moseley_law",
+    "chapter": 2,
+    "section": "2.4.3",
+    "type": "formula",
+    "term": "X-Rays and Atomic Number — Moseley's Law",
+    "book_definition": "Henry Moseley (1913) observed that X-ray frequency depends on the target element. Statement: 'The square root of frequency (√ν) of X-ray spectral line is directly proportional to the atomic number (Z) of the element.' Formula: √ν = a(Z-b). b = screening constant (=1 for K-series). This proved atomic number (number of protons) is the fundamental property of an element.",
+    "guide_explanation": "Moseley ne 38 alag elements ko X-ray tube mein target banaya. Zayada atomic number = zayada X-ray frequency. Moseley law: √ν ∝ Z, ya √ν = a(Z-b). K-series ke liye b=1. 'a' proportionality constant hai jo metal par depend karta hai. Ye equation atomic number Z calculate karne ke liye use hoti hai agar spectral lines ki frequencies pata ho. Is se prove hua ke atomic number (protons ki tadad) element ki fundamental property hai.",
+    "formula": [
+      "√ν ∝ Z  (Moseley's Law)",
+      "√ν = a(Z - b)",
+      "For K-series: b = 1",
+      "R = Rydberg constant = 1.097×10⁷ m⁻¹"
+    ],
+    "example_q": "What is Moseley's law? How did it prove atomic number is a fundamental property?",
+    "example_solution": "Moseley's law states that the square root of X-ray frequency (√ν) is directly proportional to the atomic number (Z): √ν = a(Z-b). By studying 38 elements, Moseley showed that X-ray frequency increases with increasing nuclear positive charge. He assigned atomic numbers based on nuclear charges (number of protons). This showed atomic number — not atomic mass — is the true ordering principle for elements.",
+    "example_answer": "√ν = a(Z-b). Moseley showed frequency depends on nuclear positive charge (protons), proving Z is the fundamental property.",
+    "keywords": [
+      "Moseley law",
+      "atomic number",
+      "√ν = a(Z-b)",
+      "X-ray frequency",
+      "K-series",
+      "screening constant",
+      "fundamental property",
+      "proton number"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "moseley-law",
+    "page_ref": "p.52-54",
+    "exam_tags": [
+      "ETEA 2011"
+    ]
+  },
+  {
+    "id": "ch2_quantum_numbers_intro",
+    "chapter": 2,
+    "section": "2.5",
+    "type": "concept",
+    "term": "Quantum Numbers — Introduction",
+    "book_definition": "Quantum numbers are certain numbers (set of numerical values) that give information about the designation (energy, shape of orbital) of an electron in an atom. Also called 'the address of electrons.' There are four: (1) Principal quantum number (n), (2) Azimuthal quantum number (l), (3) Magnetic quantum number (m), (4) Spin quantum number (s). Three derived from Schrödinger equation; spin discovered independently.",
+    "guide_explanation": "Quantum numbers electron ka complete address hain. Char quantum numbers: n (principal), l (azimuthal), m (magnetic), s (spin). Pehle teen Schrödinger wave equation ke solution se nikle. Spin alaida discover hua. Ye important hain kyunki: (1) Electronic configuration determine karne ke liye. (2) Electron ka probable location janane ke liye.",
+    "formula": null,
+    "example_q": "Why are quantum numbers called the 'address of electrons'?",
+    "example_solution": "Just as a postal address uniquely identifies a location (country, city, street, house number), quantum numbers uniquely identify an electron's state in an atom. n tells which shell, l tells which sub-shell, m tells which orbital orientation, and s tells which spin state. Together, they completely specify the electron's energy and position.",
+    "example_answer": "Because each set of four quantum numbers (n, l, m, s) uniquely identifies one specific electron in an atom — like a complete address.",
+    "keywords": [
+      "quantum numbers",
+      "address of electrons",
+      "principal",
+      "azimuthal",
+      "magnetic",
+      "spin",
+      "Schrödinger equation",
+      "four quantum numbers"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "quantum-numbers-intro",
+    "page_ref": "p.54-55",
+    "exam_tags": [
+      "ETEA 2010",
+      "ETEA 2013",
+      "ETEA 2015",
+      "ETEA 2018",
+      "ETEA 2019",
+      "BISE Bannu 2017",
+      "BISE Swat 2017",
+      "BISE Malakand 2019"
+    ]
+  },
+  {
+    "id": "ch2_principal_quantum_number",
+    "chapter": 2,
+    "section": "2.5.1",
+    "type": "concept",
+    "term": "Principal Quantum Number (n)",
+    "book_definition": "Denotes principal shell. Also called energy and distance quantum number. Values: n = 1,2,3... Represented by K,L,M,N... Higher n = farther from nucleus = higher energy. Max electrons in shell = 2n². K=2, L=8, M=18, N=32.",
+    "guide_explanation": "n batata hai electron kaun se main shell mein hai. n = 1,2,3,4... (K,L,M,N...). n badhne par: electron nucleus se door hota hai, energy badhti hai, shell bara hota hai. Max electrons formula: 2n². n=1: 2 electrons, n=2: 8, n=3: 18, n=4: 32. n=1 ground state hai — sabse kam energy. n=1 electron nucleus se sabse zyada ban-dha hua hai.",
+    "formula": [
+      "Max electrons in shell = 2n²",
+      "n=1(K): 2 electrons",
+      "n=2(L): 8 electrons",
+      "n=3(M): 18 electrons",
+      "n=4(N): 32 electrons"
+    ],
+    "example_q": "How many maximum electrons can be accommodated in the 4th shell (N-shell)?",
+    "example_solution": "Formula: Max electrons = 2n²\nFor n=4: 2×(4)² = 2×16 = 32 electrons",
+    "example_answer": "Maximum 32 electrons in 4th shell (N-shell).",
+    "keywords": [
+      "principal quantum number",
+      "n value",
+      "2n²",
+      "K L M N shells",
+      "ground state",
+      "shell electrons",
+      "energy levels"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "principal-quantum-number",
+    "page_ref": "p.55",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_azimuthal_quantum_number",
+    "chapter": 2,
+    "section": "2.5.2",
+    "type": "concept",
+    "term": "Azimuthal Quantum Number (l)",
+    "book_definition": "Also called angular momentum, secondary, or orbital-shape quantum number. Values: l = 0 to (n-1). l=0: s (spherical), l=1: p (dumbbell), l=2: d (double dumbbell), l=3: f (complex). Max electrons in sub-shell = 2(2l+1). s=2, p=6, d=10, f=14.",
+    "guide_explanation": "l batata hai electron kis sub-shell mein hai aur orbital ki shape kya hai. l = 0 se n-1 tak. l=0: s sub-shell (spherical/gol). l=1: p sub-shell (dumbbell shape). l=2: d sub-shell (double dumbbell). l=3: f sub-shell (complex). s=sharp, p=principal, d=diffused, f=fundamental. Max electrons formula: 2(2l+1). Sub-shells ki tadad = n.",
+    "formula": [
+      "l = 0 to (n-1)",
+      "Max electrons in sub-shell = 2(2l+1)",
+      "l=0(s): 2 electrons",
+      "l=1(p): 6 electrons",
+      "l=2(d): 10 electrons",
+      "l=3(f): 14 electrons"
+    ],
+    "example_q": "How many sub-shells are present in the 3rd shell? Name them.",
+    "example_solution": "For n=3, l can be 0, 1, 2 (total 3 values = 3 sub-shells).\nl=0 → 3s sub-shell\nl=1 → 3p sub-shell\nl=2 → 3d sub-shell\nSo 3rd shell has 3 sub-shells: 3s, 3p, 3d.",
+    "example_answer": "3rd shell has 3 sub-shells: 3s, 3p, 3d.",
+    "keywords": [
+      "azimuthal quantum number",
+      "l value",
+      "sub-shells",
+      "s p d f",
+      "orbital shape",
+      "2(2l+1)",
+      "spherical dumbbell",
+      "angular momentum"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "azimuthal-quantum-number",
+    "page_ref": "p.55-56",
+    "exam_tags": [
+      "BISE Abbottabad 2016"
+    ]
+  },
+  {
+    "id": "ch2_magnetic_quantum_number",
+    "chapter": 2,
+    "section": "2.5.3",
+    "type": "concept",
+    "term": "Magnetic Quantum Number (m)",
+    "book_definition": "Based on Zeeman Effect (splitting in magnetic field). Also called orientation quantum number. Gives number of orbitals in sub-shell and their orientation. Values: m = -l to +l (total 2l+1 values). l=0(s): m=0 → 1 orbital. l=1(p): m=-1,0,+1 → 3 orbitals (px,py,pz). l=2(d): m=-2,-1,0,+1,+2 → 5 orbitals. l=3(f): 7 orbitals. Total orbitals in shell = n².",
+    "guide_explanation": "m batata hai orbital ki space mein orientation kya hai aur sub-shell mein kitne orbitals hain. Zeeman effect (magnetic field mein spectral lines ka phootna) se nikla. m = -l se +l tak. s mein 1 orbital, p mein 3 (px,py,pz), d mein 5, f mein 7 orbitals. Kisi bhi shell mein total orbitals = n².",
+    "formula": [
+      "m ranges from -l to +l",
+      "Total orbitals in sub-shell = 2l + 1",
+      "Total orbitals in shell = n²",
+      "l=0(s): m=0 → 1 orbital",
+      "l=1(p): m=-1,0,+1 → 3 orbitals (px, py, pz)",
+      "l=2(d): m=-2,-1,0,+1,+2 → 5 orbitals",
+      "l=3(f): m=-3,-2,-1,0,+1,+2,+3 → 7 orbitals"
+    ],
+    "example_q": "What are the possible values of magnetic quantum number for the p sub-shell? How many orbitals does p sub-shell have?",
+    "example_solution": "For p sub-shell: l=1\nm ranges from -l to +l = -1, 0, +1\nTotal values = 2l+1 = 2(1)+1 = 3 values\nSo p sub-shell has 3 orbitals: px (m=-1), py (m=0), pz (m=+1).\nThese are oriented along x, y and z axes respectively.",
+    "example_answer": "m = -1, 0, +1. p sub-shell has 3 orbitals: px, py, pz.",
+    "keywords": [
+      "magnetic quantum number",
+      "m value",
+      "Zeeman effect",
+      "orientation",
+      "orbitals in sub-shell",
+      "2l+1",
+      "n² orbitals",
+      "px py pz"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "magnetic-quantum-number",
+    "page_ref": "p.56-57",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_spin_quantum_number",
+    "chapter": 2,
+    "section": "2.5.4",
+    "type": "concept",
+    "term": "Spin Quantum Number (s or ms)",
+    "book_definition": "Describes spin of electron on its own axis. Values: +1/2 (clockwise, ↑) or -1/2 (anticlockwise, ↓). Maximum 2 electrons per orbital with opposite spins. Parallel spins: ↑↑ or ↓↓. Antiparallel spins (paired): ↑↓. Stern-Gerlach experiment demonstrated electron spin.",
+    "guide_explanation": "s batata hai electron apne axis par kis direction mein ghoomta hai. Sirf 2 values: +1/2 (clockwise, ↑) ya -1/2 (anticlockwise, ↓). Ek orbital mein max 2 electrons, opposite spin ke saath. Same spin = parallel (↑↑). Opposite spin = antiparallel/paired (↑↓). Stern-Gerlach experiment: H atoms ka beam magnetic field se guzara — 2 parts mein bata (ms=+1/2 aur ms=-1/2).",
+    "formula": [
+      "s = +½ (clockwise spin, ↑) or s = -½ (anticlockwise spin, ↓)",
+      "Parallel spins: ↑↑ or ↓↓",
+      "Antiparallel/paired spins: ↑↓ or ↓↑",
+      "Max 2 electrons per orbital (opposite spins)"
+    ],
+    "example_q": "What are the quantum numbers for the two electrons in 1s orbital of helium?",
+    "example_solution": "Helium has 2 electrons in 1s orbital.\nFirst electron:  n=1, l=0, m=0, s=+1/2 (↑)\nSecond electron: n=1, l=0, m=0, s=-1/2 (↓)\nThey have opposite spins — paired electrons (↑↓).\nNote: All other quantum numbers are same, only spin differs. This satisfies Pauli's Exclusion Principle.",
+    "example_answer": "Electron 1: n=1,l=0,m=0,s=+1/2. Electron 2: n=1,l=0,m=0,s=-1/2. Opposite spins (↑↓).",
+    "keywords": [
+      "spin quantum number",
+      "+1/2 -1/2",
+      "clockwise anticlockwise",
+      "parallel antiparallel",
+      "paired electrons",
+      "Stern-Gerlach",
+      "opposite spins"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "spin-quantum-number",
+    "page_ref": "p.57-58",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_shapes_of_orbitals",
+    "chapter": 2,
+    "section": "2.5.5",
+    "type": "concept",
+    "term": "Shapes of s, p and d Orbitals",
+    "book_definition": "Orbital: 3D space around nucleus where probability of finding electron is maximum. No strict boundaries. s-orbital (l=0): spherical. p-orbitals (l=1): dumbbell shaped, three orientations (px,py,pz along x,y,z axes). d-orbitals (l=2): complex shapes, five orbitals (dxy,dyz,dxz,dx²-y²,dz²). dz² resembles p-orbital with additional ring-shaped (torus) in centre.",
+    "guide_explanation": "Orbital wo 3D space hai jahan electron milne ka probability sabse zyada ho. s-orbital: spherical (tennis ball jaisa). Nucleus se sabse qareeb. Size: 1s < 2s < 3s. p-orbital: dumbbell shape. Teen orbitals px, py, pz jo x,y,z axes ke sath hain. Har p-orbital ke 2 lobes hain. d-orbital: 5 orbitals, complex shapes. dxy, dyz, dxz ke lobes planes xy, yz, xz par hain. dz² p-orbital jaisa hai lekin beech mein ek ring (torus) hai. Nodal surface: jahan electron milne ka probability zero ho.",
+    "formula": null,
+    "example_q": "How does an s-orbital differ from a p-orbital in shape?",
+    "example_solution": "s-orbital (l=0): Spherical in shape — like a tennis ball. Only one orientation (m=0). Found nearest to nucleus. Size increases with n: 1s < 2s < 3s.\np-orbital (l=1): Dumbbell shaped — two lobes on either side of nucleus. Three orientations: px, py, pz along x, y, z axes respectively. Each p-orbital is perpendicular to the other two.",
+    "example_answer": "s-orbital is spherical (1 orientation). p-orbital is dumbbell shaped (3 orientations: px, py, pz).",
+    "keywords": [
+      "s orbital spherical",
+      "p orbital dumbbell",
+      "d orbital",
+      "orbital shapes",
+      "px py pz",
+      "dxy dyz dxz",
+      "dz²",
+      "nodal surface",
+      "3D space"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "shapes-of-orbitals",
+    "page_ref": "p.59-60",
+    "exam_tags": [
+      "BISE Malakand 2019"
+    ]
+  },
+  {
+    "id": "ch2_electronic_configuration_intro",
+    "chapter": 2,
+    "section": "2.6",
+    "type": "concept",
+    "term": "Electronic Configuration — Introduction and Rules",
+    "book_definition": "Electronic configuration: distribution of electrons in sub-shells and orbitals of an atom. Three rules: (1) Aufbau Principle, (2) Pauli Exclusion Principle, (3) Hund's Rule. Also uses n+l rule. Notation: principal quantum number + sub-shell letter + superscript (number of electrons). e.g., 1s² = 2 electrons in 1s sub-shell.",
+    "guide_explanation": "Electronic configuration yani electrons ka sub-shells aur orbitals mein taqseem hona. Teen rules: Aufbau principle, Pauli exclusion principle, Hund's rule. n+l rule se energy order decide hoti hai. Likhne ka tarika: n (shell) + letter (s/p/d/f) + superscript (electrons). Filling order: 1s → 2s → 2p → 3s → 3p → 4s → 3d → 4p → 5s → 4d...",
+    "formula": [
+      "Filling order: 1s, 2s, 2p, 3s, 3p, 4s, 3d, 4p, 5s, 4d, 5p, 6s, 4f, 5d, 6p, 7s..."
+    ],
+    "example_q": "Write electronic configuration of Sodium (Z=11).",
+    "example_solution": "Total electrons = 11\nFilling order: 1s² 2s² 2p⁶ 3s¹\n1s² = 2 electrons\n2s² = 2 electrons (total 4)\n2p⁶ = 6 electrons (total 10)\n3s¹ = 1 electron (total 11)\nShort form: [Ne] 3s¹",
+    "example_answer": "Na: 1s² 2s² 2p⁶ 3s¹  OR  [Ne] 3s¹",
+    "keywords": [
+      "electronic configuration",
+      "Aufbau",
+      "Pauli",
+      "Hund's rule",
+      "filling order",
+      "notation",
+      "sub-shells",
+      "1s 2s 2p 3s 3p 4s 3d"
+    ],
+    "difficulty": "basic",
+    "topic_slug": "electronic-configuration-intro",
+    "page_ref": "p.61",
+    "exam_tags": [
+      "ETEA 2011",
+      "ETEA 2012",
+      "ETEA 2015",
+      "ETEA 2016",
+      "ETEA 2017",
+      "ETEA 2018",
+      "BISE Kohat 2019"
+    ]
+  },
+  {
+    "id": "ch2_aufbau_principle",
+    "chapter": 2,
+    "section": "2.6.1",
+    "type": "concept",
+    "term": "Aufbau Principle and n+l Rule",
+    "book_definition": "Aufbau (German: building up) — electrons fill orbitals in order of increasing energies. n+l rule: (1) Lower n+l = lower energy = filled first. (2) Same n+l: lower n filled first. Example: 4s (n+l=4) fills before 3d (n+l=5). Order: 1s, 2s, 2p, 3s, 3p, 4s, 3d, 4p, 5s, 4d...",
+    "guide_explanation": "Aufbau German lafz hai — matalab 'building up'. Rule: sabse pehle sabse kam energy wale orbital mein electrons jate hain. Energy n+l rule se decide hoti hai: kam n+l = kam energy = pehle bharta hai. Agar n+l same ho to kam n wala pehle bharta hai. Example: 4s ka n+l = 4+0 = 4, 3d ka n+l = 3+2 = 5. 4s kam hai isliye pehle bharta hai. Isliye K (Z=19) mein [Ar]4s¹ hota hai, nahi [Ar]3d¹.",
+    "formula": [
+      "n+l rule: lower (n+l) → lower energy → fills first",
+      "If same n+l: lower 'n' fills first",
+      "3d: n=3, l=2 → n+l=5",
+      "4s: n=4, l=0 → n+l=4 → fills BEFORE 3d",
+      "Order: 1s, 2s, 2p, 3s, 3p, 4s, 3d, 4p, 5s, 4d..."
+    ],
+    "example_q": "Using the n+l rule, explain why 4s orbital is filled before 3d orbital.",
+    "example_solution": "For 3d orbital: n=3, l=2 → n+l = 3+2 = 5\nFor 4s orbital: n=4, l=0 → n+l = 4+0 = 4\nSince 4s has lower n+l value (4 < 5), it has lower energy and is filled before 3d.\nTherefore, after Argon [Ar], next electron goes to 4s not 3d (e.g., K = [Ar]4s¹, Ca = [Ar]4s²).",
+    "example_answer": "4s has n+l=4, 3d has n+l=5. Lower n+l → lower energy → 4s fills first.",
+    "keywords": [
+      "Aufbau principle",
+      "building up",
+      "n+l rule",
+      "filling order",
+      "4s before 3d",
+      "energy order",
+      "subshell filling"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "aufbau-principle",
+    "page_ref": "p.61-62",
+    "exam_tags": [
+      "BISE Bannu 2019"
+    ]
+  },
+  {
+    "id": "ch2_pauli_exclusion_principle",
+    "chapter": 2,
+    "section": "2.6.2",
+    "type": "concept",
+    "term": "Pauli's Exclusion Principle",
+    "book_definition": "Proposed by Wolfgang Pauli (1925). Statement: 'No two electrons in an atom can have the same set of four quantum numbers (n, l, m, s).' Equivalently: (1) Maximum 2 electrons per orbital. (2) Two electrons in same orbital must have opposite spins (↑↓ = paired). Example: He 1s²: electron 1 (n=1,l=0,m=0,s=+½), electron 2 (n=1,l=0,m=0,s=-½).",
+    "guide_explanation": "Pauli (Austrian physicist, 1925) ne rule diya: ek atom mein koi bhi do electrons char quantum numbers mein same nahi ho sakte. Matlab: ek orbital mein max 2 electrons, aur unki spin opposite honi chahiye (↑↓). Misaal: Hydrogen 1s¹ — sirf ek electron: n=1,l=0,m=0,s=+½. Helium 1s² — dono electrons: pehle wala s=+½, doosra s=-½. Ye paired electrons hain (↑↓).",
+    "formula": [
+      "Max 2 electrons per orbital",
+      "Two electrons in same orbital: must have opposite spins (↑↓)",
+      "He (1s²): electron1: n=1,l=0,m=0,s=+½ | electron2: n=1,l=0,m=0,s=-½"
+    ],
+    "example_q": "How does Pauli's Exclusion Principle limit the number of electrons in an orbital?",
+    "example_solution": "According to Pauli's Exclusion Principle, no two electrons can have all four quantum numbers identical. In one orbital, n, l and m are already fixed (same for both electrons). The only quantum number that can differ is spin (s). Since s has only two values (+½ and -½), only 2 electrons can occupy one orbital — each with opposite spin.",
+    "example_answer": "Only 2 electrons per orbital because n, l, m are fixed and only s (±½) can differ — giving maximum 2 electrons with opposite spins.",
+    "keywords": [
+      "Pauli exclusion principle",
+      "Wolfgang Pauli",
+      "1925",
+      "same quantum numbers",
+      "opposite spins",
+      "2 electrons per orbital",
+      "paired electrons"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "pauli-exclusion-principle",
+    "page_ref": "p.62",
+    "exam_tags": [
+      "BISE Kohat 2019"
+    ]
+  },
+  {
+    "id": "ch2_hunds_rule",
+    "chapter": 2,
+    "section": "2.6.3",
+    "type": "concept",
+    "term": "Hund's Rule",
+    "book_definition": "Named after F.H. Hund. Statement: 'When degenerate orbitals (same energy) are available, electrons occupy them singly first with the same spin direction (parallel spins), then pair up.' Most stable arrangement = maximum unpaired parallel-spin electrons. Example: Carbon 1s²2s²2p²: both 2p electrons in separate p orbitals with same spin (↑↑). Nitrogen 1s²2s²2p³: all three 2p electrons with parallel spins (↑↑↑).",
+    "guide_explanation": "Hund ka rule: jab ek jaisi energy ke (degenerate) orbitals hon to electrons pehle alag alag orbital mein jaenge, sath mein same spin direction (parallel ↑↑) ke sath — tab pairing karenge. Ye arrangement sabse stable hai. Carbon (Z=6): 1s²2s²2p² — dono 2p electrons alag orbitals mein ↑↑. Nitrogen (Z=7): 1s²2s²2p³ — teeno p electrons ↑↑↑. Oxygen (Z=8): 1s²2s²2p⁴ — ek orbital mein pair, baqi do mein akele.",
+    "formula": [
+      "Most stable = maximum unpaired electrons with parallel spins",
+      "Carbon: 1s²2s²2p² → 2p: (↑)(↑)( ) — correct",
+      "Nitrogen: 1s²2s²2p³ → 2p: (↑)(↑)(↑) — correct",
+      "Degenerate orbitals: orbitals of same energy (e.g., 2px, 2py, 2pz)"
+    ],
+    "example_q": "Show the correct orbital diagram for Carbon (Z=6) according to Hund's rule.",
+    "example_solution": "Carbon Z=6, configuration: 1s² 2s² 2p²\n2p has 3 degenerate orbitals, 2 electrons to fill:\nWrong: (↑↓)( )( ) — pairing in one orbital violates Hund's rule\nWrong: (↑)(↓)( ) — opposite spins in separate orbitals\nCorrect: (↑)(↑)( ) — one electron in each of 2px and 2py, same spin\nThis gives maximum unpaired electrons = 2.",
+    "example_answer": "Correct for Carbon 2p²: one electron in 2px (↑) and one in 2py (↑) — parallel spins in separate orbitals.",
+    "keywords": [
+      "Hund rule",
+      "degenerate orbitals",
+      "parallel spins",
+      "maximum unpaired",
+      "Carbon nitrogen oxygen",
+      "2p electrons",
+      "same spin direction"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "hunds-rule",
+    "page_ref": "p.63",
+    "exam_tags": [
+      "BISE Bannu 2017",
+      "BISE Mardan 2018",
+      "BISE Kohat 2018"
+    ]
+  },
+  {
+    "id": "ch2_electronic_configs_40_elements",
+    "chapter": 2,
+    "section": "2.6.4",
+    "type": "concept",
+    "term": "Electronic Configurations of First 40 Elements",
+    "book_definition": "Electronic configurations of key elements: H:[1s¹], He:[1s²], Li:[He]2s¹, Be:[He]2s², B:[He]2s²2p¹, C:[He]2s²2p², N:[He]2s²2p³, O:[He]2s²2p⁴, F:[He]2s²2p⁵, Ne:[He]2s²2p⁶, Na:[Ne]3s¹, Mg:[Ne]3s², K:[Ar]4s¹, Ca:[Ar]4s². Exceptions: Cr(24)=[Ar]4s¹3d⁵ (half-filled d stable), Cu(29)=[Ar]4s¹3d¹⁰ (fully-filled d stable).",
+    "guide_explanation": "Pehle 40 elements ke configurations yaad karein. Do important exceptions: Chromium (Z=24): expected [Ar]4s²3d⁴ magar actual [Ar]4s¹3d⁵ — kyunki half-filled d (d⁵) zyada stable hai. Copper (Z=29): expected [Ar]4s²3d⁹ magar actual [Ar]4s¹3d¹⁰ — kyunki fully-filled d (d¹⁰) zyada stable hai. Noble gas notation use karo: [He], [Ne], [Ar], [Kr]. Yaad karo: K=[Ar]4s¹ — Aufbau ki wajah se 4s pehle bharta hai.",
+    "formula": [
+      "Cr (Z=24): [Ar]4s¹3d⁵  (half-filled d — exception)",
+      "Cu (Z=29): [Ar]4s¹3d¹⁰  (fully-filled d — exception)",
+      "K (Z=19): [Ar]4s¹",
+      "Ca (Z=20): [Ar]4s²",
+      "Zr (Z=40): [Kr]5s²4d²  (noble gas notation: [Kr]5s²,4d²)"
+    ],
+    "example_q": "Write electronic configurations of Chromium (Z=24) and Copper (Z=29). Why are these exceptions?",
+    "example_solution": "Chromium (Cr, Z=24):\nExpected: [Ar]4s²3d⁴\nActual: [Ar]4s¹3d⁵\nReason: Half-filled d sub-shell (3d⁵) is extra stable due to symmetry and exchange energy.\n\nCopper (Cu, Z=29):\nExpected: [Ar]4s²3d⁹\nActual: [Ar]4s¹3d¹⁰\nReason: Fully-filled d sub-shell (3d¹⁰) is extra stable due to maximum exchange energy.",
+    "example_answer": "Cr=[Ar]4s¹3d⁵ (half-filled d stable), Cu=[Ar]4s¹3d¹⁰ (fully-filled d stable).",
+    "keywords": [
+      "electronic configuration",
+      "Chromium exception",
+      "Copper exception",
+      "half-filled d",
+      "fully-filled d",
+      "noble gas notation",
+      "first 40 elements",
+      "[Ar]4s¹3d⁵",
+      "[Ar]4s¹3d¹⁰"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "electronic-configs-40-elements",
+    "page_ref": "p.64-65",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_orbit_vs_orbital",
+    "chapter": 2,
+    "section": "2.5.5",
+    "type": "concept",
+    "term": "Orbit vs Orbital — Differences",
+    "book_definition": "Orbit: well-defined fixed circular path (Bohr model). Max electrons: 2n². Shape: circular. Contradicts Heisenberg uncertainty. Orbital: 3D space of maximum electron probability (quantum mechanics). Max 2 electrons per orbital (opposite spins). Various shapes: s(spherical), p(dumbbell), d(complex). Consistent with Heisenberg uncertainty.",
+    "guide_explanation": "Orbit aur orbital mein farq: Orbit Bohr model ki cheez hai — electron ka circular path. Orbital modern quantum mechanics ki cheez hai — wo 3D space jahan electron milne ka probability max ho. Orbit mein 2n² electrons. Orbital mein max 2 electrons. Orbit ki shape hamesha circular. Orbital ki shapes alag: s (gol), p (dumbbell), d (complex). Orbit Heisenberg principle ke khilaf hai. Orbital consistent hai. Orbit physical existence ka claim karta hai. Orbital mein no strict boundary.",
+    "formula": [
+      "Orbit: max electrons = 2n²",
+      "Orbital: max electrons = 2 (opposite spins)",
+      "Orbit: circular path — Bohr model",
+      "Orbital: 3D probability space — Quantum mechanics"
+    ],
+    "example_q": "Differentiate between an orbit and an orbital.",
+    "example_solution": "Orbit: (1) Well-defined fixed circular path of electron. (2) Based on Bohr's model. (3) Max 2n² electrons. (4) Always circular shape. (5) Contradicts Heisenberg uncertainty principle.\nOrbital: (1) 3D space around nucleus of maximum electron probability. (2) Based on quantum mechanics. (3) Max 2 electrons per orbital (opposite spins). (4) Different shapes: s=spherical, p=dumbbell, d=complex. (5) Consistent with Heisenberg uncertainty principle.",
+    "example_answer": "Orbit: circular path, Bohr model, max 2n² electrons. Orbital: 3D probability space, quantum mechanics, max 2 electrons per orbital.",
+    "keywords": [
+      "orbit vs orbital",
+      "Bohr model",
+      "quantum mechanics",
+      "Heisenberg uncertainty",
+      "circular path",
+      "3D space",
+      "maximum probability",
+      "2n² vs 2 electrons"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "orbit-vs-orbital",
+    "page_ref": "p.59",
+    "exam_tags": []
+  },
+  {
+    "id": "ch2_numerical_formulas_summary",
+    "chapter": 2,
+    "section": "2.0",
+    "type": "formula",
+    "term": "Chapter 2 — All Key Formulas for Numerical Problems",
+    "book_definition": "Complete formula set for Chapter 2 Atomic Structure numerical problems.",
+    "guide_explanation": "Chapter 2 ke tamam important formulas ek jagah: Radius, Energy, Energy difference, Wave number, Frequency, Wavelength, Photon energy, Shell/sub-shell electron count, Moseley law, Planck equation. Constants bhi yaad rakho: h, c, R, e.",
+    "formula": [
+      "RADIUS: rₙ = n² × 0.529 Å  (hydrogen)",
+      "ENERGY: Eₙ = -1313/n² kJ/mol  (hydrogen)",
+      "ENERGY DIFFERENCE: ΔE = 1313(1/n₁² - 1/n₂²) kJ/mol",
+      "WAVE NUMBER: ν̄ = 1.097×10⁷(1/n₁² - 1/n₂²) m⁻¹",
+      "FREQUENCY: ν = c × ν̄",
+      "WAVELENGTH: λ = 1/ν̄",
+      "PHOTON ENERGY: E = hν = hc/λ = hcν̄",
+      "MASS OF ELECTRON: m = 9.11×10⁻³¹ kg",
+      "MAX ELECTRONS IN SHELL: 2n²",
+      "MAX ELECTRONS IN SUB-SHELL: 2(2l+1)",
+      "ORBITALS IN SUB-SHELL: 2l+1",
+      "TOTAL ORBITALS IN SHELL: n²",
+      "MOSELEY LAW: √ν = a(Z-b), K-series b=1",
+      "h = 6.626×10⁻³⁴ J·s",
+      "c = 3×10⁸ m/s",
+      "R (Rydberg) = 1.097×10⁷ m⁻¹",
+      "e = 1.6022×10⁻¹⁹ C"
+    ],
+    "example_q": "Calculate the distance between nucleus and electron in 5th orbit of hydrogen atom.",
+    "example_solution": "Formula: rₙ = n² × 0.529 Å\nFor n=5: r₅ = (5)² × 0.529 = 25 × 0.529 = 13.225 Å",
+    "example_answer": "r₅ = 13.225 Å",
+    "keywords": [
+      "formulas",
+      "radius formula",
+      "energy formula",
+      "wave number formula",
+      "Rydberg constant",
+      "Planck constant",
+      "numerical problems",
+      "all formulas chapter 2"
+    ],
+    "difficulty": "intermediate",
+    "topic_slug": "chapter2-formulas-summary",
+    "page_ref": "p.35-54",
+    "exam_tags": [
+      "ETEA",
+      "MDCAT",
+      "BISE"
+    ]
+  }
+]
