@@ -1302,8 +1302,9 @@ function appendAI(r, time, save=true){
     return `<div class="ai-card"><div class="ai-intro">${esc(r.text||'')}</div><div class="ai-pts">${kp}</div></div>`;
   })();
 
-  const formulaHtml = (r.formula??'') ? (() => {
-    const fmtFormula = esc(String(r.formula)).split('. ').join('.\n');
+  const _formulaStr = Array.isArray(r.formula) ? r.formula.join('\n') : (typeof r.formula === 'string' ? r.formula : '');
+  const formulaHtml = _formulaStr ? (() => {
+    const fmtFormula = esc(_formulaStr).split('. ').join('.\n');
     return `<div class="ai-formula" lang="en">
       <div class="formula-lbl">${esc(r.flabel??'FORMULA')}</div>
       <div class="formula-body" style="white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:13px;line-height:2;background:rgba(139,92,246,0.1);padding:8px 12px;border-radius:6px">${fmtFormula}</div>
@@ -1323,8 +1324,8 @@ function appendAI(r, time, save=true){
     </div>` : '';
 
   // Plain text for copy
-  const copyText = [r.definition, r.explanation, r.example, r.formula??'']
-    .filter(Boolean).join('\n') || [r.text, ...(Array.isArray(r.points)?r.points:[]), r.formula??''].filter(Boolean).join('\n');
+  const copyText = [r.definition, r.explanation, r.example, _formulaStr]
+    .filter(Boolean).join('\n') || [r.text, ...(Array.isArray(r.points)?r.points:[]), _formulaStr].filter(Boolean).join('\n');
   const ttsText = encodeURIComponent([r.text, ...(Array.isArray(r.points)?r.points:[])].filter(Boolean).join('. '));
   const ttsUrText = encodeURIComponent(r.urduTtsText || '');
 

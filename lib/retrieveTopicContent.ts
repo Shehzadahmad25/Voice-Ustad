@@ -163,7 +163,9 @@ export async function retrieveTopicContent(
   const row = await fetchChunkRow(chapterNumber, query.trim(), topicSlug?.trim());
   if (!row) return null;
 
-  const formula   = (row.formula ?? '').trim();
+  const formula   = Array.isArray(row.formula)
+    ? row.formula.join('\n')
+    : (typeof row.formula === 'string' ? row.formula.trim() : '');
   const guideExp  = (row.guide_explanation ?? '').trim();
   const kw        = Array.isArray(row.keywords) ? row.keywords : [];
 

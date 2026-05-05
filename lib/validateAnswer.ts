@@ -130,7 +130,7 @@ export function validateAnswer(answer: unknown): ValidationResult {
   const cleaned: FormattedAnswer = {
     definition:  cleanField(String(obj.definition  ?? '')),
     explanation: cleanField(String(obj.explanation ?? '')),
-    formula:     String(obj.formula     ?? '').trim(),  // formulas need exact text
+    formula:     (Array.isArray(obj.formula) ? obj.formula.join('\n') : String(obj.formula ?? '')).trim(),  // formulas need exact text
     flabel:      String(obj.flabel      ?? '').trim(),
     example:     cleanField(String(obj.example     ?? '')),
     urduTtsText: cleanField(String(obj.urduTtsText ?? '')),

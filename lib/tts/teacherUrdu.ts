@@ -227,8 +227,11 @@ export function buildTeacherStyleUrduTts(fields: TeacherUrduFields): string {
     );
   }
 
-  if (fields.formula?.trim()) {
-    parts.push(speakFormulaNaturally(fields.formula, fields.flabel || ''));
+  const formulaStr = Array.isArray(fields.formula)
+    ? fields.formula.join('\n')
+    : (typeof fields.formula === 'string' ? fields.formula : '');
+  if (formulaStr.trim()) {
+    parts.push(speakFormulaNaturally(formulaStr, fields.flabel || ''));
   }
 
   return parts.join('\n\n');

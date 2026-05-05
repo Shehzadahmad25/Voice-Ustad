@@ -244,7 +244,9 @@ async function fetchTopicByTerms(
 
 /** Maps a raw content_chunks row to RetrievedBlocks. Zero transformation — DB values only. */
 function topicToBlocks(row: TopicRow): RetrievedBlocks {
-  const formula = (row.formula ?? '').trim();
+  const formula = Array.isArray(row.formula)
+    ? row.formula.join('\n')
+    : (typeof row.formula === 'string' ? row.formula.trim() : '');
   const flabel  = formula ? row.term.toUpperCase() : '';
 
   return {
