@@ -1626,7 +1626,16 @@ async function togglePlay(id){
         const ok = await retryAudio(id, true);
         if (!ok || !audioUrls[id]) {
           const summary = String(urduSummaries[id] || '').trim();
-          if (summary && speakUrdu(summary)) {
+          if (summary && window.speechSynthesis) {
+            // OpenAI failed (e.g. 429/quota) — fall back to browser TTS unconditionally
+            if (!speakUrdu(summary)) {
+              // No ur-PK voice installed — speak with whatever default voice is available
+              window.speechSynthesis.cancel();
+              const utter = new SpeechSynthesisUtterance(summary);
+              utter.lang = 'ur-PK';
+              utter.rate = 0.9;
+              window.speechSynthesis.speak(utter);
+            }
             setVoiceSource(id, 'browser');
             startPlaying();
             return;
