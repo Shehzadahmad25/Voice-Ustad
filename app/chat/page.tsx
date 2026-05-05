@@ -418,9 +418,10 @@ async function toggleChapterPanel(idx, chId) {
     return;
   }
   try {
-    const chapterNum = Number(CHS[idx]?.n ?? 0);
+    const chapterNum = parseInt(String(CHS[idx]?.n ?? '0'), 10);
+    console.log('[sidebar-panel] fetching topics for chapter:', chapterNum);
     const [topicsRes, mcqRes, exRes, sqRes, nqRes, dqRes] = await Promise.all([
-      _sbClient.from('content_chunks').select('topic_slug, term, section').eq('chapter', chapterNum).order('section'),
+      fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`).then(r => r.json()).then(d => { console.log('[sidebar-panel] topics raw:', d?.topics?.length ?? 0, 'rows | error:', d?.error ?? 'none'); return { data: d?.topics ?? [], error: d?.error ?? null }; }),
       _sbClient.from('mcqs').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('examples').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('short_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
@@ -478,16 +479,16 @@ function selCh(i: number){
   CHS.forEach((c,j)=>c.on=j===i);
   activeChIdx=i;
   ri=0;
-  // Load scope topics from content_chunks by chapter number
+  // Load scope topics via server-side API (service role key bypasses RLS on content_chunks)
   const chapterNum = parseInt(CHS[i]?.n ?? String(i + 1), 10);
-  if (_sbClient && _setScopeTopics) {
-    _sbClient
-      .from('content_chunks')
-      .select('topic_slug, term, page_ref, section')
-      .eq('chapter', chapterNum)
-      .order('section', { ascending: true })
-      .then(({ data }: { data: Array<{ topic_slug: string; term: string; page_ref: number | null; section: string }> | null }) => {
-        if (!data || data.length === 0) return;
+  if (_setScopeTopics) {
+    console.log('[scope] fetching topics for chapter:', chapterNum);
+    fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`)
+      .then(r => r.json())
+      .then((d) => {
+        console.log('[scope] raw response — rows:', d?.topics?.length ?? 0, '| error:', d?.error ?? 'none');
+        const data: Array<{ topic_slug: string; term: string; page_ref: number | null; section: string }> = d?.topics ?? [];
+        if (data.length === 0) return;
         const parseSection = (s: string) => {
           const p = String(s || '').split('.');
           return parseFloat(p[0]) * 1000 + parseFloat(p[1] || '0');
@@ -501,7 +502,7 @@ function selCh(i: number){
           if (titleEl) titleEl.textContent = activeCh + ' · Page ' + startPage;
         }
       })
-      .catch(() => {/* non-fatal */});
+      .catch((e) => { console.error('[scope] fetch error:', e?.message); });
   }
   if (_setQuizChapterInfo) _setQuizChapterInfo({ id: (CHS[i] as any).id || '', title: CHS[i]?.t || '' });
   if (_setViewedTopics) _setViewedTopics(() => new Set());
