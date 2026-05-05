@@ -86,7 +86,7 @@ function updateViewerUi(){
   if (trialEl) trialEl.textContent = viewerTrial;
 
   const topbarMetaEl = document.getElementById('tbMeta');
-  if (topbarMetaEl) topbarMetaEl.textContent = viewerEmail || viewerFocus;
+  if (topbarMetaEl) topbarMetaEl.textContent = viewerFocus;
 
   const welcomeEyebrowEl = document.getElementById('wlEyebrow');
   if (welcomeEyebrowEl) welcomeEyebrowEl.textContent = `Welcome back, ${viewerName}`;
@@ -495,12 +495,7 @@ function selCh(i: number){
         };
         const sorted = [...data].sort((a, b) => parseSection(a.section) - parseSection(b.section));
         if (_setScopeTopics) _setScopeTopics(sorted);
-        // Append chapter start page to the topbar title once we know it
-        const startPage = sorted[0]?.page_ref;
-        if (startPage) {
-          const titleEl = document.getElementById('tbTitle');
-          if (titleEl) titleEl.textContent = activeCh + ' · Page ' + startPage;
-        }
+        // page_ref available but not shown in header per UX decision
       })
       .catch((e) => { console.error('[scope] fetch error:', e?.message); });
   }
@@ -813,7 +808,6 @@ function appendTopicView(r: any){
           <div class="tv-title">${esc(r.topic || r.chapter || '')}</div>
           <div class="tv-meta-row">
             <span class="tv-chapter-lbl">${esc(r.chapter || '')}</span>
-            ${pageLabel ? `<span class="tv-page-badge">${esc(pageLabel)}</span>` : ''}
           </div>
         </div>
 
