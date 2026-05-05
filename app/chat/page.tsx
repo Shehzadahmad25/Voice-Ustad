@@ -1205,7 +1205,7 @@ function appendAI(r, time, save=true){
   const id='v'+Date.now();
   const dur=r.dur;
   // Dynamic duration based on text length (item 16)
-  const allText = [r.definition, r.explanation, r.example, r.text, ...(Array.isArray(r.points)?r.points:[])].filter(Boolean).join(' ');
+  const allText = [r.definition, r.example, r.text, ...(Array.isArray(r.points)?r.points:[])].filter(Boolean).join(' ');
   const wordCount = allText.split(/\s+/).length;
   const computedDur = Math.round(wordCount / 2.8); // ~2.8 Urdu words/sec
   const actualDur = Math.max(dur, computedDur);
@@ -1251,45 +1251,13 @@ function appendAI(r, time, save=true){
     : '';
 
   // ── New strict format: definition / explanation / example as clean text blocks ──
-  const hasNewFormat = !!(r.definition || r.explanation || r.example);
+  const hasNewFormat = !!(r.definition || r.example);
 
-  const defLc = String(r.definition || '').toLowerCase();
-  const isElementsTable =
-    String(r.example || '').includes('|') ||
-    defLc.includes('first 20 elements') ||
-    defLc.includes('reference table') ||
-    String(r.flabel || '').toLowerCase().includes('element');
-  const exampleHtml = (() => {
-    if (!r.example) return '';
-    if (isElementsTable) {
-      const rows = String(r.example).split('|').map((row: string, i: number) => {
-        const parts = row.trim().split(/\s+/);
-        if (parts.length < 4) return '';
-        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.07);background:${i%2===0?'rgba(255,255,255,0.03)':'transparent'}">
-          <td style="padding:5px 10px">${esc(parts[0])}</td>
-          <td style="padding:5px 10px;color:#4ade80;font-family:monospace">${esc(parts[1])}</td>
-          <td style="padding:5px 10px;text-align:center">${esc(parts[2])}</td>
-          <td style="padding:5px 10px;text-align:center">${esc(parts[3])}</td>
-        </tr>`;
-      }).join('');
-      return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="background:rgba(255,255,255,0.1)">
-          <th style="padding:6px 10px;text-align:left">Element</th>
-          <th style="padding:6px 10px;text-align:left">Symbol</th>
-          <th style="padding:6px 10px;text-align:center">Atomic No.</th>
-          <th style="padding:6px 10px;text-align:center">Atomic Mass</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>`;
-    }
-    const exampleFormatted = esc(String(r.example)).split('. ').join('.\n');
-    return `<div style="white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.8">${exampleFormatted}</div>`;
-  })();
+  const exampleHtml = r.example ? fmtExample(r.example) : '';
 
   const contentHtml = hasNewFormat ? (() => {
     let html = '';
     if (r.definition) html += `<div class="ai-field"><div class="ai-field-lbl">Definition</div><div class="ai-field-body">${esc(r.definition)}</div></div>`;
-    if (r.explanation) html += `<div class="ai-field"><div class="ai-field-lbl">Explanation</div><div class="ai-field-body">${fmtNumbered(r.explanation)}</div></div>`;
     if (r.example) html += `<div class="ai-field"><div class="ai-field-lbl">Example</div><div class="ai-field-body">${exampleHtml}</div></div>`;
     return `<div class="ai-card">${html}</div>`;
   })() : (() => {
@@ -1324,7 +1292,7 @@ function appendAI(r, time, save=true){
     </div>` : '';
 
   // Plain text for copy
-  const copyText = [r.definition, r.explanation, r.example, _formulaStr]
+  const copyText = [r.definition, r.example, _formulaStr]
     .filter(Boolean).join('\n') || [r.text, ...(Array.isArray(r.points)?r.points:[]), _formulaStr].filter(Boolean).join('\n');
   const ttsText = encodeURIComponent([r.text, ...(Array.isArray(r.points)?r.points:[])].filter(Boolean).join('. '));
   const ttsUrText = encodeURIComponent(r.urduTtsText || '');
