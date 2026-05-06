@@ -167,31 +167,32 @@ export default function ChapterPage() {
           return
         }
 
-        const chapterNumber = parseInt(chapterId, 10)
+        // chapterId may be a UUID (from dashboard) or a plain integer string.
+        // Always resolve via chapters table to get the integer unit_number.
+        const chapterRes = await supabase
+          .from('chapters')
+          .select('unit_number, title')
+          .eq('id', chapterId)
+          .single()
 
-        const [chapterRes, topicsRes] = await Promise.all([
-          supabase
-            .from('chapters')
-            .select('title')
-            .eq('unit_number', chapterNumber)
-            .eq('board', 'KPK')
-            .single(),
-          supabase
-            .from('content_chunks')
-            .select('id, term, topic_slug, section, type, difficulty, page_ref, book_definition, formula, example_q')
-            .eq('chapter', chapterNumber)
-            .eq('board', 'KPK')
-            .neq('topic_slug', 'chapter2-formulas-summary')
-            .neq('type', 'exercise')
-            .order('section'),
-        ])
+        if (chapterRes.error || !chapterRes.data) {
+          throw new Error(`Chapter not found: ${chapterId}`)
+        }
+
+        const chapterNumber = chapterRes.data.unit_number
+
+        const topicsRes = await supabase
+          .from('content_chunks')
+          .select('id, term, topic_slug, section, type, difficulty, page_ref, book_definition, formula, example_q')
+          .eq('chapter', chapterNumber)
+          .eq('board', 'KPK')
+          .neq('topic_slug', 'chapter2-formulas-summary')
+          .neq('type', 'exercise')
+          .order('section')
 
         if (topicsRes.error) throw topicsRes.error
 
-        const title = chapterRes.data?.title
-          ? `Chapter ${chapterNumber}: ${chapterRes.data.title}`
-          : `Chapter ${chapterNumber}`
-        setChapterTitle(title)
+        setChapterTitle(`Chapter ${chapterNumber}: ${chapterRes.data.title}`)
         setTopics((topicsRes.data ?? []) as Topic[])
       } catch (e: unknown) {
         console.error('Chapter load error:', e)
@@ -204,7 +205,7 @@ export default function ChapterPage() {
     load()
   }, [chapterId])
 
-  const displayTitle = chapterTitle || `Chapter ${chapterId}`
+  const displayTitle = chapterTitle || 'Loading chapter…'
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0e1a' }}>
@@ -260,7 +261,7 @@ export default function ChapterPage() {
                 fontSize: '11px', color: '#22c55e', textTransform: 'uppercase',
                 letterSpacing: '1px', fontWeight: '700', marginBottom: '8px',
               }}>
-                Chapter {chapterId}
+                {displayTitle.split(':')[0]}
               </p>
               <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#f1f5f9', margin: 0, lineHeight: '1.3' }}>
                 {displayTitle}
@@ -304,7 +305,7 @@ export default function ChapterPage() {
               <p style={{ fontSize: '16px', color: '#f1f5f9', fontWeight: '600', marginBottom: '8px' }}>
                 No topics found
               </p>
-              <p style={{ fontSize: '13px', color: '#64748b' }}>Chapter {chapterId} has no content yet.</p>
+              <p style={{ fontSize: '13px', color: '#64748b' }}>{displayTitle} has no content yet.</p>
             </div>
           )}
 
