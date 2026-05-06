@@ -167,23 +167,18 @@ export default function ChapterPage() {
           return
         }
 
-        console.log('[chapter-page] chapterId param:', chapterId, '| type:', typeof chapterId)
+        const chapterNumber = parseInt(chapterId, 10)
 
         const chapterRes = await supabase
           .from('chapters')
-          .select('unit_number, title')
-          .eq('id', chapterId)
+          .select('id, unit_number, title')
+          .eq('unit_number', chapterNumber)
+          .eq('board', 'KPK')
           .single()
 
-        console.log('[chapter-page] chapters query data:', chapterRes.data)
-        console.log('[chapter-page] chapters query error:', chapterRes.error)
-
         if (chapterRes.error || !chapterRes.data) {
-          throw new Error(`Chapter not found: ${chapterId} — ${chapterRes.error?.message ?? 'no data'}`)
+          throw new Error(`Chapter not found: unit_number=${chapterNumber} — ${chapterRes.error?.message ?? 'no data'}`)
         }
-
-        const chapterNumber = chapterRes.data.unit_number
-        console.log('[chapter-page] resolved chapterNumber:', chapterNumber)
 
         const topicsRes = await supabase
           .from('content_chunks')
@@ -193,9 +188,6 @@ export default function ChapterPage() {
           .neq('topic_slug', 'chapter2-formulas-summary')
           .neq('type', 'exercise')
           .order('section')
-
-        console.log('[chapter-page] content_chunks count:', topicsRes.data?.length ?? 0)
-        console.log('[chapter-page] content_chunks error:', topicsRes.error)
 
         if (topicsRes.error) throw topicsRes.error
 
