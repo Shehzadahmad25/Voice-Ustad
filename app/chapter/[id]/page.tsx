@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { getSupabaseClient } from '@/lib/supabase'
 
 interface Topic {
   id: string
@@ -160,41 +159,17 @@ export default function ChapterPage() {
 
     const load = async () => {
       try {
-        const supabase = getSupabaseClient()
-        if (!supabase) {
-          setError('Database not configured.')
-          setLoading(false)
-          return
+        const res  = await fetch(`/api/chapter-content?chapter=${encodeURIComponent(chapterId)}&board=KPK`)
+        const json = await res.json()
+
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error || 'Failed to load chapter')
         }
 
-        const chapterNumber = parseInt(chapterId, 10)
-
-        const chapterRes = await supabase
-          .from('chapters')
-          .select('id, unit_number, title')
-          .eq('unit_number', chapterNumber)
-          .eq('board', 'KPK')
-          .single()
-
-        if (chapterRes.error || !chapterRes.data) {
-          throw new Error(`Chapter not found: unit_number=${chapterNumber} — ${chapterRes.error?.message ?? 'no data'}`)
-        }
-
-        const topicsRes = await supabase
-          .from('content_chunks')
-          .select('id, term, topic_slug, section, type, difficulty, page_ref, book_definition, formula, example_q')
-          .eq('chapter', chapterNumber)
-          .eq('board', 'KPK')
-          .neq('topic_slug', 'chapter2-formulas-summary')
-          .neq('type', 'exercise')
-          .order('section')
-
-        if (topicsRes.error) throw topicsRes.error
-
-        setChapterTitle(`Chapter ${chapterNumber}: ${chapterRes.data.title}`)
-        setTopics((topicsRes.data ?? []) as Topic[])
+        setChapterTitle(`Chapter ${json.chapter.unit_number}: ${json.chapter.title}`)
+        setTopics(json.topics as Topic[])
       } catch (e: unknown) {
-        console.error('Chapter load error:', e)
+        console.error('[chapter-page] load error:', e)
         setError('Failed to load chapter. Please try again.')
       } finally {
         setLoading(false)
