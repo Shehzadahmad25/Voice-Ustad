@@ -12,6 +12,7 @@ interface Topic {
   topic_slug: string
   page_ref: number | null
   book_definition: string | null
+  english_explanation?: string | null
   example_q: string | null
   formula: string | string[] | null
   keywords: string[] | null
@@ -126,7 +127,8 @@ function TopicCard({ topic }: { topic: Topic }) {
       </h2>
 
       {/* Content sections — guide_explanation (Roman Urdu) intentionally excluded */}
-      <SectionBlock label="Definition" text={topic.book_definition ?? ''} color="#22c55e" />
+      <SectionBlock label="Definition"   text={topic.book_definition      ?? ''} color="#22c55e" />
+      <SectionBlock label="Explanation"  text={topic.english_explanation  ?? ''} color="#0ea5e9" />
       <ExampleBlock text={topic.example_q ?? ''} />
       <FormulaBlock formula={topic.formula} />
     </div>
