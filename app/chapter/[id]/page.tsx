@@ -7,15 +7,16 @@ import { getSupabaseClient } from '@/lib/supabase'
 
 interface Topic {
   id: string
-  chapter_number: number
-  chapter_title: string
-  topic_code: string
-  topic_title: string
-  page: number | null
-  definition: string | null
-  explanation: string | null
-  example: string | null
-  formula: string | null
+  chapter: number
+  section: string
+  term: string
+  topic_slug: string
+  page_ref: number | null
+  book_definition: string | null
+  example_q: string | null
+  formula: string | string[] | null
+  type: string | null
+  difficulty: string | null
 }
 
 const cardStyle: React.CSSProperties = {
@@ -30,17 +31,9 @@ const cardStyle: React.CSSProperties = {
 // ── Section label badge ──────────────────────────────────────────────────────
 function SectionLabel({ label, color }: { label: string; color: string }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px',
-    }}>
-      <div style={{
-        width: '3px', height: '16px', borderRadius: '2px',
-        background: color, flexShrink: 0,
-      }} />
-      <span style={{
-        fontSize: '11px', fontWeight: '700', textTransform: 'uppercase',
-        letterSpacing: '0.8px', color,
-      }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+      <div style={{ width: '3px', height: '16px', borderRadius: '2px', background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color }}>{label}</span>
     </div>
   )
 }
@@ -49,11 +42,7 @@ function SectionLabel({ label, color }: { label: string; color: string }) {
 function SectionBlock({ label, text, color }: { label: string; text: string; color: string }) {
   if (!text?.trim()) return null
   return (
-    <div style={{
-      marginTop: '20px',
-      paddingTop: '20px',
-      borderTop: '1px solid rgba(255,255,255,0.05)',
-    }}>
+    <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
       <SectionLabel label={label} color={color} />
       <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px', lineHeight: '1.8', color: '#cbd5e1' }}>
         {text.replace(/(\d+\.\s)/g, '\n$1').replace(/^\n/, '')}
@@ -62,82 +51,45 @@ function SectionBlock({ label, text, color }: { label: string; text: string; col
   )
 }
 
-// ── Formula section (monospace) ──────────────────────────────────────────────
-function FormulaBlock({ text }: { text: string }) {
-  if (!text?.trim()) return null
+// ── Formula section (monospace, handles array) ───────────────────────────────
+function FormulaBlock({ formula }: { formula: string | string[] | null }) {
+  const lines = Array.isArray(formula)
+    ? formula.map((f) => String(f).trim()).filter(Boolean)
+    : (typeof formula === 'string' && formula.trim() ? [formula.trim()] : [])
+  if (lines.length === 0) return null
   return (
-    <div style={{
-      marginTop: '20px',
-      paddingTop: '20px',
-      borderTop: '1px solid rgba(255,255,255,0.05)',
-    }}>
-      <SectionLabel label="Formula" color="#a78bfa" />
+    <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      {lines.length <= 10 && <SectionLabel label="Formula" color="#a78bfa" />}
       <div style={{
         background: 'rgba(167,139,250,0.06)',
         border: '1px solid rgba(167,139,250,0.15)',
         borderRadius: '8px', padding: '14px 16px',
       }}>
-        <div style={{
-          fontSize: '13.5px', color: '#e2d9ff', lineHeight: '1.9',
-          fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        }}>
-          {text}
-        </div>
+        {lines.map((line, i) => (
+          <div key={i} style={{
+            fontSize: '13.5px', color: '#e2d9ff', lineHeight: '1.9',
+            fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            borderBottom: i < lines.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+            paddingBottom: i < lines.length - 1 ? '6px' : '0',
+            marginBottom: i < lines.length - 1 ? '6px' : '0',
+          }}>
+            {line}
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
 // ── Example section ──────────────────────────────────────────────────────────
-function ExampleBlock({ text, topicCode }: { text: string; topicCode: string }) {
+function ExampleBlock({ text }: { text: string }) {
   if (!text?.trim()) return null
   return (
-    <div style={{
-      marginTop: '20px',
-      paddingTop: '20px',
-      borderTop: '1px solid rgba(255,255,255,0.05)',
-    }}>
+    <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
       <SectionLabel label="Example" color="#f59e0b" />
-
-      {topicCode === '1.4' ? (
-        <div style={{ overflowX: 'auto', marginTop: '8px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
-                <th style={{ padding: '8px 12px', textAlign: 'left',   borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Element</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left',   borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Symbol</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Atomic No.</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>Atomic Mass</th>
-              </tr>
-            </thead>
-            <tbody>
-              {text.split('|').map((row, i) => {
-                const parts = row.trim().split(/\s+/)
-                if (parts.length < 4) return null
-                const element   = parts[0]
-                const symbol    = parts[1]
-                const atomicNo  = parts[2]
-                const atomicMass = parts[3]
-                return (
-                  <tr key={i} style={{
-                    backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
-                    borderBottom: '1px solid rgba(255,255,255,0.07)',
-                  }}>
-                    <td style={{ padding: '7px 12px' }}>{element}</td>
-                    <td style={{ padding: '7px 12px', fontFamily: 'monospace', color: '#4ade80' }}>{symbol}</td>
-                    <td style={{ padding: '7px 12px', textAlign: 'center' }}>{atomicNo}</td>
-                    <td style={{ padding: '7px 12px', textAlign: 'center' }}>{atomicMass}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px', lineHeight: '1.8', color: '#cbd5e1' }}>
-          {text.replace(/(\d+\.\s)/g, '\n$1').replace(/^\n/, '')}
-        </div>
-      )}
+      <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px', lineHeight: '1.8', color: '#cbd5e1' }}>
+        {text.replace(/(\d+\.\s)/g, '\n$1').replace(/^\n/, '')}
+      </div>
     </div>
   )
 }
@@ -146,7 +98,7 @@ function ExampleBlock({ text, topicCode }: { text: string; topicCode: string }) 
 function TopicCard({ topic }: { topic: Topic }) {
   return (
     <div style={cardStyle}>
-      {/* Code + page row */}
+      {/* Section badge + page ref */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <span style={{
           fontSize: '11px', fontWeight: '700', color: '#22c55e',
@@ -154,33 +106,29 @@ function TopicCard({ topic }: { topic: Topic }) {
           background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.18)',
           borderRadius: '5px', padding: '2px 8px',
         }}>
-          {topic.topic_code}
+          {topic.section}
         </span>
-        {topic.page != null && (
+        {topic.page_ref != null && (
           <span style={{
             fontSize: '11px', color: '#64748b',
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: '5px', padding: '2px 8px',
           }}>
-            p. {topic.page}
+            p. {topic.page_ref}
           </span>
         )}
       </div>
 
       {/* Title */}
-      <h2 style={{
-        fontSize: '17px', fontWeight: '800', color: '#f1f5f9',
-        margin: '0 0 2px', lineHeight: '1.35',
-      }}>
-        {topic.topic_title}
+      <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#f1f5f9', margin: '0 0 2px', lineHeight: '1.35' }}>
+        {topic.term}
       </h2>
 
-      {/* Sections */}
-      <SectionBlock  label="Definition"  text={topic.definition  ?? ''} color="#22c55e" />
-      <SectionBlock  label="Explanation" text={topic.explanation ?? ''} color="#0ea5e9" />
-      <ExampleBlock  text={topic.example ?? ''} topicCode={topic.topic_code} />
-      <FormulaBlock  text={topic.formula ?? ''} />
+      {/* Content sections — guide_explanation (Roman Urdu) intentionally excluded */}
+      <SectionBlock label="Definition" text={topic.book_definition ?? ''} color="#22c55e" />
+      <ExampleBlock text={topic.example_q ?? ''} />
+      <FormulaBlock formula={topic.formula} />
     </div>
   )
 }
@@ -219,40 +167,32 @@ export default function ChapterPage() {
           return
         }
 
-        console.log('[chapter-view] raw params.id:', chapterId)
         const chapterNumber = parseInt(chapterId, 10)
-        console.log('[chapter-view] parsed chapterNumber:', chapterNumber)
 
-        const { data: debugData, error: debugError } = await supabase
-          .from('topics')
-          .select('id, chapter_number, topic_code, topic_title')
-          .limit(20)
+        const [chapterRes, topicsRes] = await Promise.all([
+          supabase
+            .from('chapters')
+            .select('title')
+            .eq('unit_number', chapterNumber)
+            .eq('board', 'KPK')
+            .single(),
+          supabase
+            .from('content_chunks')
+            .select('id, term, topic_slug, section, type, difficulty, page_ref, book_definition, formula, example_q')
+            .eq('chapter', chapterNumber)
+            .eq('board', 'KPK')
+            .neq('topic_slug', 'chapter2-formulas-summary')
+            .neq('type', 'exercise')
+            .order('section'),
+        ])
 
-        console.log('[chapter-view] ALL topics in DB:', debugData)
-        console.log('[chapter-view] debug error:', debugError)
+        if (topicsRes.error) throw topicsRes.error
 
-        const { data, error: dbError } = await supabase
-          .from('topics')
-          .select('*')
-          .eq('chapter_number', chapterNumber)
-          .not('topic_code', 'like', '%.MCQ%')
-          .order('topic_code', { ascending: true })
-
-        console.log('[chapter-view] chapterNumber:', chapterNumber)
-        console.log('[chapter-view] topics found:', data?.length)
-        console.log('[chapter-view] error:', dbError)
-
-        if (dbError) throw dbError
-
-        const parseCode = (code: string) => {
-          const parts = code.replace('MCQ', '999').split('.')
-          return parseFloat(parts[0]) * 1000 + parseFloat(parts[1] || '0')
-        }
-        const rows = ((data ?? []) as Topic[]).sort(
-          (a, b) => parseCode(a.topic_code) - parseCode(b.topic_code)
-        )
-        setTopics(rows)
-        if (rows.length > 0) setChapterTitle(rows[0].chapter_title)
+        const title = chapterRes.data?.title
+          ? `Chapter ${chapterNumber}: ${chapterRes.data.title}`
+          : `Chapter ${chapterNumber}`
+        setChapterTitle(title)
+        setTopics((topicsRes.data ?? []) as Topic[])
       } catch (e: unknown) {
         console.error('Chapter load error:', e)
         setError('Failed to load chapter. Please try again.')
@@ -322,10 +262,7 @@ export default function ChapterPage() {
               }}>
                 Chapter {chapterId}
               </p>
-              <h1 style={{
-                fontSize: '26px', fontWeight: '900', color: '#f1f5f9',
-                margin: 0, lineHeight: '1.3',
-              }}>
+              <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#f1f5f9', margin: 0, lineHeight: '1.3' }}>
                 {displayTitle}
               </h1>
               <div style={{
@@ -338,10 +275,7 @@ export default function ChapterPage() {
 
           {/* Error */}
           {error && (
-            <div style={{
-              ...cardStyle, textAlign: 'center', padding: '48px 24px',
-              borderColor: 'rgba(239,68,68,0.2)',
-            }}>
+            <div style={{ ...cardStyle, textAlign: 'center', padding: '48px 24px', borderColor: 'rgba(239,68,68,0.2)' }}>
               <p style={{ fontSize: '16px', color: '#f87171', marginBottom: '16px' }}>{error}</p>
               <button
                 onClick={() => { setError(null); setLoading(true) }}
