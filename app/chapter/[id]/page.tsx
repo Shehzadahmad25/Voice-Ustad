@@ -14,6 +14,7 @@ interface Topic {
   book_definition: string | null
   example_q: string | null
   formula: string | string[] | null
+  keywords: string[] | null
   type: string | null
   difficulty: string | null
 }
