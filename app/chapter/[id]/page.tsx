@@ -10,7 +10,7 @@ interface Topic {
   section: string
   term: string
   topic_slug: string
-  page_ref: number | null
+  page_ref: string | number | null
   book_definition: string | null
   english_explanation?: string | null
   example_q: string | null
@@ -116,7 +116,7 @@ function TopicCard({ topic }: { topic: Topic }) {
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: '5px', padding: '2px 8px',
           }}>
-            p. {topic.page_ref}
+            {topic.page_ref}
           </span>
         )}
       </div>
