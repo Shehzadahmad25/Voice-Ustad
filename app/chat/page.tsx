@@ -808,6 +808,7 @@ function appendTopicView(r: any){
           <div class="tv-title">${esc(r.topic || r.chapter || '')}</div>
           <div class="tv-meta-row">
             <span class="tv-chapter-lbl">${esc(r.chapter || '')}</span>
+            ${r.page_start ? `<span class="tv-page-badge">${esc(String(r.page_start))}</span>` : ''}
           </div>
         </div>
 
@@ -2383,7 +2384,7 @@ export default function ChatPage() {
                 <button type="button" className="scope-item-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); console.log('[topic-chip] clicked:', topic.term, '| slug:', topic.topic_slug); askScopeTopic(topic.term, topic.topic_slug); }}>
                   <span className="scope-topic-code">{topic.section}</span>
                   <span className="scope-topic-title">{topic.term}</span>
-                  {topic.page_ref != null && <span className="scope-topic-page">p.{topic.page_ref}</span>}
+                  {topic.page_ref != null && <span className="scope-topic-page">{topic.page_ref}</span>}
                 </button>
               </li>
             ))}
