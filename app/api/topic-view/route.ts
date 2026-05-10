@@ -54,20 +54,21 @@ export async function POST(request: NextRequest) {
     console.log('[topic-view] urduTtsText from guide_explanation:', urduTtsText?.length ?? 0, 'chars');
 
     const responseResult = {
-      mode:           'topic_view',
-      chapter:        result.chapter,
-      topic:          result.topic,
-      section:        result.section,
-      page_start:     result.page_start,
-      page_end:       result.page_end,
-      definition:     result.definition,
-      formula:        result.formula,
-      flabel:         result.flabel,
-      example:        result.example,
-      example_answer: result.example_answer,
-      keywords:       result.keywords,
+      mode:             'topic_view',
+      chapter:          result.chapter,
+      topic:            result.topic,
+      section:          result.section,
+      page_start:       result.page_start,
+      page_end:         result.page_end,
+      definition:       result.definition,
+      explanation:      result.explanation,
+      formula:          result.formula,
+      flabel:           result.flabel,
+      example:          result.example,
+      example_solution: result.example_solution,
+      example_answer:   result.example_answer,
+      keywords:         result.keywords,
       urduTtsText,
-      // explanation (guide_explanation) intentionally excluded — TTS only via urduTtsText
     };
     console.log('[topic-view] FINAL RESPONSE urduTtsText chars:', responseResult.urduTtsText?.length ?? 0);
     console.log('[topic-view] FINAL RESPONSE keys:', Object.keys(responseResult).join(', '));

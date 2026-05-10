@@ -12,8 +12,10 @@ interface Topic {
   topic_slug: string
   page_ref: string | number | null
   book_definition: string | null
+  guide_explanation?: string | null
   english_explanation?: string | null
   example_q: string | null
+  example_solution?: string | null
   formula: string | string[] | null
   keywords: string[] | null
   type: string | null
@@ -83,7 +85,7 @@ function FormulaBlock({ formula }: { formula: string | string[] | null }) {
 }
 
 // ── Example section ──────────────────────────────────────────────────────────
-function ExampleBlock({ text }: { text: string }) {
+function ExampleBlock({ text, solution }: { text: string; solution?: string | null }) {
   if (!text?.trim()) return null
   return (
     <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -91,6 +93,20 @@ function ExampleBlock({ text }: { text: string }) {
       <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '13px', lineHeight: '1.8', color: '#cbd5e1' }}>
         {text.replace(/(\d+\.\s)/g, '\n$1').replace(/^\n/, '')}
       </div>
+      {solution?.trim() && (
+        <div style={{ marginTop: '12px' }}>
+          <SectionLabel label="Solution" color="#22c55e" />
+          <div style={{
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            fontSize: '12.5px', lineHeight: '1.8', color: '#94a3b8',
+            background: 'rgba(34,197,94,0.04)',
+            border: '1px solid rgba(34,197,94,0.12)',
+            borderRadius: '6px', padding: '10px 12px',
+          }}>
+            {solution.trim()}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -126,10 +142,10 @@ function TopicCard({ topic }: { topic: Topic }) {
         {topic.term}
       </h2>
 
-      {/* Content sections — guide_explanation (Roman Urdu) intentionally excluded */}
       <SectionBlock label="Definition"   text={topic.book_definition      ?? ''} color="#22c55e" />
+      <SectionBlock label="Explanation"  text={topic.guide_explanation    ?? ''} color="#94a3b8" />
       <SectionBlock label="Explanation"  text={topic.english_explanation  ?? ''} color="#0ea5e9" />
-      <ExampleBlock text={topic.example_q ?? ''} />
+      <ExampleBlock text={topic.example_q ?? ''} solution={topic.example_solution} />
       <FormulaBlock formula={topic.formula} />
     </div>
   )

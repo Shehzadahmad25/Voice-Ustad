@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       .eq('board', board)
       .single(),
     db.from('content_chunks')
-      .select('id, term, topic_slug, section, type, difficulty, page_ref, book_definition, english_explanation, example_q, formula, keywords')
+      .select('id, term, topic_slug, section, type, difficulty, page_ref, book_definition, guide_explanation, english_explanation, example_q, example_solution, formula, keywords')
       .eq('chapter', chapterNumber)
       .eq('board', board)
       .neq('topic_slug', 'chapter2-formulas-summary')

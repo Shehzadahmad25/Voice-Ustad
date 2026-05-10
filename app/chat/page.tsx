@@ -745,15 +745,18 @@ function appendTopicView(r: any){
   let sectionsHtml = '';
   if (r.definition)
     sectionsHtml += '<div class="tv-section tv-section--definition"><div class="tv-sec-lbl">Definition</div><div class="tv-sec-body">' + esc(r.definition) + '</div></div>';
+  if (r.explanation?.trim())
+    sectionsHtml += '<div class="tv-section tv-section--explanation"><div class="tv-sec-lbl tv-sec-lbl--explanation">Explanation</div><div class="tv-sec-body">' + esc(r.explanation.trim()) + '</div></div>';
   if (formulaLines.length) {
     const showFormulaHeading = formulaLines.length <= 10;
     sectionsHtml += '<div class="tv-section tv-formula-sec">'
       + (showFormulaHeading ? '<div class="tv-sec-lbl">' + esc(r.flabel || 'Formula') + '</div>' : '')
       + '<div class="tv-formula-body">' + formulaLines.map((f: string) => '<code class="tv-formula-line">' + esc(f) + '</code>').join('') + '</div></div>';
   }
-  if (r.example || r.example_answer)
+  if (r.example || r.example_solution || r.example_answer)
     sectionsHtml += '<div class="tv-section tv-section--example"><div class="tv-sec-lbl">Example</div><div class="tv-sec-body">'
       + (r.example ? fmtExample(r.example) : '')
+      + (r.example_solution?.trim() ? '<div class="tv-ex-solution-lbl">Solution</div><div class="tv-ex-solution">' + esc(r.example_solution.trim()) + '</div>' : '')
       + (r.example_answer ? '<div class="tv-ex-ans">' + esc(r.example_answer) + '</div>' : '')
       + '</div></div>';
   if (kwItems.length)
