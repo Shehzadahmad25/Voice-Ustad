@@ -1260,7 +1260,8 @@ function appendAI(r, time, save=true){
   const contentHtml = hasNewFormat ? (() => {
     let html = '';
     if (r.definition) html += `<div class="ai-field"><div class="ai-field-lbl">Definition</div><div class="ai-field-body">${esc(r.definition)}</div></div>`;
-    if (r.example) html += `<div class="ai-field"><div class="ai-field-lbl">Example</div><div class="ai-field-body">${exampleHtml}</div></div>`;
+    if (r.explanation?.trim()) html += `<div class="ai-field"><div class="ai-field-lbl ai-field-lbl--explanation">Explanation</div><div class="ai-field-body ai-field-body--muted">${esc(r.explanation.trim())}</div></div>`;
+    if (r.example) html += `<div class="ai-field"><div class="ai-field-lbl">Example</div><div class="ai-field-body">${exampleHtml}${r.example_solution?.trim() ? '<div class="tv-ex-solution-lbl">Solution</div><div class="tv-ex-solution">' + esc(r.example_solution.trim()) + '</div>' : ''}</div></div>`;
     return `<div class="ai-card">${html}</div>`;
   })() : (() => {
     // Legacy format fallback for stored history

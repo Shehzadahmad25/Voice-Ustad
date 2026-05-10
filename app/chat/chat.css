@@ -665,6 +665,9 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   border-radius: 2px;
   opacity: .7;
 }
+.ai-field-lbl--explanation { color: #94a3b8; }
+.ai-field-lbl--explanation::before { background: #94a3b8; }
+.ai-field-body--muted { color: #94a3b8; font-size: .89rem; }
 .ai-field-body {
   font-size: .92rem;
   line-height: 1.85;

@@ -11,7 +11,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }              from '@supabase/supabase-js';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
-import { sanitizeUrduTtsText, isEnglishResponse } from '@/lib/agents/tools';
+import { sanitizeUrduTtsText, isEnglishResponse, generateDevUrduTts } from '@/lib/agents/tools';
+import { saveToCache } from '@/lib/qaCache';
 
 function getSupabase() {
   return createClient(
@@ -50,9 +51,47 @@ export async function POST(request: NextRequest) {
 
     // guide_explanation is used directly for TTS — discard if it contains English (stale cache).
     const _rawUrduTts = sanitizeUrduTtsText(result.explanation) || '';
-    const urduTtsText = (_rawUrduTts && !isEnglishResponse(_rawUrduTts)) ? _rawUrduTts : '';
+    let urduTtsText = (_rawUrduTts && !isEnglishResponse(_rawUrduTts)) ? _rawUrduTts : '';
     console.log('[topic-view] urduTtsText from guide_explanation:', urduTtsText?.length ?? 0, 'chars',
       _rawUrduTts && !urduTtsText ? '(discarded — English text detected)' : '');
+
+    // If urduTtsText is empty (discarded or was never set), generate fresh Urdu via Anthropic
+    if (!urduTtsText) {
+      console.log('[topic-view] generating fresh Urdu for:', result.topic);
+      try {
+        const fresh = await generateDevUrduTts(
+          result.topic,
+          result.definition,
+          result.explanation,
+          result.example || undefined,
+        );
+        if (fresh && !isEnglishResponse(fresh)) {
+          urduTtsText = fresh;
+          console.log('[topic-view] fresh Urdu generated, length:', urduTtsText.length);
+          // Fire-and-forget: save to qa_cache so future requests skip regeneration
+          saveToCache({
+            originalQuestion: `[tv]:${topicCode || topicTitle}`,
+            chapterNumber:    result.chapterNumber,
+            topic:            result.topic,
+            answerJson: {
+              definition:  result.definition,
+              explanation: result.explanation,
+              example:     result.example,
+              formula:     result.formula,
+              flabel:      result.flabel,
+              dur:         60,
+              urduTtsText,
+            },
+            urduTtsText,
+          }).catch(() => {});
+        } else {
+          console.log('[topic-view] Urdu generation failed or returned English');
+        }
+      } catch (genErr) {
+        console.error('[topic-view] generateDevUrduTts failed:',
+          genErr instanceof Error ? genErr.message : genErr);
+      }
+    }
 
     const responseResult = {
       mode:             'topic_view',
