@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }              from '@supabase/supabase-js';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
-import { sanitizeUrduTtsText } from '@/lib/agents/tools';
+import { sanitizeUrduTtsText, isEnglishResponse } from '@/lib/agents/tools';
 
 function getSupabase() {
   return createClient(
@@ -48,10 +48,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // guide_explanation (Roman Urdu) is used directly for TTS — no GPT-4o generation needed.
-    // It is NEVER rendered as visible text; only sent to TTS API when play is tapped.
-    const urduTtsText = sanitizeUrduTtsText(result.explanation) || '';
-    console.log('[topic-view] urduTtsText from guide_explanation:', urduTtsText?.length ?? 0, 'chars');
+    // guide_explanation is used directly for TTS — discard if it contains English (stale cache).
+    const _rawUrduTts = sanitizeUrduTtsText(result.explanation) || '';
+    const urduTtsText = (_rawUrduTts && !isEnglishResponse(_rawUrduTts)) ? _rawUrduTts : '';
+    console.log('[topic-view] urduTtsText from guide_explanation:', urduTtsText?.length ?? 0, 'chars',
+      _rawUrduTts && !urduTtsText ? '(discarded — English text detected)' : '');
 
     const responseResult = {
       mode:             'topic_view',

@@ -174,8 +174,13 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
       const cachedAnswer = repairStructuredAnswer(normalizeStructuredAnswer(entry.answer_json));
       Object.assign(cachedAnswer, inferBoardRef(question, chapter));
 
-      const cachedUrdu = entry.urdu_tts_text
-        ? (postProcessUrduTts(sanitizeUrduTtsText(entry.urdu_tts_text)) || null)
+      const _rawCachedUrdu = (!entry.urdu_tts_text || isEnglishResponse(entry.urdu_tts_text))
+        ? null
+        : entry.urdu_tts_text;
+      if (entry.urdu_tts_text && !_rawCachedUrdu)
+        console.log('[tts-cache] discarding English urdu_tts_text for cache entry:', entry.id);
+      const cachedUrdu = _rawCachedUrdu
+        ? (postProcessUrduTts(sanitizeUrduTtsText(_rawCachedUrdu)) || null)
         : null;
 
       if (!URDU_TTS_ENABLED && entry.audio_url) {
