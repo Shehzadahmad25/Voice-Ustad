@@ -18,6 +18,7 @@
  *   StructuredAnswer, normalizeStructuredAnswer, repairStructuredAnswer
  */
 
+import Anthropic                                        from '@anthropic-ai/sdk';
 import { classifyQuestionType }                        from '@/lib/classifyQuestionType';
 import { retrieveBookContent, type RetrievalResult }   from '@/lib/retrieveBookContent';
 import { TEACHER_URDU_SYSTEM_PROMPT, buildTeacherStyleUrduTts, postProcessUrduTts } from '@/lib/tts/teacherUrdu';
@@ -527,13 +528,13 @@ export async function generateDevUrduTts(
   example?:       string,
   englishAnswer?: string,
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.warn('[urdu-script] OPENAI_API_KEY not set — skipping Urdu text generation');
+    console.warn('[urdu-script] ANTHROPIC_API_KEY not set — skipping Urdu text generation');
     return '';
   }
 
-  console.log('[urdu-script] using OpenAI gpt-4o');
+  console.log('[urdu-script] using Anthropic claude-sonnet-4-20250514');
 
   const def = definition.trim();
   const exp = explanation.trim();
@@ -566,52 +567,31 @@ export async function generateDevUrduTts(
 
   console.log('[urdu-script] userContent preview:', userContent.slice(0, 120));
 
-  const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), OPENAI_SCRIPT_TIMEOUT_MS);
+  const anthropic = new Anthropic({ apiKey });
 
-  async function callOpenAI(content: string): Promise<Response> {
-    return fetch('https://api.openai.com/v1/chat/completions', {
-      method:  'POST',
-      headers: {
-        'content-type': 'application/json',
-        'authorization': `Bearer ${apiKey}`,
+  async function callAnthropic(content: string): Promise<string> {
+    const response = await anthropic.messages.create(
+      {
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system:     DEV_URDU_SYSTEM_PROMPT,
+        messages:   [{ role: 'user', content }],
       },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model:      'gpt-4o',
-        max_tokens: 1024,
-        messages:   [
-          { role: 'system', content: DEV_URDU_SYSTEM_PROMPT },
-          { role: 'user',   content },
-        ],
-      }),
-    });
-  }
-
-  async function extractText(res: Response): Promise<string> {
-    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-    return String(json?.choices?.[0]?.message?.content ?? '').trim();
+      { timeout: OPENAI_SCRIPT_TIMEOUT_MS },
+    );
+    const block = response.content[0];
+    return String(block?.type === 'text' ? block.text : '').trim();
   }
 
   try {
-    const res = await callOpenAI(userContent);
-    console.log('[urdu-script] OpenAI HTTP status:', res.status);
-
-    if (!res.ok) {
-      console.error('[urdu-script] OpenAI API error', res.status, await res.text().catch(() => ''));
-      return '';
-    }
-
-    const result = await extractText(res);
+    const result = await callAnthropic(userContent);
     console.log('[urdu-script] response length:', result.length, '| preview:', result.slice(0, 80));
 
     if (isEnglishResponse(result)) {
       console.log('[urdu-script] WARNING — English response detected, retrying');
       const retryContent = userContent + '\n\nیاد رہے: صرف اردو میں لکھنا ہے، انگریزی میں نہیں';
-      const retryRes = await callOpenAI(retryContent);
-      console.log('[urdu-script] urdu-retry HTTP status:', retryRes.status);
-      if (!retryRes.ok) return '';
-      const retryResult = await extractText(retryRes);
+      const retryResult  = await callAnthropic(retryContent);
+      console.log('[urdu-script] urdu-retry response length:', retryResult.length);
       if (isEnglishResponse(retryResult)) {
         console.log('[urdu-script] WARNING — still English after retry, hiding voice card');
         return '';
@@ -622,9 +602,7 @@ export async function generateDevUrduTts(
 
     return result;
   } catch (err) {
-    console.error('[urdu-script] fetch failed:', err instanceof Error ? err.message : err);
+    console.error('[urdu-script] Anthropic call failed:', err instanceof Error ? err.message : err);
     return '';
-  } finally {
-    clearTimeout(timeoutId);
   }
 }

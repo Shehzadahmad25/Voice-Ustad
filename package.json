@@ -9,12 +9,13 @@
     "lint": "eslint app components contexts lib middleware.ts next.config.ts eslint.config.mjs --cache --cache-location .eslintcache"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
-    "@supabase/supabase-js": "^2.99.1",
+    "@supabase/supabase-js": "^2.105.4",
     "microsoft-cognitiveservices-speech-sdk": "^1.49.0",
     "next": "^15.3.9",
     "next-auth": "^4.24.13",
-    "openai": "^6.32.0",
+    "openai": "^6.37.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -23,10 +24,27 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "^15.3.9",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "description": "This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).",
+  "main": "check-chapters.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shehzadahmad25/Voice-Ustad.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Shehzadahmad25/Voice-Ustad/issues"
+  },
+  "homepage": "https://github.com/Shehzadahmad25/Voice-Ustad#readme"
 }
