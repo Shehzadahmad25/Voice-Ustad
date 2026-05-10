@@ -245,7 +245,7 @@ export async function retrieveContent(
 export function generateAnswerFromDB(db: RetrievalResult): StructuredAnswer {
   return {
     definition:  db.blocks.definition   || '',
-    explanation: '',  // guide_explanation is Roman Urdu — TTS only, never rendered
+    explanation: db.blocks.explanation  || '',
     example:     db.blocks.example      || '',
     formula:     db.blocks.formula      || '',
     flabel:      db.blocks.flabel       || '',

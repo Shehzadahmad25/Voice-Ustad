@@ -250,12 +250,13 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
 
   let audioError: string | null = null;
 
-  // Always generate Urdu script via GPT-4o when content is available.
+  // Always generate Urdu script when content is available.
   // URDU_TTS_ENABLED only gates TTS audio synthesis, not Urdu text generation.
   try {
     const englishAnswerText = [answer.definition, answer.explanation, answer.example]
       .filter(Boolean).join(' ');
-    console.log('[tutor] generating Urdu script via OpenAI gpt-4o | topic:', dbResult.topic);
+    console.log('[tutor] ANTHROPIC_API_KEY present:', !!process.env.ANTHROPIC_API_KEY);
+    console.log('[tutor] generating Urdu via Anthropic | topic:', dbResult.topic);
     const generated = await Promise.race([
       generateDevUrduTts(
         dbResult.topic,

@@ -238,6 +238,31 @@ async function fetchTopicByTerms(
     }
   }
 
+  // Strategy 4: compound-word pattern — split each term into tokens and build
+  // '%word1%word2%' ilike pattern.  Catches cases like "limiting reagent" → '%limiting%reagent%'
+  // matching DB rows named "Excess and Limiting Reagents" or "Identification of Limiting Reagent".
+  const seenPatterns = new Set<string>();
+  for (const term of terms) {
+    const words = term.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3);
+    if (words.length < 2) continue;
+    const pattern = '%' + words.join('%') + '%';
+    if (seenPatterns.has(pattern)) continue;
+    seenPatterns.add(pattern);
+
+    const { data } = await db
+      .from('content_chunks')
+      .select(SELECT_COLS)
+      .eq('chapter', chapterNumber)
+      .ilike('term', pattern)
+      .order('term', { ascending: false })
+      .limit(1);
+
+    if (data?.[0]) {
+      console.log(`[retrieveBookContent] COMPOUND MATCH — pattern="${pattern}" matched topic="${(data[0] as unknown as TopicRow).term}"`);
+      return data[0] as unknown as TopicRow;
+    }
+  }
+
   console.log(`[retrieveBookContent] NO MATCH — terms=${JSON.stringify(terms)} chapter=${chapterNumber}`);
   return null;
 }
@@ -294,8 +319,8 @@ export async function retrieveBookContent(
   console.log('[retrieveBookContent] cleaned query:', cleanQuery);
 
   const baseTerms = extractSearchTerms(question);
-  // Prepend cleanQuery so multi-word phrase is tried first before individual chemistry terms
-  const terms = cleanQuery && cleanQuery !== question.toLowerCase().replace(/\?$/, '').trim()
+  // Always prepend cleanQuery so the stripped phrase is tried before mapped chemistry terms
+  const terms = cleanQuery
     ? [cleanQuery, ...baseTerms.filter(t => t !== cleanQuery)]
     : baseTerms;
 
