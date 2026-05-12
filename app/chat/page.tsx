@@ -672,7 +672,7 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
       return;
     }
 
-    appendTopicView(data.result);
+    const cardId = appendTopicView(data.result);
     if (_currentSessionId) {
       dbSaveMessage(
         _currentSessionId,
@@ -680,6 +680,10 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
         JSON.stringify(data.result),
         String(data.result?.urduTtsText || ''),
       ).catch(console.error);
+    }
+    // If no Urdu text came back from topic-view (Vercel 10s limit), fetch it async
+    if (!data.result?.urduTtsText && cardId) {
+      fetchUrduForTopicCard(cardId, data.result);
     }
   } catch (e: any) {
     if (timedOut) return;
@@ -689,7 +693,7 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
   }
 }
 
-function appendTopicView(r: any){
+function appendTopicView(r: any): string {
   const id = 'v' + Date.now();
 
   const urduSummary = String(r?.urduTtsText || '').trim();
@@ -772,22 +776,27 @@ function appendTopicView(r: any){
   w2.__copyData = w2.__copyData || {};
   w2.__copyData[id] = copyText;
 
-  console.log('[viewTopic] voiceHtml will render:', !!urduSummary);
+  // Show voice card whenever the topic has renderable content — urduSummary may arrive async.
+  const hasTtsContent = !!(r.definition || r.explanation || r.example);
+  console.log('[viewTopic] voiceHtml will render:', hasTtsContent, '| urduSummary ready:', !!urduSummary);
   // NOTE: ttsUrText is NOT embedded in data-tts-ur to avoid huge encoded strings
   // breaking HTML parsing. urduSummaries[id] (in-memory) is the primary source for togglePlay.
-  const voiceCardHtml = urduSummary
+  const voiceCardHtml = hasTtsContent
     ? '<div class="voice-card" data-id="' + id + '">'
       + '<div class="vc-top-row">'
       + '<div class="vc-icon" aria-hidden="true"></div>'
       + '<div class="vc-info">'
       + '<div class="vc-label">Urdu audio</div>'
-      + '<div class="vc-sub" data-default="Play — ' + dur + 's">Play — ' + dur + 's</div>'
+      + '<div class="vc-sub" id="sub_' + id + '" data-default="Play — ' + dur + 's">'
+        + (urduSummary ? 'Play — ' + dur + 's' : 'Generating audio...')
+      + '</div>'
       + '<div class="vc-loading"><span class="vc-dot"></span><span class="vc-dot"></span><span class="vc-dot"></span> Preparing audio...</div>'
       + '</div>'
       + '<span class="vc-badge src-unknown" id="badge_' + id + '">Urdu</span>'
       + '<div class="vc-wave" id="wv_' + id + '"><span></span><span></span><span></span><span></span></div>'
       + '<div class="vc-timer" id="tm_' + id + '">' + mm + ':' + ss + '</div>'
       + '<button class="vc-play play-btn" id="btn_' + id + '" data-dur="' + dur + '" data-tts="" data-tts-ur=""'
+      + (urduSummary ? '' : ' disabled')
       + ' aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay(\'' + id + '\')">'
       + '<svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9L5 21V3z"/></svg>'
       + '<svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>'
@@ -847,9 +856,73 @@ function appendTopicView(r: any){
   }
   scrollDn();
   setVoiceSource(id, voiceSources[id] || 'unknown');
-  prefetchUrduAudio(id);
+  if (urduSummary) prefetchUrduAudio(id);
   const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
   if (retryBtn) retryBtn.style.display = audioUrls[id] ? 'none' : 'inline-flex';
+  return id;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ASYNC URDU GENERATION FOR TOPIC CARDS
+   Called after topic-view renders when urduTtsText was empty.
+   Uses /api/generate-urdu (maxDuration=60) to avoid Vercel 10s limit.
+═══════════════════════════════════════════════════════════════ */
+async function fetchUrduForTopicCard(id: string, r: any) {
+  console.log('[fetchUrdu] starting for id:', id, '| topic:', r?.topic);
+  try {
+    const res = await fetch('/api/generate-urdu', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topicTitle:    String(r?.topic        || '').trim(),
+        topicCode:     String(r?.topic_slug   || '').trim(),
+        definition:    String(r?.definition   || '').trim(),
+        explanation:   String(r?.explanation  || '').trim(),
+        example:       String(r?.example      || '').trim(),
+        formula:       String(r?.formula      || '').trim(),
+        flabel:        String(r?.flabel       || '').trim(),
+        chapterNumber: Number(r?.chapterNumber ?? 0),
+      }),
+    });
+    const data = await res.json();
+    if (!data?.ok || !data?.urduTtsText) {
+      console.log('[fetchUrdu] failed:', data?.error || 'empty response');
+      // Re-enable retry button so user can try manually
+      const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
+      if (retryBtn) retryBtn.style.display = 'inline-flex';
+      return;
+    }
+
+    const urduText = String(data.urduTtsText).trim();
+    console.log('[fetchUrdu] got Urdu, chars:', urduText.length, '| preview:', urduText.slice(0, 60));
+
+    // Store in memory and update UI
+    urduSummaries[id] = urduText;
+
+    // Update sub-label from "Generating audio..." to duration estimate
+    const sub = document.getElementById('sub_' + id);
+    if (sub) {
+      const wordCount = urduText.split(/\s+/).filter(Boolean).length;
+      const estSecs   = Math.max(30, Math.round(wordCount / 2.5));
+      const mm2 = Math.floor(estSecs / 60);
+      const ss2 = String(estSecs % 60).padStart(2, '0');
+      const label = `Play — ${mm2 > 0 ? mm2 + ':' : ''}${ss2}s`;
+      sub.textContent = label;
+      sub.dataset.default = label;
+    }
+
+    // Enable play button
+    const btn = document.getElementById('btn_' + id) as HTMLButtonElement | null;
+    if (btn) btn.disabled = false;
+
+    // Kick off audio prefetch now that we have the text
+    prefetchUrduAudio(id);
+
+  } catch (err) {
+    console.error('[fetchUrdu] error:', (err as any)?.message);
+    const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
+    if (retryBtn) retryBtn.style.display = 'inline-flex';
+  }
 }
 
 function updateInputPlaceholder(chIdx: number){
