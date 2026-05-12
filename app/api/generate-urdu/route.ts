@@ -1,14 +1,15 @@
 /**
  * app/api/generate-urdu/route.ts
  * ------------------------------
- * Generates Urdu TTS script for a topic card asynchronously.
+ * Generates Urdu TTS script (Anthropic) + MP3 audio (OpenAI) in one call.
  * Called by the chat page AFTER topic-view renders, so Vercel's 10s limit
- * on topic-view doesn't affect Urdu generation.
+ * on topic-view doesn't affect generation.
  *
- * maxDuration=60 gives Anthropic enough headroom to respond.
+ * maxDuration=60 covers ~5s Anthropic + ~8s OpenAI comfortably.
  *
  * POST { topicCode, topicTitle, definition, explanation, example, formula, flabel, chapterNumber }
- * Returns { ok: true, urduTtsText: string, duration: number }
+ * Returns { ok: true, urduTtsText, audioBase64, duration }
+ * If TTS fails: { ok: true, urduTtsText, audioBase64: null, duration }
  */
 
 import { NextRequest, NextResponse }                from 'next/server';
@@ -16,6 +17,7 @@ import { generateDevUrduTts, sanitizeUrduTtsText,
          isEnglishResponse }                        from '@/lib/agents/tools';
 import { saveToCache }                              from '@/lib/qaCache';
 import { postProcessUrduTts }                       from '@/lib/tts/teacherUrdu';
+import { generateSpeech }                           from '@/lib/tts';
 
 export const runtime    = 'nodejs';
 export const dynamic    = 'force-dynamic';
@@ -54,8 +56,24 @@ export async function POST(request: NextRequest) {
     }
 
     const urduTtsText = postProcessUrduTts(sanitizeUrduTtsText(raw) || raw);
-    const duration    = Date.now() - t0;
-    console.log('[generate-urdu] done | chars:', urduTtsText.length, '| ms:', duration);
+    console.log('[generate-urdu] step1 urdu script done, chars:', urduTtsText.length);
+
+    // Step 2 — OpenAI TTS audio
+    let audioBase64: string | null = null;
+    try {
+      const speechResult = await generateSpeech(urduTtsText);
+      if (speechResult?.audioBuffer) {
+        audioBase64 = Buffer.from(speechResult.audioBuffer).toString('base64');
+        console.log('[generate-urdu] step2 audio done, bytes:', audioBase64.length);
+      } else {
+        console.log('[generate-urdu] step2 TTS disabled or returned null');
+      }
+    } catch (ttsErr) {
+      console.error('[generate-urdu] step2 TTS failed:', ttsErr instanceof Error ? ttsErr.message : ttsErr);
+    }
+
+    const duration = Date.now() - t0;
+    console.log('[generate-urdu] total ms:', duration);
 
     // Fire-and-forget: persist to qa_cache so future topic-view requests find it cached
     if (CACHE_ENABLED && chapterNumber > 0) {
@@ -76,7 +94,7 @@ export async function POST(request: NextRequest) {
       }).catch(() => {});
     }
 
-    return NextResponse.json({ ok: true, urduTtsText, duration });
+    return NextResponse.json({ ok: true, urduTtsText, audioBase64, duration });
 
   } catch (err) {
     console.error('[generate-urdu] error:', err);

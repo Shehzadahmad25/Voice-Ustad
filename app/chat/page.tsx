@@ -887,43 +887,53 @@ async function fetchUrduForTopicCard(id: string, r: any) {
     const data = await res.json();
     if (!data?.ok || !data?.urduTtsText) {
       console.log('[fetchUrdu] failed:', data?.error || 'empty response');
-      // Re-enable retry button so user can try manually
       const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
       if (retryBtn) retryBtn.style.display = 'inline-flex';
       return;
     }
 
-    const urduText = String(data.urduTtsText).trim();
-    console.log('[fetchUrdu] got Urdu, chars:', urduText.length, '| preview:', urduText.slice(0, 60));
+    const urduText  = String(data.urduTtsText).trim();
+    const audioB64  = typeof data.audioBase64 === 'string' && data.audioBase64 ? data.audioBase64 : null;
+    console.log('[fetchUrdu] got Urdu, chars:', urduText.length, '| audio bytes:', audioB64?.length ?? 0);
 
-    // Store in memory — must happen before prefetchUrduAudio reads urduSummaries[id]
+    // Always store the Urdu text — retryAudio fallback reads from here
     urduSummaries[id] = urduText;
     console.log('[fetchUrdu] stored urduTtsText, length:', urduText.length);
 
-    // Compute duration label and stamp data-default BEFORE retryAudio overwrites sub-text,
-    // so retryAudio.finally restores to the right label (not "Generating audio...").
-    const sub = document.getElementById('sub_' + id);
-    const wordCount = urduText.split(/\s+/).filter(Boolean).length;
-    const estSecs   = Math.max(30, Math.round(wordCount / 2.5));
+    // Duration: prefer byte-based estimate from real audio; fall back to word count
+    const estSecs = audioB64
+      ? Math.max(10, Math.round(audioB64.length / 16000))
+      : Math.max(30, Math.round(urduText.split(/\s+/).filter(Boolean).length / 2.5));
     const mm2 = Math.floor(estSecs / 60);
     const ss2 = String(estSecs % 60).padStart(2, '0');
     const subLabel = `Play — ${mm2 > 0 ? mm2 + ':' : ''}${ss2}s`;
-    if (sub) {
-      sub.dataset.default = subLabel;  // retryAudio.finally restores from here
-      sub.textContent = subLabel;
-    }
 
-    // Enable play button so user can click during or after audio prefetch
+    // Stamp data-default BEFORE any retryAudio call so .finally restores the right label
+    const sub = document.getElementById('sub_' + id);
+    if (sub) { sub.dataset.default = subLabel; sub.textContent = subLabel; }
+
     const btn = document.getElementById('btn_' + id) as HTMLButtonElement | null;
-    if (btn) btn.disabled = false;
 
-    // Kick off audio prefetch — prefetchInFlight[id] is set synchronously inside
-    console.log('[fetchUrdu] starting prefetch for id:', id);
-    prefetchUrduAudio(id);
-    // Chain completion log onto the in-flight promise (set synchronously by prefetchUrduAudio)
-    (prefetchInFlight[id] || Promise.resolve()).then(() => {
-      console.log('[fetchUrdu] prefetch complete, audio ready:', !!audioUrls[id]);
-    }).catch(() => {});
+    if (audioB64) {
+      // Audio arrived directly — no extra API call needed
+      console.log('[fetchUrdu] audio ready, setting directly');
+      audioUrls[id]      = `data:audio/mpeg;base64,${audioB64}`;
+      audioCacheKeys[id] = putCachedAudio(urduText, audioB64);
+      ttsReady[id]       = true;
+      setVoiceSource(id, 'openai');
+      const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
+      if (retryBtn) retryBtn.style.display = 'none';
+      if (btn) btn.disabled = false;
+    } else {
+      // TTS step failed server-side — enable button and fall back to prefetch
+      console.log('[fetchUrdu] no audio in response, falling back to prefetch');
+      if (btn) btn.disabled = false;
+      console.log('[fetchUrdu] starting prefetch for id:', id);
+      prefetchUrduAudio(id);
+      (prefetchInFlight[id] || Promise.resolve()).then(() => {
+        console.log('[fetchUrdu] prefetch complete, audio ready:', !!audioUrls[id]);
+      }).catch(() => {});
+    }
 
   } catch (err) {
     console.error('[fetchUrdu] error:', (err as any)?.message);
