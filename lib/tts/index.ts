@@ -84,9 +84,10 @@ export async function generateSpeech(
   // }
 
   // ── OpenAI TTS — primary ───────────────────────────────────────────────────
-  const model = 'tts-1-hd';
-  const voice = process.env.OPENAI_TTS_VOICE || 'onyx';
-  const speed = 1.05;
+  const model = 'gpt-4o-mini-tts';
+  const voice = 'onyx';
+  const speed = 0.9;
+  const instructions = 'Speak in Urdu language. Pronounce all words clearly and naturally as a Pakistani teacher would. Speak at a measured pace suitable for students.';
 
   console.log(`[tts] OpenAI ${model} ${voice} speed:${speed}`);
 
@@ -102,7 +103,7 @@ export async function generateSpeech(
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       signal:  controller.signal,
-      body:    JSON.stringify({ model, voice, speed, response_format: 'mp3', input: cleanUrduForTTS(text) }),
+      body:    JSON.stringify({ model, voice, speed, instructions, response_format: 'mp3', input: cleanUrduForTTS(text) }),
     });
   } catch (err) {
     if ((err as Error)?.name === 'AbortError')
