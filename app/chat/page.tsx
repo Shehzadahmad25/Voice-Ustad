@@ -896,27 +896,34 @@ async function fetchUrduForTopicCard(id: string, r: any) {
     const urduText = String(data.urduTtsText).trim();
     console.log('[fetchUrdu] got Urdu, chars:', urduText.length, '| preview:', urduText.slice(0, 60));
 
-    // Store in memory and update UI
+    // Store in memory — must happen before prefetchUrduAudio reads urduSummaries[id]
     urduSummaries[id] = urduText;
+    console.log('[fetchUrdu] stored urduTtsText, length:', urduText.length);
 
-    // Update sub-label from "Generating audio..." to duration estimate
+    // Compute duration label and stamp data-default BEFORE retryAudio overwrites sub-text,
+    // so retryAudio.finally restores to the right label (not "Generating audio...").
     const sub = document.getElementById('sub_' + id);
+    const wordCount = urduText.split(/\s+/).filter(Boolean).length;
+    const estSecs   = Math.max(30, Math.round(wordCount / 2.5));
+    const mm2 = Math.floor(estSecs / 60);
+    const ss2 = String(estSecs % 60).padStart(2, '0');
+    const subLabel = `Play — ${mm2 > 0 ? mm2 + ':' : ''}${ss2}s`;
     if (sub) {
-      const wordCount = urduText.split(/\s+/).filter(Boolean).length;
-      const estSecs   = Math.max(30, Math.round(wordCount / 2.5));
-      const mm2 = Math.floor(estSecs / 60);
-      const ss2 = String(estSecs % 60).padStart(2, '0');
-      const label = `Play — ${mm2 > 0 ? mm2 + ':' : ''}${ss2}s`;
-      sub.textContent = label;
-      sub.dataset.default = label;
+      sub.dataset.default = subLabel;  // retryAudio.finally restores from here
+      sub.textContent = subLabel;
     }
 
-    // Enable play button
+    // Enable play button so user can click during or after audio prefetch
     const btn = document.getElementById('btn_' + id) as HTMLButtonElement | null;
     if (btn) btn.disabled = false;
 
-    // Kick off audio prefetch now that we have the text
+    // Kick off audio prefetch — prefetchInFlight[id] is set synchronously inside
+    console.log('[fetchUrdu] starting prefetch for id:', id);
     prefetchUrduAudio(id);
+    // Chain completion log onto the in-flight promise (set synchronously by prefetchUrduAudio)
+    (prefetchInFlight[id] || Promise.resolve()).then(() => {
+      console.log('[fetchUrdu] prefetch complete, audio ready:', !!audioUrls[id]);
+    }).catch(() => {});
 
   } catch (err) {
     console.error('[fetchUrdu] error:', (err as any)?.message);
