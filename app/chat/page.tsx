@@ -1652,7 +1652,7 @@ async function togglePlay(id){
 
   const ttsText = decodeURIComponent(btn.dataset.tts || '');
   const ttsUrText = decodeURIComponent(btn.dataset.ttsUr || '');
-  const hasAudioText = Boolean(urduSummaries[id] || ttsText || ttsUrText);
+  const hasAudioText = Boolean(audioUrls[id] || urduSummaries[id] || ttsText || ttsUrText);
   if(!hasAudioText){
     showToast('🔊','No text available for Urdu audio');
     return;
@@ -1819,7 +1819,7 @@ async function retryAudio(id, silent=false){
   const ttsText = decodeURIComponent(String(btn?.getAttribute('data-tts') || ''));
   let summary = String(urduSummaries[id] || ttsUrText || ttsText || '').trim();
   if (summary.length > 1100) summary = summary.slice(0, 1100);
-  if(!summary){
+  if(!summary && !audioUrls[id]){
     showToast('🔊','Urdu summary unavailable');
     return;
   }
