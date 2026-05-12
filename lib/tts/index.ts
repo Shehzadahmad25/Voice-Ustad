@@ -87,7 +87,7 @@ export async function generateSpeech(
   const model = 'gpt-4o-mini-tts';
   const voice = 'onyx';
   const speed = 0.9;
-  const instructions = 'Speak in Urdu language. Pronounce all words clearly and naturally as a Pakistani teacher would. Speak at a measured pace suitable for students.';
+  const instructions = 'Speak naturally like a Pakistani teacher mixing Urdu and English. Urdu words should sound like native Urdu, English chemistry terms should sound like Pakistani-accented English. Speak clearly at a measured pace suitable for FSc students.';
 
   console.log(`[tts] OpenAI ${model} ${voice} speed:${speed}`);
 
