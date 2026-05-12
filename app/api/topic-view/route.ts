@@ -59,12 +59,15 @@ export async function POST(request: NextRequest) {
     if (!urduTtsText) {
       console.log('[topic-view] generating fresh Urdu for:', result.topic);
       try {
-        const fresh = await generateDevUrduTts(
-          result.topic,
-          result.definition,
-          result.explanation,
-          result.example || undefined,
-        );
+        const fresh = await Promise.race([
+          generateDevUrduTts(
+            result.topic,
+            result.definition,
+            result.explanation,
+            result.example || undefined,
+          ),
+          new Promise<string>(resolve => setTimeout(() => resolve(''), 8_000)),
+        ]);
         if (fresh && !isEnglishResponse(fresh)) {
           urduTtsText = fresh;
           console.log('[topic-view] fresh Urdu generated, length:', urduTtsText.length);

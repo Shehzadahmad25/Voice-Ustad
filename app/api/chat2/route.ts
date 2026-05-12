@@ -88,7 +88,7 @@ async function callOpenAIUrduSpeech(inputText: string): Promise<ArrayBuffer> {
   if (!apiKey) throw new Error('OPENAI_API_KEY is not set');
   const model       = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
   const voice       = process.env.OPENAI_TTS_VOICE || 'alloy';
-  const timeoutMs   = Number(process.env.OPENAI_TIMEOUT_MS || 25_000);
+  const timeoutMs   = Number(process.env.OPENAI_TIMEOUT_MS || 30_000);
   const controller  = new AbortController();
   const tid         = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;

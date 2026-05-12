@@ -420,10 +420,10 @@ Rules:
 - Use simple everyday Urdu vocabulary that FSc students understand
 - Write as if speaking out loud — use natural pauses with commas, avoid long complex sentences
 - Start with the topic name in Urdu, then explain simply
-- Maximum 120 words
+- Maximum 80 words. Be concise.
 - Return ONLY the Urdu text, no English, no transliteration, no explanation`;
 
-const OPENAI_SCRIPT_TIMEOUT_MS = 25_000;
+const OPENAI_SCRIPT_TIMEOUT_MS = 30_000;
 
 /** Returns true if >40% of non-whitespace chars are Latin — indicates stale English content. */
 export function isEnglishResponse(text: string): boolean {
@@ -485,7 +485,7 @@ export async function generateDevUrduTts(
     const response = await anthropic.messages.create(
       {
         model:      'claude-sonnet-4-20250514',
-        max_tokens: 400,
+        max_tokens: 250,
         system:     DEV_URDU_SYSTEM_PROMPT,
         messages:   [{ role: 'user', content }],
       },

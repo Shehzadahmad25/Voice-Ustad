@@ -26,7 +26,7 @@ export interface SpeechResult {
   model:       string;
 }
 
-const OPENAI_TTS_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 25_000);
+const OPENAI_TTS_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS || 30_000);
 const URDU_TTS_ENABLED = process.env.URDU_TTS_ENABLED === 'true'; // default false
 
 /**
@@ -118,6 +118,10 @@ export async function generateSpeech(
     throw new Error(`[tts] OpenAI TTS error ${res.status}: ${errText}`);
   }
 
-  const audioBuffer = Buffer.from(await res.arrayBuffer()).buffer as ArrayBuffer;
+  const mp3Buffer     = Buffer.from(await res.arrayBuffer());
+  // Append 2646 bytes of silent padding so the decoder finishes the last frame
+  // before the buffer ends — prevents the final syllable being cut off.
+  const silencePadding = Buffer.alloc(2646);
+  const audioBuffer   = Buffer.concat([mp3Buffer, silencePadding]).buffer as ArrayBuffer;
   return { audioBuffer, provider: 'openai', voice, model };
 }

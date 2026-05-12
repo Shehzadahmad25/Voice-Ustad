@@ -337,5 +337,15 @@ export function postProcessUrduTts(text: string): string {
   // 5 — final cleanup
   out = out.replace(/\s+/g, ' ').trim();
 
+  // 6 — ensure audio ends at a complete sentence to prevent cutoff
+  if (!out.endsWith('۔')) {
+    const lastStop = out.lastIndexOf('۔');
+    if (lastStop > out.length * 0.5) {
+      out = out.slice(0, lastStop + 1);
+    } else {
+      out = out + ' ۔';
+    }
+  }
+
   return out;
 }

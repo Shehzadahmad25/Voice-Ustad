@@ -265,7 +265,7 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
         dbResult.blocks.example     || '',
         englishAnswerText,
       ),
-      new Promise<string>((resolve) => setTimeout(() => resolve(''), 20_000)),
+      new Promise<string>((resolve) => setTimeout(() => resolve(''), 8_000)),
     ]);
     console.log('[tutor] urdu generated length:', generated?.length ?? 0, '| preview:', generated?.slice(0, 80) || 'EMPTY');
     if (generated) urduSummary = sanitizeUrduTtsText(generated) || urduSummary;
