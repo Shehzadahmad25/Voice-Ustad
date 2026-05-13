@@ -13,8 +13,7 @@
  */
 
 import { NextRequest, NextResponse }                from 'next/server';
-import { generateDevUrduTts, sanitizeUrduTtsText,
-         isEnglishResponse }                        from '@/lib/agents/tools';
+import { generateDevUrduTts, sanitizeUrduTtsText } from '@/lib/agents/tools';
 import { saveToCache }                              from '@/lib/qaCache';
 import { postProcessUrduTts }                       from '@/lib/tts/teacherUrdu';
 import { generateSpeech }                           from '@/lib/tts';
@@ -50,9 +49,10 @@ export async function POST(request: NextRequest) {
 
     const raw = await generateDevUrduTts(topic, definition, explanation, example || undefined, formula || undefined);
 
-    if (!raw || isEnglishResponse(raw)) {
-      console.log('[generate-urdu] generation returned empty or English');
-      return NextResponse.json({ ok: false, error: 'Urdu generation failed or returned English' }, { status: 500 });
+    const hasUrduChars = (raw.match(/[؀-ۿ]/g) || []).length >= 5;
+    if (!raw || !hasUrduChars) {
+      console.log('[generate-urdu] no Urdu content in response | preview:', raw?.slice(0, 80));
+      return NextResponse.json({ ok: false, error: 'No Urdu content generated' }, { status: 500 });
     }
 
     const urduTtsText = postProcessUrduTts(sanitizeUrduTtsText(raw) || raw);

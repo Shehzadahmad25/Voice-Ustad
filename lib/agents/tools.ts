@@ -427,12 +427,12 @@ Rules:
 
 const OPENAI_SCRIPT_TIMEOUT_MS = 30_000;
 
-/** Returns true if >40% of non-whitespace chars are Latin — indicates stale English content. */
+/** Returns true if text contains fewer than 5 Urdu/Arabic characters — indicates no Urdu content.
+ *  Mixed Urdu-English (e.g. "دیکھو، Law of Conservation of Mass یہ کہتا ہے") is NOT English. */
 export function isEnglishResponse(text: string): boolean {
-  const nonSpace = text.replace(/\s/g, '');
-  if (!nonSpace) return false;
-  const latinCount = (text.match(/[a-zA-Z]/g) ?? []).length;
-  return latinCount / nonSpace.length > 0.4;
+  if (!text) return true;
+  const urduChars = (text.match(/[؀-ۿ]/g) || []).length;
+  return urduChars < 5;
 }
 
 export async function generateDevUrduTts(
