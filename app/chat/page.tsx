@@ -757,12 +757,18 @@ function appendTopicView(r: any): string {
       + (showFormulaHeading ? '<div class="tv-sec-lbl">' + esc(r.flabel || 'Formula') + '</div>' : '')
       + '<div class="tv-formula-body">' + formulaLines.map((f: string) => '<code class="tv-formula-line">' + esc(f) + '</code>').join('') + '</div></div>';
   }
-  if (r.example || r.example_solution || r.example_answer)
+  if (r.example || r.example_solution || r.example_answer) {
+    const exQ   = String(r.example          ?? '').trim();
+    const exSol = String(r.example_solution ?? '').trim();
+    const exAns = String(r.example_answer   ?? '').trim();
+    // Skip rendering exQ when solution already opens with the same text (avoids duplication).
+    const renderQ = exQ && (!exSol || !exSol.startsWith(exQ.slice(0, Math.min(40, exQ.length))));
     sectionsHtml += '<div class="tv-section tv-section--example"><div class="tv-sec-lbl">Example</div><div class="tv-sec-body">'
-      + (r.example ? fmtExample(r.example) : '')
-      + (r.example_solution?.trim() ? '<div class="tv-ex-solution-lbl">Solution</div><div class="tv-ex-solution">' + esc(r.example_solution.trim()) + '</div>' : '')
-      + (r.example_answer ? '<div class="tv-ex-ans">' + esc(r.example_answer) + '</div>' : '')
+      + (renderQ ? fmtExample(exQ) : '')
+      + (exSol ? '<div class="tv-ex-solution-lbl">Solution</div><div class="tv-ex-solution">' + esc(exSol) + '</div>' : '')
+      + (exAns ? '<div class="tv-ex-ans">' + esc(exAns) + '</div>' : '')
       + '</div></div>';
+  }
   if (kwItems.length)
     sectionsHtml += '<div class="tv-section tv-section--keywords"><div class="tv-sec-lbl">Key Points</div><div class="tv-sec-body"><ul class="tv-kw-list">' + kwItems.map((k: string) => '<li>' + esc(k) + '</li>').join('') + '</ul></div></div>';
   if (!sectionsHtml)
