@@ -86,16 +86,14 @@ async function fetchChunkRow(
 
   console.log('[retrieveTopicContent] query:', query, '| topicSlug:', topicSlug || '(none)');
 
-  // Strategy 0: direct slug lookup — exact match, no ambiguity
+  // Strategy 0: direct slug lookup — scoped to chapter when available
   if (topicSlug) {
-    const { data } = await db
-      .from('content_chunks')
-      .select(SELECT_COLS)
-      .eq('topic_slug', topicSlug)
-      .limit(1);
+    let q0 = db.from('content_chunks').select(SELECT_COLS).eq('topic_slug', topicSlug);
+    if (chapterNumber > 0) q0 = q0.eq('chapter', chapterNumber);
+    const { data } = await q0.limit(1);
     if (data?.[0]) {
-      console.log(`[retrieveTopicContent] SLUG MATCH — "${(data[0] as unknown as unknown as ChunkRow).term}"`);
-      return data[0] as unknown as unknown as ChunkRow;
+      console.log(`[retrieveTopicContent] SLUG MATCH — "${(data[0] as unknown as ChunkRow).term}" ch=${(data[0] as unknown as ChunkRow).chapter}`);
+      return data[0] as unknown as ChunkRow;
     }
   }
 

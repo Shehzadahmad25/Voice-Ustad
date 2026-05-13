@@ -1,5 +1,5 @@
 /**
- * GET /api/chapter-topics?chapter=1&board=KPK
+ * GET /api/chapter-topics?chapter=1
  *
  * Returns topics from content_chunks for one chapter.
  * Uses the SERVICE ROLE KEY so RLS does not block the query.
@@ -21,21 +21,19 @@ function getSupabase() {
 }
 
 export async function GET(req: NextRequest) {
-  const chapterParam = req.nextUrl.searchParams.get('chapter');
-  const board        = req.nextUrl.searchParams.get('board') || 'KPK';
+  const chapterParam  = req.nextUrl.searchParams.get('chapter');
 
   const chapterNumber = parseInt(chapterParam ?? '', 10);
   if (!chapterNumber || isNaN(chapterNumber)) {
     return NextResponse.json({ ok: false, error: 'chapter param required (integer)' }, { status: 400 });
   }
 
-  console.log(`[chapter-topics] chapter=${chapterNumber} board=${board}`);
+  console.log(`[chapter-topics] chapter=${chapterNumber}`);
 
   const { data, error } = await getSupabase()
     .from('content_chunks')
-    .select('id, term, topic_slug, section, page_ref, type, difficulty')
+    .select('id, term, topic_slug, section, page_ref')
     .eq('chapter', chapterNumber)
-    .eq('board', board)
     .order('section');
 
   console.log(`[chapter-topics] rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);

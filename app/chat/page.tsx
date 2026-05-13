@@ -486,9 +486,9 @@ function selCh(i: number){
     fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`)
       .then(r => r.json())
       .then((d) => {
-        console.log('[scope] raw response — rows:', d?.topics?.length ?? 0, '| error:', d?.error ?? 'none');
+        console.log('[scope] raw response — rows:', d?.topics?.length ?? 0, '| chapter:', chapterNum, '| error:', d?.error ?? 'none');
         const data: Array<{ topic_slug: string; term: string; page_ref: number | null; section: string }> = d?.topics ?? [];
-        if (data.length === 0) return;
+        // Always update — even empty array clears stale topics from previous chapter
         const parseSection = (s: string) => {
           const p = String(s || '').split('.');
           return parseFloat(p[0]) * 1000 + parseFloat(p[1] || '0');
@@ -613,7 +613,7 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
   if (busy) return;
   const title = String(topicTitle || '').replace(/\s+/g, ' ').trim();
   const code  = String(topicCode  || '').trim();
-  console.log('[viewTopic] title:', title, '| code:', code, '| chN:', chN);
+  console.log('[viewTopic] title:', title, '| code:', code, '| chN:', chN, '| activeChIdx:', activeChIdx, '| CHS[activeChIdx].n:', CHS[activeChIdx]?.n);
   if (!title && !code) return;
   if (_setViewedTopics) _setViewedTopics((prev) => new Set([...prev, title]));
 
