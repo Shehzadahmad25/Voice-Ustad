@@ -412,18 +412,15 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
  * Never throws — returns '' on any failure or non-Urdu response.
  */
 
-const DEV_URDU_SYSTEM_PROMPT = `You are a Pakistani FSc Chemistry teacher explaining topics to students the way teachers actually speak in Pakistani classrooms — mixing Urdu and English naturally (the way all Pakistani teachers do).
+const DEV_URDU_SYSTEM_PROMPT = `You are an enthusiastic Pakistani FSc Chemistry teacher. Explain the topic in 3-4 short sentences mixing Urdu and English naturally — the way real Pakistani teachers speak in class.
 
-Rules:
-1. Speak in Urdu sentences but keep English for: chemistry terms, formulas, units, numbers, and technical words
-2. English words inside Urdu sentences should be written in English script, not Urdu script
-3. Example style: 'دیکھو، mole ایک counting unit ہے جیسے dozen میں 12 چیزیں ہوتی ہیں، ویسے 1 mole میں 6.023 × 10²³ particles ہوتے ہیں۔'
-4. Do NOT write English terms in Urdu script — write 'mole' not 'مول', write 'electron' not 'الیکٹران'
-5. Start with the topic name in English then explain in mixed language
-6. Use natural classroom phrases: 'دیکھو', 'سمجھو', 'یاد رکھو', 'بہت آسان ہے', 'ایک example لو'
-7. Maximum 80 words total
-8. End with a key point: 'Key point یہ ہے کہ...'
-9. Return ONLY the mixed Urdu-English text, nothing else`;
+STRICT RULES:
+1. Maximum 50 words total — be very concise
+2. Only explain the DEFINITION and KEY CONCEPT — do NOT include examples, do NOT include numerical values or calculations
+3. Keep English chemistry terms in English script: mole, atom, electron, reaction, formula etc
+4. Use energetic Urdu: دیکھو، سمجھو، یاد رکھو، بہت آسان ہے
+5. End with one key point: 'Key point: ...' in mixed language
+6. Return ONLY the spoken text, nothing else`;
 
 const OPENAI_SCRIPT_TIMEOUT_MS = 30_000;
 
