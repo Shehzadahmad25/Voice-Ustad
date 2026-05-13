@@ -37,7 +37,7 @@ const cardStyle: React.CSSProperties = {
   background: '#141929',
   border: '1px solid rgba(255,255,255,0.06)',
   borderRadius: '12px',
-  padding: '18px 20px',
+  padding: '12px 14px',
   position: 'relative',
   overflow: 'hidden',
 }
@@ -196,7 +196,7 @@ export default function DashboardPage() {
               background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)',
               borderRadius: '12px', padding: '12px 18px', marginBottom: '20px', gap: '14px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13.5px', color: '#f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#f1f5f9' }}>
                 <div style={{
                   width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b',
                   animation: 'blink 1.8s infinite', flexShrink: 0,
@@ -215,12 +215,12 @@ export default function DashboardPage() {
           {/* STAT STRIP */}
           <div className="dash-stats" style={{
             display: 'grid', gridTemplateColumns: 'repeat(3,1fr)',
-            gap: '14px', marginBottom: '20px',
+            gap: '8px', marginBottom: '14px',
           }}>
             {[
-              { label: 'QUESTIONS ASKED', value: questionsAsked, note: 'Keep it up!'          },
-              { label: 'CHAPTERS ACTIVE', value: chaptersActive, note: 'Start your first chapter' },
-              { label: 'STUDY SESSIONS',  value: studySessions,  note: 'Start your first →'    },
+              { label: 'QUESTIONS ASKED', value: questionsAsked, note: questionsAsked === 0 ? 'Ask your first question →' : 'Keep it up!', clickable: questionsAsked === 0 },
+              { label: 'CHAPTERS ACTIVE', value: chaptersActive, note: 'Start your first chapter', clickable: false },
+              { label: 'STUDY SESSIONS',  value: studySessions,  note: 'Start your first →',       clickable: false },
             ].map((stat, idx) => (
               <div key={idx} style={cardStyle}>
                 {loading ? (
@@ -237,7 +237,10 @@ export default function DashboardPage() {
                     <p style={{ fontSize: '32px', fontWeight: '900', color: '#f59e0b', lineHeight: 1, marginBottom: '6px' }}>
                       {stat.value}
                     </p>
-                    <p style={{ fontSize: '12px', color: '#94a3b8' }}>{stat.note}</p>
+                    <p onClick={stat.clickable ? () => router.push('/chat') : undefined}
+                       style={{ fontSize: '12px', color: '#94a3b8', cursor: stat.clickable ? 'pointer' : 'default' }}>
+                      {stat.note}
+                    </p>
                   </>
                 )}
               </div>

@@ -1,5 +1,6 @@
 'use client'
 import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
 import { getFirstName } from '@/lib/utils'
 
@@ -10,6 +11,20 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
 
   const firstName = getFirstName(profile, user)
   const initial = firstName[0]?.toUpperCase() || 'S'
+
+  const [displayName, setDisplayName] = useState<string>(profile?.full_name || firstName || '')
+
+  useEffect(() => {
+    if (!user?.id) return
+    supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.full_name) setDisplayName(data.full_name)
+      })
+  }, [user?.id])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -62,7 +77,7 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
           display:'flex', alignItems:'center', justifyContent:'center',
           fontSize:'13px', fontWeight:'700', color:'#000', flexShrink:0,
         }}>{initial}</div>
-        <span className="topnav-email" style={{ fontSize:'12px', color:'#94a3b8' }}>{user?.email}</span>
+        <span className="topnav-email" style={{ fontSize:'12px', color:'#94a3b8' }}>{displayName || user?.email}</span>
         <button onClick={handleLogout} style={{
           padding:'5px 12px', borderRadius:'7px', fontSize:'12px', fontWeight:'500',
           color:'#94a3b8', border:'1px solid rgba(255,255,255,0.1)',
