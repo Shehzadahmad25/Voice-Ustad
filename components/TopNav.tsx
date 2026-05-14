@@ -15,6 +15,10 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
   const [displayName, setDisplayName] = useState<string>(profile?.full_name || firstName || '')
 
   useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+
+  useEffect(() => {
     if (!user?.id) return
     supabase
       .from('profiles')
