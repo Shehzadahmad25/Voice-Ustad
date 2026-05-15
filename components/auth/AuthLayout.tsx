@@ -45,9 +45,8 @@ export default function AuthLayout({ children, showBrand = true }: AuthLayoutPro
         zIndex: 1,
       }}>
         {showBrand && (
-          <div style={{ display:'flex', alignItems:'center', gap:'9px', marginBottom:'28px' }}>
-            <span style={{ fontSize:'22px' }}>📚</span>
-            <span style={{ fontSize:'18px', fontWeight:'800', color:'white' }}>VoiceUstad</span>
+          <div style={{ display:'flex', alignItems:'center', marginBottom:'28px' }}>
+            <img src="/logo.jpg" alt="VoiceUstad" style={{ height:'48px', width:'auto', objectFit:'contain', borderRadius:'8px' }} />
           </div>
         )}
         {children}

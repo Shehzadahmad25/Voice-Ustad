@@ -60,9 +60,10 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
         <Image
           src="/logo.jpg"
           alt="VoiceUstad"
-          width={120}
-          height={120}
+          width={44}
+          height={44}
           className="object-contain"
+          style={{ borderRadius: '8px' }}
           priority
         />
       </Link>

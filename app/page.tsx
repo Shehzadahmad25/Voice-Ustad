@@ -74,7 +74,7 @@ export default function Home() {
           <img
             src="/logo.jpg"
             alt="VoiceUstad"
-            style={{ height: '44px', width: 'auto', objectFit: 'contain' }}
+            style={{ height: '38px', width: 'auto', objectFit: 'contain', borderRadius: '8px' }}
           />
         </a>
         <div className="nav-links">
@@ -110,7 +110,7 @@ export default function Home() {
           Live Now · KPK Board FSc Students
         </div>
 
-        <span className="hero-glyph">📚</span>
+        <img src="/logo.jpg" alt="VoiceUstad" style={{ width: '100px', height: '100px', objectFit: 'contain', borderRadius: '16px', margin: '0 auto' }} />
 
         <h1>
           <span className="g">VoiceUstad</span><br />
@@ -235,7 +235,7 @@ export default function Home() {
             </ul>
           </div>
           <div className="cc cc-new">
-            <h4>📚 VoiceUstad AI</h4>
+            <h4>VoiceUstad AI</h4>
             <ul>
               <li><span className="ic">✅</span> Only <strong>Rs. 499/month</strong> — unlimited</li>
               <li><span className="ic">✅</span> Study any time — 2am or 2pm</li>
@@ -441,7 +441,7 @@ export default function Home() {
       <footer>
         <div className="fg">
           <div>
-            <div className="fbr">📚 VoiceUstad</div>
+            <div className="fbr">VoiceUstad</div>
             <p className="ft">Pakistan&apos;s AI-powered FSc Chemistry tutor. English text, Urdu voice, KPK Board aligned.</p>
             <p style={{ marginTop: "14px", fontSize: ".76rem", color: "rgba(160,120,255,0.45)" }}>Made with ❤️ in Peshawar, Pakistan 🇵🇰</p>
           </div>
