@@ -71,7 +71,11 @@ export default function Home() {
 
       <nav id="nav" className={isScrolled ? "scrolled" : ""}>
         <a className="nav-brand" href="#">
-          <span className="brand-emoji">📚</span> VoiceUstad
+          <img
+            src="/logo.jpg"
+            alt="VoiceUstad"
+            style={{ height: '44px', width: 'auto', objectFit: 'contain' }}
+          />
         </a>
         <div className="nav-links">
           <a href="#features">Features</a>
