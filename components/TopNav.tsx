@@ -1,6 +1,8 @@
 'use client'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
 import { getFirstName } from '@/lib/utils'
 
@@ -54,11 +56,16 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
       top: 0, left: 0, right: 0,
       zIndex: 100,
     }}>
-      <div style={{ display:'flex', alignItems:'center', gap:'9px', marginRight:'auto', cursor:'pointer' }}
-        onClick={() => router.push('/dashboard')}>
-        <span style={{ fontSize:'22px' }}>📚</span>
-        <span style={{ fontSize:'15px', fontWeight:'800', color:'white' }}>VoiceUstad</span>
-      </div>
+      <Link href="/" style={{ marginRight:'auto', display:'flex', alignItems:'center' }}>
+        <Image
+          src="/logo.jpg"
+          alt="VoiceUstad"
+          width={120}
+          height={120}
+          className="object-contain"
+          priority
+        />
+      </Link>
 
       <div className="topnav-links" style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', display:'flex', gap:'4px' }}>
         {navLinks.map(link => (
