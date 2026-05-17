@@ -52,6 +52,7 @@ async function main() {
   const { data: rows, error } = await supabase
     .from('content_chunks')
     .select('id, term, book_definition, guide_explanation')
+    .eq('class', 11)
     .is('embedding', null);
 
   if (error) {
