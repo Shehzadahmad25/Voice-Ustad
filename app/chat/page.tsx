@@ -21,6 +21,8 @@ interface QuizChapterInfo { id: string; title: string; }
 let _setScopeTopics: ((t: ScopeTopic[]) => void) | null = null;
 let _setQuizChapterInfo: ((info: QuizChapterInfo | null) => void) | null = null;
 let _setViewedTopics: ((fn: (prev: Set<string>) => Set<string>) => void) | null = null;
+let _setSelectedClass: ((c: number) => void) | null = null;
+let _selectedClass = 11;
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    STATE
@@ -298,6 +300,7 @@ function initApp(){
   w.toggleChapterPanel = toggleChapterPanel;
   w.openPrevChat = openPrevChat;
   w.filterChs = filterChs;
+  w.setClassFilter = setClassFilter;
   w.scrollDn = scrollDn;
   w.dbLoadSession = dbLoadSession;
   w.dbDeleteSession = dbDeleteSession;
@@ -375,12 +378,18 @@ function trapFocus(e: KeyboardEvent){
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SIDEBAR
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+function setClassFilter(cls: number){
+  _selectedClass = cls;
+  if (_setSelectedClass) _setSelectedClass(cls);
+  buildSb((document.getElementById('sbSearch') as HTMLInputElement | null)?.value ?? '');
+}
+
 function buildSb(filter=''){
   const q=filter.trim().toLowerCase();
-  let h='', lp=0;
+  let h='';
   CHS.forEach((c,i)=>{
+    if(c.cls !== _selectedClass) return;
     if(q && !c.t.toLowerCase().includes(q) && !c.n.includes(q)) return;
-    if(c.p!==lp){ h+=`<div class="sb-part">Class ${c.p}</div>`; lp=c.p; }
     const hasSaved = getChHistory(i).length>0;
     h+=`<div class="sb-ch-wrap" id="sb-ch-wrap-${i}">
       <div class="sb-ch${c.on?' on':''}" role="button" tabindex="0"
@@ -2347,6 +2356,7 @@ export default function ChatPage() {
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 720;
   const [visibleCount, setVisibleCount] = useState(isMobile ? 3 : 7);
   const [scopeTopics, setScopeTopics] = useState<ScopeTopic[]>([]);
+  const [selectedClass, setSelectedClass] = useState(11);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [quizChapterInfo, setQuizChapterInfo] = useState<QuizChapterInfo | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
@@ -2406,6 +2416,7 @@ export default function ChatPage() {
     _setScopeTopics = setScopeTopics;
     _setQuizChapterInfo = setQuizChapterInfo;
     _setViewedTopics = setViewedTopics;
+    _setSelectedClass = setSelectedClass;
     dbLoadHistory();
     fetchChapters();
     const params = new URLSearchParams(window.location.search);
@@ -2636,6 +2647,19 @@ export default function ChatPage() {
         </div>
 
         <div className="sb-sec">Chapters</div>
+
+        <div className="sb-class-toggle">
+          {[11, 12].map(cls => (
+            <button
+              key={cls}
+              type="button"
+              className={`sb-class-btn${selectedClass === cls ? ' active' : ''}`}
+              onClick={() => (window as any).setClassFilter(cls)}
+            >
+              Class {cls}
+            </button>
+          ))}
+        </div>
 
         <div className="sb-search">
           <div className="sb-search-box">
