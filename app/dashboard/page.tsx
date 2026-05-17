@@ -82,9 +82,9 @@ export default function DashboardPage() {
             const { data: chData } = await supabase
               .from('chapters')
               .select('id, unit_number, title, subject, class, board')
-              .eq('class', 11)
               .eq('board', 'KPK')
-              .order('unit_number')
+              .order('class', { ascending: true })
+              .order('unit_number', { ascending: true })
             setChapters(chData || [])
           }
           setLoading(false)
@@ -102,7 +102,7 @@ export default function DashboardPage() {
           supabase.from('study_sessions').select('id', { count: 'exact' }).eq('user_id', u.id),
           supabase.from('chapter_progress').select('*').eq('user_id', u.id),
           supabase.from('chapter_progress').select('chapter_id', { count: 'exact' }).eq('user_id', u.id).gt('progress_pct', 0),
-          supabase.from('chapters').select('id, unit_number, title, subject, class, board').eq('class', 11).eq('board', 'KPK').order('unit_number'),
+          supabase.from('chapters').select('id, unit_number, title, subject, class, board').eq('board', 'KPK').order('class', { ascending: true }).order('unit_number', { ascending: true }),
         ])
 
         setProfile(profileRes.data)
@@ -259,45 +259,56 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {chapters.map((ch) => (
-                  <button
-                    key={ch.id}
-                    onClick={() => router.push(`/chapter/${ch.unit_number}`)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '14px',
-                      width: '100%', textAlign: 'left',
-                      background: '#141929',
-                      border: '1px solid rgba(245,158,11,0.2)',
-                      borderRadius: '12px', padding: '16px 20px',
-                      cursor: 'pointer', fontFamily: 'inherit',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = 'rgba(245,158,11,0.45)'
-                      e.currentTarget.style.background = '#1a1600'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = 'rgba(245,158,11,0.2)'
-                      e.currentTarget.style.background = '#141929'
-                    }}
-                  >
-                    <div style={{
-                      width: '42px', height: '42px', borderRadius: '11px', flexShrink: 0,
-                      background: 'rgba(245,158,11,0.1)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '20px',
-                    }}>🧪</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#f1f5f9', margin: '0 0 3px' }}>
-                        Chapter {ch.unit_number}: {ch.title}
+                {(['11', '12'] as const).map(cls => {
+                  const group = chapters.filter(ch => String(ch.class) === cls)
+                  if (!group.length) return null
+                  return (
+                    <div key={cls}>
+                      <p style={{ fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '4px 0 8px 2px' }}>
+                        Class {cls}
                       </p>
-                      <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                        Chemistry · Class 11 · All topics in order
-                      </p>
+                      {group.map((ch) => (
+                        <button
+                          key={ch.id}
+                          onClick={() => router.push(`/chapter/${ch.unit_number}`)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '14px',
+                            width: '100%', textAlign: 'left',
+                            background: '#141929',
+                            border: '1px solid rgba(245,158,11,0.2)',
+                            borderRadius: '12px', padding: '16px 20px',
+                            cursor: 'pointer', fontFamily: 'inherit',
+                            transition: 'all 0.15s', marginBottom: '10px',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = 'rgba(245,158,11,0.45)'
+                            e.currentTarget.style.background = '#1a1600'
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = 'rgba(245,158,11,0.2)'
+                            e.currentTarget.style.background = '#141929'
+                          }}
+                        >
+                          <div style={{
+                            width: '42px', height: '42px', borderRadius: '11px', flexShrink: 0,
+                            background: 'rgba(245,158,11,0.1)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '20px',
+                          }}>🧪</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: '14px', fontWeight: '700', color: '#f1f5f9', margin: '0 0 3px' }}>
+                              Chapter {ch.unit_number}: {ch.title}
+                            </p>
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                              Chemistry · Class {cls} · All topics in order
+                            </p>
+                          </div>
+                          <span style={{ color: '#f59e0b', fontSize: '16px', flexShrink: 0 }}>→</span>
+                        </button>
+                      ))}
                     </div>
-                    <span style={{ color: '#f59e0b', fontSize: '16px', flexShrink: 0 }}>→</span>
-                  </button>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

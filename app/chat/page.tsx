@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import TopNav from '@/components/TopNav';
 import QuizModal from '@/components/QuizModal';
 // CHAPTER DATA WILL BE LOADED FROM SUPABASE
-const CHS: Array<{p:number; n:string; t:string; chips:string[]; followups:string[]; on?:boolean}> = [];
+const CHS: Array<{p:number; cls:number; n:string; t:string; chips:string[]; followups:string[]; on?:boolean}> = [];
 
 // TODO: Re-enable after all chapter topics are added to DB
 const SHOW_CHAPTER_SCOPE = true;
@@ -380,7 +380,7 @@ function buildSb(filter=''){
   let h='', lp=0;
   CHS.forEach((c,i)=>{
     if(q && !c.t.toLowerCase().includes(q) && !c.n.includes(q)) return;
-    if(c.p!==lp){ h+=`<div class="sb-part">Part ${c.p}</div>`; lp=c.p; }
+    if(c.p!==lp){ h+=`<div class="sb-part">Class ${c.p}</div>`; lp=c.p; }
     const hasSaved = getChHistory(i).length>0;
     h+=`<div class="sb-ch-wrap" id="sb-ch-wrap-${i}">
       <div class="sb-ch${c.on?' on':''}" role="button" tabindex="0"
@@ -2150,17 +2150,18 @@ async function fetchChapters() {
   try {
     const { data, error } = await _sbClient
       .from('chapters')
-      .select('id, unit_number, title')
+      .select('id, unit_number, title, class')
       .eq('subject', 'Chemistry')
-      .eq('class', 11)
       .eq('board', 'KPK')
+      .order('class', { ascending: true })
       .order('unit_number', { ascending: true });
     if (error) { console.error('fetchChapters error:', error.message); return; }
     if (!data?.length) { console.warn('fetchChapters: no chapters returned (check RLS or filters)'); return; }
     CHS.length = 0;
     ENABLED_CHAPTERS.clear();
     data.forEach((ch: any, idx: number) => {
-      CHS.push({ p: 1, n: String(ch.unit_number), t: ch.title, chips: [], followups: [], on: false, id: ch.id });
+      const cls = Number(ch.class) || 11;
+      CHS.push({ p: cls, cls, n: String(ch.unit_number), t: ch.title, chips: [], followups: [], on: false, id: ch.id });
       ENABLED_CHAPTERS.add(idx);
     });
     buildSb();

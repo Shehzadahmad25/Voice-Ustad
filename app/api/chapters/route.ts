@@ -10,10 +10,10 @@ export async function GET() {
 
   const { data, error } = await db
     .from('chapters')
-    .select('id, unit_number, title')
+    .select('id, unit_number, title, class')
     .eq('subject', 'Chemistry')
-    .eq('class', 11)
     .eq('board', 'KPK')
+    .order('class', { ascending: true })
     .order('unit_number', { ascending: true });
 
   if (error) {
