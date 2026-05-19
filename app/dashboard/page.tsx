@@ -12,6 +12,46 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
 import { getFirstName } from '@/lib/utils'
 
+// ── Chapter metadata ─────────────────────────────────────────────────────────
+const CHAPTER_NAMES: Record<number, string> = {
+  1: 'Stoichiometry',
+  2: 'Atomic Structure',
+  3: 'Chemical Bonding',
+  4: 'States of Matter',
+  5: 'Thermochemistry',
+  6: 'Chemical Equilibrium',
+  7: 'Acids, Bases and Salts',
+  8: 'Electrochemistry',
+  9: 'Reaction Kinetics',
+  10: 'Organic Chemistry',
+  11: 'Hydrocarbons',
+  12: 'Alkyl Halides',
+  13: 'Alcohols and Phenols',
+  14: 'Aldehydes and Ketones',
+  15: 'Carboxylic Acids',
+  16: 'Macromolecules',
+  17: 'Common Chemical Industries',
+  18: 'Environmental Chemistry',
+  19: 'Analytical Chemistry',
+  20: 'Transition Elements',
+  21: 'Coordination Chemistry',
+  22: 'Biochemistry',
+  23: 'Nuclear Chemistry',
+  24: 'Chemistry of s-block Elements',
+}
+
+const TOPIC_COUNTS: Record<number, number> = {
+  1: 20,  2: 32,  3: 28,  4: 19,  5: 24,
+  6: 28,  7: 24,  8: 23,  9: 26,  10: 28,
+  11: 21, 12: 23, 13: 26, 14: 25, 15: 25,
+  16: 33, 17: 17, 18: 14, 19: 12, 20: 10,
+  21: 10, 22: 21, 23: 11, 24: 13,
+}
+
+const CLASS_11_CHAPTERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+const CLASS_12_CHAPTERS = [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+const TOTAL_TOPICS = 486 // 290 (class 11) + 196 (class 12)
+
 // ── Mock data ────────────────────────────────────────────────────────────────
 const MOCK_USER = {
   id: 'dev-user-bypass',
@@ -34,21 +74,21 @@ const MOCK_PROFILE = {
 // ── Types ────────────────────────────────────────────────────────────────────
 type TabKey = 'coverage' | 'weak' | 'history'
 
-interface Chapter {
-  id: string
-  unit_number: number
-  title: string
-  class: string
-  board: string
+interface CoverageChapter {
+  chapter: number
+  name: string
+  total: number
+  done: number
+  pct: number
+  topicSlugs: string[]
 }
 
 interface WeakTopic {
-  id: string
   topic_slug: string
-  term?: string
   chapter_slug?: string
   accuracy: number
-  attempt_count?: number
+  total_attempts?: number
+  strength_label?: string
 }
 
 interface QuizAttempt {
@@ -56,6 +96,10 @@ interface QuizAttempt {
   score: number
   total: number
   mode?: string
+  chapter_slugs?: string | null
+  accuracy?: number
+  grade?: string
+  xp_earned?: number
   completed_at: string
 }
 
@@ -84,19 +128,41 @@ function formatShortDate(iso: string): string {
   }
 }
 
-function gradeFromAccuracy(acc: number): { label: string; color: string } {
-  if (acc >= 95) return { label: 'A+', color: '#22c55e' }
-  if (acc >= 85) return { label: 'A', color: '#22c55e' }
-  if (acc >= 75) return { label: 'B+', color: '#84cc16' }
-  if (acc >= 65) return { label: 'B', color: '#eab308' }
-  if (acc >= 50) return { label: 'C', color: '#f97316' }
-  return { label: 'F', color: '#ef4444' }
+function formatRelativeTime(iso: string): string {
+  try {
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 60) return `${mins}m ago`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(hours / 24)
+    if (days < 7) return `${days}d ago`
+    return formatShortDate(iso)
+  } catch {
+    return ''
+  }
+}
+
+function gradeColor(grade: string): string {
+  if (grade === 'A+' || grade === 'A') return '#22c55e'
+  if (grade === 'B+') return '#84cc16'
+  if (grade === 'B') return '#eab308'
+  if (grade === 'C') return '#f97316'
+  return '#ef4444'
 }
 
 function accuracyBarColor(acc: number): string {
   if (acc < 50) return '#ef4444'
   if (acc < 70) return '#f97316'
   return '#eab308'
+}
+
+function chapterSlugToNum(slug?: string | null): number | null {
+  if (!slug) return null
+  const n = Number(slug)
+  if (!isNaN(n)) return n
+  const m = slug.match(/(\d+)/)
+  return m ? Number(m[1]) : null
 }
 
 // ── SVG Progress Ring ────────────────────────────────────────────────────────
@@ -136,17 +202,14 @@ export default function DashboardPage() {
 
   // Stats
   const [coveredCount, setCoveredCount] = useState(0)
-  const [totalTopics, setTotalTopics] = useState(0)
   const [weakCount, setWeakCount] = useState(0)
 
-  // Chapter data
-  const [chapters, setChapters] = useState<Chapter[]>([])
-  // topic_slug → chapter_slug  for user's covered topics
-  const [coveredSlugs, setCoveredSlugs] = useState<Set<string>>(new Set())
-  // Map: chapter label (e.g. "1") → total topic count in content_chunks
-  const [chunksByChapter, setChunksByChapter] = useState<Map<string, Set<string>>>(new Map())
-  // covered topic_slugs per chapter: chapter_slug → Set<topic_slug>
-  const [coveredByChapter, setCoveredByChapter] = useState<Map<string, Set<string>>>(new Map())
+  // Coverage tab
+  const [activeClass, setActiveClass] = useState<11 | 12>(11)
+  const [coverageChapters, setCoverageChapters] = useState<CoverageChapter[]>([])
+  const [coveredSet, setCoveredSet] = useState<Set<string>>(new Set())
+  const [weakSet, setWeakSet] = useState<Set<string>>(new Set())
+  const [coverageLoading, setCoverageLoading] = useState(false)
 
   // Tab data
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
@@ -166,7 +229,7 @@ export default function DashboardPage() {
     document.documentElement.style.overflow = 'auto'
   }, [])
 
-  // ── Data loading ────────────────────────────────────────────────────────────
+  // ── Initial data load (auth, profile, stats, weak, quiz history, heatmap) ──
   useEffect(() => {
     const load = async () => {
       try {
@@ -180,36 +243,6 @@ export default function DashboardPage() {
         if (!u) {
           setUser(MOCK_USER)
           setProfile(MOCK_PROFILE)
-
-          if (supabase) {
-            const { data: chData } = await supabase
-              .from('chapters')
-              .select('id, unit_number, title, class, board')
-              .eq('board', 'KPK')
-              .order('class', { ascending: true })
-              .order('unit_number', { ascending: true })
-            setChapters(chData || [])
-
-            // Still load content_chunks for mock user so coverage tab shows totals
-            const { data: chunksData } = await supabase
-              .from('content_chunks')
-              .select('chapter, topic_slug')
-            if (chunksData) {
-              const map = new Map<string, Set<string>>()
-              let total = 0
-              for (const row of chunksData) {
-                const key = String(row.chapter ?? '')
-                if (!map.has(key)) map.set(key, new Set())
-                if (row.topic_slug) {
-                  map.get(key)!.add(row.topic_slug)
-                  total++
-                }
-              }
-              setChunksByChapter(map)
-              setTotalTopics(total)
-            }
-          }
-
           setLoading(false)
           return
         }
@@ -219,72 +252,69 @@ export default function DashboardPage() {
 
         const userId = u.id
 
+        // Try dashboard summary RPC first
+        let summaryData: any = null
+        try {
+          const { data: rpcData, error: rpcErr } = await supabase
+            .rpc('get_dashboard_summary', { p_user_id: userId, p_board: 'KPK' })
+          if (!rpcErr) summaryData = rpcData
+        } catch {
+          // RPC not available, will fall back to individual queries
+        }
+
         const [
           profileRes,
-          coveredRes,
-          totalRes,
+          coveredCountRes,
           weakCountRes,
-          chaptersRes,
-          coveredDetailRes,
-          chunksRes,
           weakDetailRes,
           quizRes,
           heatmapRes,
         ] = await Promise.all([
           supabase.from('profiles').select('*').eq('id', userId).single(),
           supabase.from('user_topic_coverage').select('topic_slug', { count: 'exact' }).eq('user_id', userId),
-          supabase.from('content_chunks').select('id', { count: 'exact' }),
           supabase.from('user_topic_performance').select('id', { count: 'exact' }).eq('user_id', userId).eq('strength_label', 'weak'),
-          supabase.from('chapters').select('id, unit_number, title, class, board').eq('board', 'KPK').order('class', { ascending: true }).order('unit_number', { ascending: true }),
-          supabase.from('user_topic_coverage').select('topic_slug, chapter_slug').eq('user_id', userId),
-          supabase.from('content_chunks').select('chapter, topic_slug'),
-          supabase.from('user_topic_performance').select('*').eq('user_id', userId).eq('strength_label', 'weak').order('accuracy', { ascending: true }).limit(10),
-          supabase.from('quiz_attempts').select('*').eq('user_id', userId).order('completed_at', { ascending: false }).limit(10),
-          supabase.from('chat_messages').select('created_at').eq('user_id', userId).gte('created_at', new Date(Date.now() - 70 * 24 * 60 * 60 * 1000).toISOString()),
+          supabase
+            .from('user_topic_performance')
+            .select('topic_slug, chapter_slug, accuracy, total_attempts, strength_label')
+            .eq('user_id', userId)
+            .eq('strength_label', 'weak')
+            .order('accuracy', { ascending: true })
+            .limit(10),
+          supabase
+            .from('quiz_attempts')
+            .select('id, mode, chapter_slugs, score, total, accuracy, grade, xp_earned, completed_at')
+            .eq('user_id', userId)
+            .order('completed_at', { ascending: false })
+            .limit(10),
+          supabase
+            .from('chat_sessions')
+            .select('created_at')
+            .eq('user_id', userId)
+            .gte('created_at', new Date(Date.now() - 70 * 24 * 60 * 60 * 1000).toISOString()),
         ])
 
         setProfile(profileRes.data)
-        setCoveredCount(coveredRes.count || 0)
-        setTotalTopics(totalRes.count || 0)
-        setWeakCount(weakCountRes.count || 0)
-        setChapters(chaptersRes.data || [])
-        setWeakTopics(weakDetailRes.data || [])
+
+        if (summaryData) {
+          setCoveredCount(summaryData.topics_covered ?? coveredCountRes.count ?? 0)
+          setWeakCount(summaryData.weak_topics ?? weakCountRes.count ?? 0)
+        } else {
+          setCoveredCount(coveredCountRes.count || 0)
+          setWeakCount(weakCountRes.count || 0)
+        }
+
+        const weakData: WeakTopic[] = weakDetailRes.data || []
+        setWeakTopics(weakData)
+        setWeakSet(new Set(weakData.map(w => w.topic_slug).filter(Boolean)))
         setQuizHistory(quizRes.data || [])
 
-        // Build covered slugs set
-        if (coveredDetailRes.data) {
-          const slugSet = new Set<string>(coveredDetailRes.data.map((r: any) => r.topic_slug).filter(Boolean))
-          setCoveredSlugs(slugSet)
-
-          // Build coveredByChapter map
-          const cbcMap = new Map<string, Set<string>>()
-          for (const row of coveredDetailRes.data) {
-            if (!row.chapter_slug || !row.topic_slug) continue
-            if (!cbcMap.has(row.chapter_slug)) cbcMap.set(row.chapter_slug, new Set())
-            cbcMap.get(row.chapter_slug)!.add(row.topic_slug)
-          }
-          setCoveredByChapter(cbcMap)
-        }
-
-        // Build chunksByChapter map
-        if (chunksRes.data) {
-          const map = new Map<string, Set<string>>()
-          for (const row of chunksRes.data) {
-            const key = String(row.chapter ?? '')
-            if (!map.has(key)) map.set(key, new Set())
-            if (row.topic_slug) map.get(key)!.add(row.topic_slug)
-          }
-          setChunksByChapter(map)
-        }
-
-        // Build heatmap: count messages per calendar day
+        // Heatmap from chat_sessions
         if (heatmapRes.data) {
           const dayCounts = new Map<string, number>()
           const now = Date.now()
           for (let i = 69; i >= 0; i--) {
             const d = new Date(now - i * 86400000)
-            const key = d.toISOString().slice(0, 10)
-            dayCounts.set(key, 0)
+            dayCounts.set(d.toISOString().slice(0, 10), 0)
           }
           for (const row of heatmapRes.data) {
             const key = (row.created_at as string).slice(0, 10)
@@ -301,7 +331,82 @@ export default function DashboardPage() {
     load()
   }, [])
 
-  // Also build heatmap for mock user (empty)
+  // ── Coverage fetch — refetches when user or activeClass changes ─────────────
+  useEffect(() => {
+    if (!user) return
+    if (!supabase) return
+
+    const loadCoverage = async () => {
+      setCoverageLoading(true)
+      try {
+        const isMock = user.id === 'dev-user-bypass'
+        const chapterNums = activeClass === 11 ? CLASS_11_CHAPTERS : CLASS_12_CHAPTERS
+
+        // Fetch covered topics for real users
+        let newCoveredSet = new Set<string>()
+        if (!isMock) {
+          const { data: coveredRows } = await supabase
+            .from('user_topic_coverage')
+            .select('topic_slug, chapter_slug')
+            .eq('user_id', user.id)
+          newCoveredSet = new Set<string>(
+            (coveredRows ?? []).map((r: any) => r.topic_slug).filter(Boolean)
+          )
+        }
+        setCoveredSet(newCoveredSet)
+
+        // Fetch all topic_slugs per chapter from content_chunks
+        const { data: chunkRows, error: chunkErr } = await supabase
+          .from('content_chunks')
+          .select('chapter, topic_slug')
+          .eq('board', 'KPK')
+          .eq('class', activeClass)
+          .in('chapter', chapterNums)
+
+        if (chunkErr) {
+          console.error('Coverage chunks fetch error:', chunkErr)
+          setCoverageChapters([])
+          return
+        }
+
+        // Deduplicate topic_slugs per chapter
+        const chapterTopicMap: Record<number, Set<string>> = {}
+        ;(chunkRows ?? []).forEach((row: any) => {
+          const ch = Number(row.chapter)
+          if (!chapterTopicMap[ch]) chapterTopicMap[ch] = new Set()
+          if (row.topic_slug) chapterTopicMap[ch].add(row.topic_slug)
+        })
+
+        // Build final chapters array
+        const chapters: CoverageChapter[] = chapterNums.map(ch => {
+          const topicSlugs = chapterTopicMap[ch] ?? new Set<string>()
+          const total = TOPIC_COUNTS[ch]
+          const done = [...topicSlugs].filter(slug => newCoveredSet.has(slug)).length
+          const pct = total > 0 ? Math.round((done / total) * 100) : 0
+          return {
+            chapter: ch,
+            name: CHAPTER_NAMES[ch],
+            total,
+            done,
+            pct,
+            topicSlugs: [...topicSlugs],
+          }
+        })
+
+        setCoverageChapters(chapters)
+        if (!isMock) setCoveredCount(newCoveredSet.size)
+      } catch (e) {
+        console.error('Coverage fetch error:', e)
+        setCoverageChapters([])
+      } finally {
+        setCoverageLoading(false)
+      }
+    }
+
+    loadCoverage()
+  }, [user, activeClass])
+
+  // Empty heatmap fallback for mock user
   useEffect(() => {
     if (heatmapDays.length === 0 && !loading) {
       const days: HeatmapDay[] = []
@@ -316,49 +421,13 @@ export default function DashboardPage() {
 
   // ── Derived values ────────────────────────────────────────────────────────
   const firstName = getFirstName(profile, user)
-  const coveragePct = totalTopics > 0 ? Math.round((coveredCount / totalTopics) * 100) : 0
+  const coveragePct = Math.round((coveredCount / TOTAL_TOPICS) * 100)
   const streak = profile?.streak || 0
   const xp = profile?.xp || 0
   const board = profile?.board || 'KPK'
   const cls = profile?.class || '11'
   const goal = profile?.goal || ''
   const examDays = daysToExam()
-
-  // Chapter topic counts from content_chunks
-  function getChapterTopicCount(ch: Chapter): number {
-    // Try matching by unit_number as string or chapter title
-    const byNum = chunksByChapter.get(String(ch.unit_number))
-    if (byNum) return byNum.size
-    // Fallback: try title
-    for (const [key, val] of chunksByChapter) {
-      if (key.toLowerCase().includes(ch.title.toLowerCase().slice(0, 8))) return val.size
-    }
-    return 0
-  }
-
-  function getChapterCoveredCount(ch: Chapter): number {
-    // First try by chapter_slug convention "chapter-N"
-    const slug = `chapter-${ch.unit_number}`
-    const covered = coveredByChapter.get(slug)
-    if (covered) return covered.size
-    // Fallback: count topics from chunks that appear in user's covered set
-    const allTopics = chunksByChapter.get(String(ch.unit_number))
-    if (!allTopics || allTopics.size === 0) return 0
-    let cnt = 0
-    for (const t of allTopics) {
-      if (coveredSlugs.has(t)) cnt++
-    }
-    return cnt
-  }
-
-  function getChapterTopicList(ch: Chapter): string[] {
-    const byNum = chunksByChapter.get(String(ch.unit_number))
-    if (byNum) return Array.from(byNum)
-    return []
-  }
-
-  // Weak topic slugs set for chip coloring
-  const weakSlugs = new Set(weakTopics.map(w => w.topic_slug))
 
   // ── Render helpers ─────────────────────────────────────────────────────────
   function avatarLetter(): string {
@@ -420,6 +489,20 @@ export default function DashboardPage() {
     cursor: 'pointer',
     transition: 'color 0.15s',
     whiteSpace: 'nowrap',
+  })
+
+  const classToggleBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: '7px 20px',
+    borderRadius: '8px',
+    border: '1px solid',
+    borderColor: active ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.1)',
+    background: active ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)',
+    color: active ? '#f97316' : '#64748b',
+    fontFamily: 'inherit',
+    fontWeight: '700',
+    fontSize: '13px',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
   })
 
   return (
@@ -510,15 +593,12 @@ export default function DashboardPage() {
 
         {/* Right side controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Streak pill */}
           <span style={{ ...pillStyle, background: 'rgba(249,115,22,0.1)', color: '#f97316', border: '1px solid rgba(249,115,22,0.2)' }}>
             🔥 {streak}
           </span>
-          {/* XP pill */}
           <span style={{ ...pillStyle, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
             ⚡ {xp} XP
           </span>
-          {/* Avatar */}
           <div style={{
             width: '34px', height: '34px', borderRadius: '50%',
             background: 'linear-gradient(135deg, #f97316, #a855f7)',
@@ -527,12 +607,10 @@ export default function DashboardPage() {
           }}>
             {avatarLetter()}
           </div>
-          {/* Nav links */}
           <button onClick={() => router.push('/chat')} style={{
             background: 'none', border: 'none', color: '#94a3b8',
             fontFamily: 'inherit', fontSize: '13px', fontWeight: '600',
             cursor: 'pointer', padding: '4px 8px', borderRadius: '6px',
-            transition: 'color 0.15s',
           }}
             onMouseEnter={e => { e.currentTarget.style.color = '#f1f5f9' }}
             onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8' }}
@@ -543,7 +621,6 @@ export default function DashboardPage() {
             background: 'none', border: 'none', color: '#94a3b8',
             fontFamily: 'inherit', fontSize: '13px', fontWeight: '600',
             cursor: 'pointer', padding: '4px 8px', borderRadius: '6px',
-            transition: 'color 0.15s',
           }}
             onMouseEnter={e => { e.currentTarget.style.color = '#f1f5f9' }}
             onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8' }}
@@ -592,7 +669,6 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-          {/* Exam countdown badge */}
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -618,7 +694,7 @@ export default function DashboardPage() {
               icon: '📚',
               value: loading ? null : `${coveragePct}%`,
               label: 'Topics Covered',
-              sub: loading ? '' : `${coveredCount}/${totalTopics} topics`,
+              sub: loading ? '' : `${coveredCount}/${TOTAL_TOPICS} topics`,
               accent: '#a855f7',
             },
             {
@@ -704,179 +780,172 @@ export default function DashboardPage() {
           {/* ── Coverage Tab ──────────────────────────────────────────────── */}
           {activeTab === 'coverage' && (
             <div>
-              {loading ? (
+              {/* Class toggle */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                {([11, 12] as const).map(c => (
+                  <button
+                    key={c}
+                    onClick={() => { setActiveClass(c); setExpandedChapter(null) }}
+                    style={classToggleBtnStyle(activeClass === c)}
+                  >
+                    Class {c}
+                  </button>
+                ))}
+              </div>
+
+              {coverageLoading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Sk key={i} h="64px" r="12px" />
                   ))}
                 </div>
-              ) : chapters.length === 0 ? (
+              ) : coverageChapters.length === 0 ? (
                 <p style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '32px 0' }}>
-                  No chapters loaded yet.
+                  No content found for Class {activeClass}
                 </p>
               ) : (
                 <div>
-                  {(['11', '12'] as const).map(clsGroup => {
-                    const group = chapters.filter(ch => String(ch.class) === clsGroup)
-                    if (!group.length) return null
+                  {coverageChapters.map(ch => {
+                    const isExpanded = expandedChapter === ch.chapter
+                    const statusLabel = ch.pct >= 100 ? 'DONE' : ch.pct > 0 ? 'IN PROG' : 'TODO'
+                    const statusColor = ch.pct >= 100 ? '#22c55e' : ch.pct > 0 ? '#f97316' : '#475569'
+                    const statusBg = ch.pct >= 100 ? 'rgba(34,197,94,0.1)' : ch.pct > 0 ? 'rgba(249,115,22,0.1)' : 'rgba(71,85,105,0.15)'
+
                     return (
-                      <div key={clsGroup} style={{ marginBottom: '20px' }}>
-                        <p style={{
-                          fontSize: '11px', fontWeight: '700', color: '#475569',
-                          textTransform: 'uppercase', letterSpacing: '0.09em',
-                          marginBottom: '10px',
-                        }}>
-                          Class {clsGroup}
-                        </p>
-                        {group.map(ch => {
-                          const total = getChapterTopicCount(ch)
-                          const done = getChapterCoveredCount(ch)
-                          const pct = total > 0 ? Math.round((done / total) * 100) : 0
-                          const isExpanded = expandedChapter === ch.unit_number
-                          const statusLabel = pct >= 100 ? 'DONE' : pct > 0 ? 'IN PROG' : 'TODO'
-                          const statusColor = pct >= 100 ? '#22c55e' : pct > 0 ? '#f97316' : '#475569'
-                          const statusBg = pct >= 100 ? 'rgba(34,197,94,0.1)' : pct > 0 ? 'rgba(249,115,22,0.1)' : 'rgba(71,85,105,0.15)'
-                          const topicList = getChapterTopicList(ch)
+                      <div key={ch.chapter}>
+                        <div
+                          className={`db-chapter-card${isExpanded ? ' expanded' : ''}`}
+                          onClick={() => setExpandedChapter(isExpanded ? null : ch.chapter)}
+                        >
+                          {/* Progress ring */}
+                          <div style={{ position: 'relative', flexShrink: 0 }}>
+                            <ProgressRing pct={ch.pct} size={44} />
+                            <span style={{
+                              position: 'absolute', top: '50%', left: '50%',
+                              transform: 'translate(-50%,-50%)',
+                              fontSize: '10px', fontWeight: '700', color: '#f1f5f9',
+                            }}>
+                              {ch.pct}
+                            </span>
+                          </div>
 
-                          return (
-                            <div key={ch.id}>
-                              <div
-                                className={`db-chapter-card${isExpanded ? ' expanded' : ''}`}
-                                onClick={() => setExpandedChapter(isExpanded ? null : ch.unit_number)}
-                              >
-                                {/* Progress ring */}
-                                <div style={{ position: 'relative', flexShrink: 0 }}>
-                                  <ProgressRing pct={pct} size={44} />
-                                  <span style={{
-                                    position: 'absolute', top: '50%', left: '50%',
-                                    transform: 'translate(-50%,-50%)',
-                                    fontSize: '10px', fontWeight: '700', color: '#f1f5f9',
-                                  }}>
-                                    {pct}
-                                  </span>
-                                </div>
-
-                                {/* Info */}
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <p style={{
-                                    fontSize: '14px', fontWeight: '700', color: '#f1f5f9',
-                                    margin: '0 0 4px', overflow: 'hidden',
-                                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                  }}>
-                                    Chapter {ch.unit_number}: {ch.title}
-                                  </p>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '12px', color: '#64748b' }}>
-                                      {done}/{total} topics
-                                    </span>
-                                    {/* Progress bar */}
-                                    <div style={{
-                                      flex: 1, height: '4px',
-                                      background: 'rgba(255,255,255,0.08)',
-                                      borderRadius: '4px', overflow: 'hidden',
-                                      maxWidth: '120px',
-                                    }}>
-                                      <div style={{
-                                        width: `${pct}%`, height: '100%',
-                                        background: statusColor,
-                                        borderRadius: '4px',
-                                        transition: 'width 0.4s ease',
-                                      }} />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Status badge */}
-                                <span style={{
-                                  padding: '3px 8px', borderRadius: '6px',
-                                  fontSize: '10px', fontWeight: '700',
-                                  background: statusBg, color: statusColor,
-                                  border: `1px solid ${statusColor}33`,
-                                  flexShrink: 0,
-                                }}>
-                                  {statusLabel}
-                                </span>
-
-                                {/* Chevron */}
-                                <span style={{
-                                  color: '#475569', fontSize: '14px', flexShrink: 0,
-                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                                  transition: 'transform 0.2s',
-                                  display: 'inline-block',
-                                }}>
-                                  ▾
-                                </span>
-                              </div>
-
-                              {/* Expanded topic chips */}
-                              {isExpanded && (
+                          {/* Info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{
+                              fontSize: '14px', fontWeight: '700', color: '#f1f5f9',
+                              margin: '0 0 4px', overflow: 'hidden',
+                              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
+                              Ch {ch.chapter}: {ch.name}
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                {ch.done}/{ch.total} topics
+                              </span>
+                              <div style={{
+                                flex: 1, height: '4px',
+                                background: 'rgba(255,255,255,0.08)',
+                                borderRadius: '4px', overflow: 'hidden',
+                                maxWidth: '120px',
+                              }}>
                                 <div style={{
-                                  ...cardBase,
-                                  marginTop: '-4px',
-                                  marginBottom: '8px',
-                                  borderTopLeftRadius: '4px',
-                                  borderTopRightRadius: '4px',
-                                  borderTop: 'none',
-                                  background: 'rgba(13,22,38,0.8)',
-                                }}>
-                                  {topicList.length === 0 ? (
-                                    <p style={{ color: '#475569', fontSize: '12px' }}>No topic data available.</p>
-                                  ) : (
-                                    <>
-                                      <p style={{
-                                        fontSize: '11px', color: '#475569',
-                                        marginBottom: '10px', fontWeight: '600',
-                                        textTransform: 'uppercase', letterSpacing: '0.08em',
-                                      }}>
-                                        Topics
-                                      </p>
-                                      <div className="db-chapter-chips">
-                                        {topicList.map(slug => {
-                                          const isCovered = coveredSlugs.has(slug)
-                                          const isWeak = weakSlugs.has(slug)
-                                          const bg = isCovered
-                                            ? 'rgba(34,197,94,0.12)'
-                                            : isWeak
-                                              ? 'rgba(249,115,22,0.12)'
-                                              : 'rgba(255,255,255,0.04)'
-                                          const border = isCovered
-                                            ? '1px solid rgba(34,197,94,0.3)'
-                                            : isWeak
-                                              ? '1px solid rgba(249,115,22,0.3)'
-                                              : '1px solid rgba(255,255,255,0.08)'
-                                          const color = isCovered ? '#22c55e' : isWeak ? '#f97316' : '#64748b'
-
-                                          return (
-                                            <span
-                                              key={slug}
-                                              style={{
-                                                padding: '4px 10px',
-                                                borderRadius: '20px',
-                                                fontSize: '11px',
-                                                fontWeight: '500',
-                                                background: bg,
-                                                border,
-                                                color,
-                                                maxWidth: '200px',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap',
-                                                display: 'inline-block',
-                                              }}
-                                              title={slug}
-                                            >
-                                              {isCovered ? '✓ ' : isWeak ? '⚠ ' : ''}{slug.replace(/-/g, ' ')}
-                                            </span>
-                                          )
-                                        })}
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              )}
+                                  width: `${ch.pct}%`, height: '100%',
+                                  background: statusColor,
+                                  borderRadius: '4px',
+                                  transition: 'width 0.4s ease',
+                                }} />
+                              </div>
                             </div>
-                          )
-                        })}
+                          </div>
+
+                          {/* Status badge */}
+                          <span style={{
+                            padding: '3px 8px', borderRadius: '6px',
+                            fontSize: '10px', fontWeight: '700',
+                            background: statusBg, color: statusColor,
+                            border: `1px solid ${statusColor}33`,
+                            flexShrink: 0,
+                          }}>
+                            {statusLabel}
+                          </span>
+
+                          {/* Chevron */}
+                          <span style={{
+                            color: '#475569', fontSize: '14px', flexShrink: 0,
+                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s',
+                            display: 'inline-block',
+                          }}>
+                            ▾
+                          </span>
+                        </div>
+
+                        {/* Expanded topic chips */}
+                        {isExpanded && (
+                          <div style={{
+                            ...cardBase,
+                            marginTop: '-4px',
+                            marginBottom: '8px',
+                            borderTopLeftRadius: '4px',
+                            borderTopRightRadius: '4px',
+                            borderTop: 'none',
+                            background: 'rgba(13,22,38,0.8)',
+                          }}>
+                            {ch.topicSlugs.length === 0 ? (
+                              <p style={{ color: '#475569', fontSize: '12px' }}>No topic data available.</p>
+                            ) : (
+                              <>
+                                <p style={{
+                                  fontSize: '11px', color: '#475569',
+                                  marginBottom: '10px', fontWeight: '600',
+                                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                                }}>
+                                  Topics
+                                </p>
+                                <div className="db-chapter-chips">
+                                  {ch.topicSlugs.map(slug => {
+                                    const isCovered = coveredSet.has(slug)
+                                    const isWeak = weakSet.has(slug)
+                                    const bg = isCovered
+                                      ? 'rgba(34,197,94,0.12)'
+                                      : isWeak
+                                        ? 'rgba(249,115,22,0.12)'
+                                        : 'rgba(255,255,255,0.04)'
+                                    const border = isCovered
+                                      ? '1px solid rgba(34,197,94,0.3)'
+                                      : isWeak
+                                        ? '1px solid rgba(249,115,22,0.3)'
+                                        : '1px solid rgba(255,255,255,0.08)'
+                                    const color = isCovered ? '#22c55e' : isWeak ? '#f97316' : '#64748b'
+
+                                    return (
+                                      <span
+                                        key={slug}
+                                        style={{
+                                          padding: '4px 10px',
+                                          borderRadius: '20px',
+                                          fontSize: '11px',
+                                          fontWeight: '500',
+                                          background: bg,
+                                          border,
+                                          color,
+                                          maxWidth: '200px',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          display: 'inline-block',
+                                        }}
+                                        title={slug}
+                                      >
+                                        {isCovered ? '✓ ' : isWeak ? '⚠ ' : ''}{slug.replace(/-/g, ' ')}
+                                      </span>
+                                    )
+                                  })}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -898,23 +967,26 @@ export default function DashboardPage() {
                 <div style={{ textAlign: 'center', padding: '40px 0' }}>
                   <div style={{ fontSize: '32px', marginBottom: '12px' }}>🎉</div>
                   <p style={{ color: '#f1f5f9', fontSize: '16px', fontWeight: '700', marginBottom: '6px' }}>
-                    No weak topics found!
+                    No weak topics yet — keep practicing!
                   </p>
                   <p style={{ color: '#64748b', fontSize: '13px' }}>
-                    Start practicing to build your topic performance profile.
+                    Your topic performance will appear here after quizzes.
                   </p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {weakTopics.map(topic => {
+                  {weakTopics.map((topic, idx) => {
                     const accuracy = topic.accuracy ?? 0
                     const barColor = accuracyBarColor(accuracy)
-                    const attempts = topic.attempt_count ?? 0
-                    const label = topic.term || topic.topic_slug?.replace(/-/g, ' ') || 'Unknown Topic'
-                    const chapter = topic.chapter_slug?.replace(/-/g, ' ') || '—'
+                    const attempts = topic.total_attempts ?? 0
+                    const label = topic.topic_slug?.replace(/-/g, ' ') || 'Unknown Topic'
+                    const chNum = chapterSlugToNum(topic.chapter_slug)
+                    const chapterName = chNum !== null
+                      ? (CHAPTER_NAMES[chNum] ?? `Chapter ${topic.chapter_slug}`)
+                      : (topic.chapter_slug?.replace(/-/g, ' ') || '—')
 
                     return (
-                      <div key={topic.id} style={{
+                      <div key={idx} style={{
                         ...cardBase,
                         padding: '14px 16px',
                         display: 'flex',
@@ -926,14 +998,13 @@ export default function DashboardPage() {
                         <div style={{ flex: 1, minWidth: '160px' }}>
                           <p style={{
                             fontSize: '14px', fontWeight: '700', color: '#f1f5f9',
-                            margin: '0 0 3px',
+                            margin: '0 0 3px', textTransform: 'capitalize',
                           }}>
                             {label}
                           </p>
-                          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px', textTransform: 'capitalize' }}>
-                            {chapter}
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px' }}>
+                            {chapterName}
                           </p>
-                          {/* Accuracy bar */}
                           <div style={{
                             height: '5px', background: 'rgba(255,255,255,0.08)',
                             borderRadius: '5px', overflow: 'hidden', maxWidth: '200px',
@@ -946,7 +1017,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
-                        {/* Stats */}
+                        {/* Accuracy */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
                           <span style={{ fontSize: '18px', fontWeight: '800', color: barColor }}>
                             {Math.round(accuracy)}%
@@ -956,9 +1027,9 @@ export default function DashboardPage() {
                           </span>
                         </div>
 
-                        {/* Practice button */}
+                        {/* Quiz it button */}
                         <button
-                          onClick={() => router.push('/chat')}
+                          onClick={() => router.push(`/quiz?chapter=${topic.chapter_slug}`)}
                           style={{
                             padding: '7px 14px', borderRadius: '8px',
                             background: 'rgba(249,115,22,0.1)',
@@ -971,7 +1042,7 @@ export default function DashboardPage() {
                           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.2)' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.1)' }}
                         >
-                          Practice →
+                          Quiz it →
                         </button>
                       </div>
                     )
@@ -994,7 +1065,7 @@ export default function DashboardPage() {
                 <div style={{ textAlign: 'center', padding: '40px 0' }}>
                   <div style={{ fontSize: '32px', marginBottom: '12px' }}>📝</div>
                   <p style={{ color: '#f1f5f9', fontSize: '15px', fontWeight: '700', marginBottom: '6px' }}>
-                    No quizzes taken yet.
+                    No quizzes taken yet — start your first quiz!
                   </p>
                   <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px' }}>
                     Head over to the quiz page to test your knowledge.
@@ -1016,37 +1087,78 @@ export default function DashboardPage() {
                   {quizHistory.map(attempt => {
                     const total = attempt.total || 1
                     const score = attempt.score || 0
-                    const acc = Math.round((score / total) * 100)
-                    const grade = gradeFromAccuracy(acc)
-                    const modeIcon = attempt.mode === 'sunday' ? '🏆' : '⚡'
+                    const acc = attempt.accuracy != null
+                      ? Math.round(attempt.accuracy)
+                      : Math.round((score / total) * 100)
+                    const gradeLbl = attempt.grade || (() => {
+                      if (acc >= 95) return 'A+'
+                      if (acc >= 85) return 'A'
+                      if (acc >= 75) return 'B+'
+                      if (acc >= 65) return 'B'
+                      if (acc >= 50) return 'C'
+                      return 'F'
+                    })()
+                    const gColor = gradeColor(gradeLbl)
+                    const modeIcon = attempt.mode === 'sunday' ? '🗓' : '⚡'
+
+                    // Parse chapter names
+                    let chapterNames = ''
+                    try {
+                      const slugs: string[] = attempt.chapter_slugs
+                        ? JSON.parse(attempt.chapter_slugs)
+                        : []
+                      chapterNames = slugs
+                        .map(s => {
+                          const n = chapterSlugToNum(s)
+                          return n !== null ? (CHAPTER_NAMES[n] ?? s) : s
+                        })
+                        .join(', ')
+                    } catch {
+                      chapterNames = ''
+                    }
 
                     return (
                       <div key={attempt.id} className="db-quiz-row">
                         {/* Mode icon */}
-                        <span style={{ fontSize: '20px', flexShrink: 0 }}>{modeIcon}</span>
+                        <span style={{ fontSize: '18px', flexShrink: 0 }}>{modeIcon}</span>
 
-                        {/* Score */}
-                        <span style={{
-                          fontSize: '15px', fontWeight: '800', color: '#f1f5f9',
-                          minWidth: '44px', flexShrink: 0,
-                        }}>
-                          {score}/{total}
-                        </span>
+                        {/* Chapter / score info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {chapterNames ? (
+                            <p style={{
+                              fontSize: '12px', color: '#94a3b8', margin: '0 0 2px',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
+                              {chapterNames}
+                            </p>
+                          ) : null}
+                          <span style={{ fontSize: '15px', fontWeight: '800', color: '#f1f5f9' }}>
+                            {score}/{total}
+                          </span>
+                          {attempt.xp_earned ? (
+                            <span style={{
+                              marginLeft: '8px', fontSize: '11px',
+                              color: '#f59e0b', fontWeight: '600',
+                            }}>
+                              +{attempt.xp_earned} XP
+                            </span>
+                          ) : null}
+                        </div>
 
                         {/* Grade badge */}
                         <span style={{
                           padding: '2px 8px', borderRadius: '6px',
                           fontSize: '11px', fontWeight: '800',
-                          background: `${grade.color}20`,
-                          color: grade.color,
-                          border: `1px solid ${grade.color}40`,
+                          background: `${gColor}20`,
+                          color: gColor,
+                          border: `1px solid ${gColor}40`,
                           flexShrink: 0,
                         }}>
-                          {grade.label}
+                          {gradeLbl}
                         </span>
 
                         {/* Accuracy bar */}
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: '80px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '80px', maxWidth: '120px', flex: '0 1 120px' }}>
                           <div style={{
                             flex: 1, height: '5px',
                             background: 'rgba(255,255,255,0.08)',
@@ -1054,17 +1166,17 @@ export default function DashboardPage() {
                           }}>
                             <div style={{
                               width: `${acc}%`, height: '100%',
-                              background: grade.color, borderRadius: '5px',
+                              background: gColor, borderRadius: '5px',
                             }} />
                           </div>
-                          <span style={{ fontSize: '12px', color: '#94a3b8', flexShrink: 0 }}>
+                          <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0 }}>
                             {acc}%
                           </span>
                         </div>
 
-                        {/* Date */}
-                        <span style={{ fontSize: '12px', color: '#475569', flexShrink: 0 }}>
-                          {formatShortDate(attempt.completed_at)}
+                        {/* Relative date */}
+                        <span style={{ fontSize: '11px', color: '#475569', flexShrink: 0 }}>
+                          {formatRelativeTime(attempt.completed_at)}
                         </span>
                       </div>
                     )
@@ -1112,7 +1224,6 @@ export default function DashboardPage() {
                   />
                 ))}
               </div>
-              {/* Tooltip */}
               {tooltipDay !== null && (
                 <div style={{
                   position: 'absolute',
