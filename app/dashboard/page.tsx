@@ -268,6 +268,7 @@ export default function DashboardPage() {
           weakCountRes,
           weakDetailRes,
           quizRes,
+          sqrRes,
           heatmapRes,
         ] = await Promise.all([
           supabase.from('profiles').select('*').eq('id', userId).single(),
@@ -285,7 +286,13 @@ export default function DashboardPage() {
             .select('id, mode, chapter_slugs, score, total, accuracy, grade, xp_earned, completed_at')
             .eq('user_id', userId)
             .order('completed_at', { ascending: false })
-            .limit(10),
+            .limit(15),
+          supabase
+            .from('student_quiz_results')
+            .select('id, chapter_id, chapter_title, score, total_questions, percentage, taken_at')
+            .eq('user_id', userId)
+            .order('taken_at', { ascending: false })
+            .limit(15),
           supabase
             .from('chat_sessions')
             .select('created_at')
@@ -306,7 +313,28 @@ export default function DashboardPage() {
         const weakData: WeakTopic[] = weakDetailRes.data || []
         setWeakTopics(weakData)
         setWeakSet(new Set(weakData.map(w => w.topic_slug).filter(Boolean)))
-        setQuizHistory(quizRes.data || [])
+
+        // Merge quiz_attempts + student_quiz_results into unified history
+        const attempts: QuizAttempt[] = quizRes.data || []
+        const sqrItems: QuizAttempt[] = (sqrRes.data || []).map((r: any) => ({
+          id: r.id,
+          score: r.score,
+          total: r.total_questions,
+          mode: 'chat-quiz',
+          chapter_slugs: JSON.stringify([String(r.chapter_id)]),
+          accuracy: r.percentage,
+          grade: undefined,
+          xp_earned: undefined,
+          completed_at: r.taken_at,
+        }))
+        // De-duplicate by preferring quiz_attempts (chat-quiz entries) which were added after QuizModal Task 6
+        // Keep sqrRes entries only if their chapter+time doesn't overlap with an existing quiz_attempts row
+        const attemptTimestamps = new Set(attempts.map(a => a.completed_at?.slice(0, 16)))
+        const uniqueSqr = sqrItems.filter(s => !attemptTimestamps.has(s.completed_at?.slice(0, 16)))
+        const merged = [...attempts, ...uniqueSqr]
+          .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
+          .slice(0, 15)
+        setQuizHistory(merged)
 
         // Heatmap from chat_sessions
         if (heatmapRes.data) {
@@ -944,6 +972,35 @@ export default function DashboardPage() {
                                 </div>
                               </>
                             )}
+
+                            {/* Take Quiz button */}
+                            <div style={{
+                              marginTop: '12px',
+                              paddingTop: '10px',
+                              borderTop: '1px solid rgba(255,255,255,0.06)',
+                              display: 'flex',
+                              justifyContent: 'flex-end',
+                            }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  router.push(`/chat?chapter=${ch.chapter}&mode=quiz`)
+                                }}
+                                style={{
+                                  padding: '7px 16px', borderRadius: '8px',
+                                  background: 'rgba(249,115,22,0.1)',
+                                  border: '1px solid rgba(249,115,22,0.25)',
+                                  color: '#f97316', fontFamily: 'inherit',
+                                  fontWeight: '700', fontSize: '12px',
+                                  cursor: 'pointer',
+                                  transition: 'background 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.2)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.1)' }}
+                              >
+                                Take Quiz →
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1029,7 +1086,7 @@ export default function DashboardPage() {
 
                         {/* Quiz it button */}
                         <button
-                          onClick={() => router.push(`/quiz?chapter=${topic.chapter_slug}`)}
+                          onClick={() => router.push(`/chat?chapter=${topic.chapter_slug}&mode=quiz&topic=${topic.topic_slug}`)}
                           style={{
                             padding: '7px 14px', borderRadius: '8px',
                             background: 'rgba(249,115,22,0.1)',
@@ -1071,7 +1128,7 @@ export default function DashboardPage() {
                     Head over to the quiz page to test your knowledge.
                   </p>
                   <button
-                    onClick={() => router.push('/quiz')}
+                    onClick={() => router.push('/chat?mode=quiz')}
                     style={{
                       padding: '9px 22px', borderRadius: '9px',
                       background: '#f97316', color: '#000',

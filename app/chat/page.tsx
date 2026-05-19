@@ -22,6 +22,7 @@ let _setScopeTopics: ((t: ScopeTopic[]) => void) | null = null;
 let _setQuizChapterInfo: ((info: QuizChapterInfo | null) => void) | null = null;
 let _setViewedTopics: ((fn: (prev: Set<string>) => Set<string>) => void) | null = null;
 let _setSelectedClass: ((c: number) => void) | null = null;
+let _setShowQuiz: ((v: boolean) => void) | null = null;
 let _selectedClass = 11;
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2174,6 +2175,27 @@ async function fetchChapters() {
       ENABLED_CHAPTERS.add(idx);
     });
     buildSb();
+
+    // Handle URL params: ?chapter=N&mode=quiz auto-selects the chapter and opens quiz
+    const params = new URLSearchParams(window.location.search);
+    const chapterParam = params.get('chapter');
+    const modeParam = params.get('mode');
+    if (chapterParam) {
+      const idx = CHS.findIndex(c => c.n === chapterParam);
+      if (idx >= 0) {
+        selCh(idx);
+        if (modeParam === 'quiz') {
+          // Delay slightly so quizChapterInfo React state has time to propagate
+          setTimeout(() => { if (_setShowQuiz) _setShowQuiz(true); }, 150);
+        }
+      }
+    } else if (modeParam === 'quiz') {
+      // No chapter specified — select first chapter and open quiz
+      if (CHS.length > 0) {
+        selCh(0);
+        setTimeout(() => { if (_setShowQuiz) _setShowQuiz(true); }, 150);
+      }
+    }
   } catch (e) { console.error('fetchChapters error:', e); }
 }
 
@@ -2417,6 +2439,7 @@ export default function ChatPage() {
     _setQuizChapterInfo = setQuizChapterInfo;
     _setViewedTopics = setViewedTopics;
     _setSelectedClass = setSelectedClass;
+    _setShowQuiz = setShowQuiz;
     dbLoadHistory();
     fetchChapters();
     const params = new URLSearchParams(window.location.search);

@@ -4,30 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-// ── Maps ─────────────────────────────────────────────────────────────────────
-
-const CHAPTER_NAMES: Record<number, string> = {
-  1: 'Stoichiometry', 2: 'Atomic Structure', 3: 'Chemical Bonding',
-  4: 'States of Matter', 5: 'Thermochemistry', 6: 'Chemical Equilibrium',
-  7: 'Acids, Bases and Salts', 8: 'Electrochemistry', 9: 'Reaction Kinetics',
-  10: 'Organic Chemistry', 11: 'Hydrocarbons', 12: 'Alkyl Halides',
-  13: 'Alcohols and Phenols', 14: 'Aldehydes and Ketones', 15: 'Carboxylic Acids',
-  16: 'Macromolecules', 17: 'Common Chemical Industries', 18: 'Environmental Chemistry',
-  19: 'Analytical Chemistry', 20: 'Transition Elements', 21: 'Coordination Chemistry',
-  22: 'Biochemistry', 23: 'Nuclear Chemistry', 24: 'Chemistry of s-block Elements',
-}
-
-const TOPIC_COUNTS: Record<number, number> = {
-  1: 20, 2: 32, 3: 28, 4: 19, 5: 24, 6: 28, 7: 24, 8: 23, 9: 26, 10: 28,
-  11: 21, 12: 23, 13: 26, 14: 25, 15: 25, 16: 33, 17: 17, 18: 14, 19: 12,
-  20: 10, 21: 10, 22: 21, 23: 11, 24: 13,
-}
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const QUICK_COUNT = 10
 const SUNDAY_COUNT = 35
-const QUICK_SECS = 900   // 15 min
 const SUNDAY_SECS = 2700 // 45 min
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -64,11 +43,6 @@ function gradeColor(g: string): string {
   if (g === 'B') return '#eab308'
   if (g === 'C') return '#f97316'
   return '#ef4444'
-}
-
-function daysUntilSunday(): number {
-  const day = new Date().getDay()
-  return day === 0 ? 0 : 7 - day
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -120,92 +94,6 @@ const S = {
     padding: '28px 20px',
   } as React.CSSProperties,
 
-  sectionLabel: {
-    fontSize: '11px',
-    fontWeight: 600,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase' as const,
-    color: '#64748b',
-    marginBottom: '10px',
-  } as React.CSSProperties,
-
-  modeGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
-    marginBottom: '28px',
-  } as React.CSSProperties,
-
-  card: (active: boolean, accent: string): React.CSSProperties => ({
-    background: active
-      ? `linear-gradient(135deg, ${accent}22, ${accent}11)`
-      : '#111d30',
-    border: `1.5px solid ${active ? accent : 'rgba(255,255,255,0.07)'}`,
-    borderRadius: '14px',
-    padding: '18px 16px',
-    cursor: 'pointer',
-    transition: 'all .15s',
-    textAlign: 'left',
-  }),
-
-  cardTitle: {
-    fontFamily: 'var(--font-sora, Sora, sans-serif)',
-    fontSize: '15px',
-    fontWeight: 700,
-    marginBottom: '4px',
-  } as React.CSSProperties,
-
-  cardMeta: {
-    fontSize: '12px',
-    color: '#94a3b8',
-    lineHeight: 1.5,
-  } as React.CSSProperties,
-
-  chipWrap: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: '8px',
-    marginBottom: '28px',
-  } as React.CSSProperties,
-
-  chip: (active: boolean): React.CSSProperties => ({
-    padding: '5px 12px',
-    borderRadius: '999px',
-    border: `1px solid ${active ? '#f97316' : 'rgba(255,255,255,0.1)'}`,
-    background: active ? 'rgba(249,115,22,0.12)' : 'rgba(255,255,255,0.04)',
-    color: active ? '#f97316' : '#94a3b8',
-    fontSize: '12.5px',
-    fontWeight: active ? 600 : 400,
-    cursor: 'pointer',
-    transition: 'all .12s',
-    fontFamily: 'inherit',
-  }),
-
-  startBtn: (disabled: boolean): React.CSSProperties => ({
-    width: '100%',
-    padding: '14px',
-    borderRadius: '12px',
-    border: 'none',
-    background: disabled
-      ? 'rgba(249,115,22,0.3)'
-      : 'linear-gradient(135deg, #f97316, #f59e0b)',
-    color: disabled ? 'rgba(255,255,255,0.4)' : '#fff',
-    fontFamily: 'var(--font-sora, Sora, sans-serif)',
-    fontSize: '15px',
-    fontWeight: 700,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    transition: 'all .15s',
-    marginTop: '4px',
-  }),
-
-  quizCard: {
-    background: '#111d30',
-    border: '1px solid rgba(255,255,255,0.07)',
-    borderRadius: '16px',
-    padding: '24px 22px',
-    marginBottom: '16px',
-  } as React.CSSProperties,
-
   progressBar: {
     height: '4px',
     background: 'rgba(255,255,255,0.07)',
@@ -231,6 +119,14 @@ const S = {
     minWidth: '52px',
     textAlign: 'right' as const,
   }),
+
+  quizCard: {
+    background: '#111d30',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderRadius: '16px',
+    padding: '24px 22px',
+    marginBottom: '16px',
+  } as React.CSSProperties,
 
   topicLabel: {
     fontSize: '10.5px',
@@ -458,16 +354,13 @@ export default function QuizPage() {
 
   const [userId, setUserId] = useState<string | null>(null)
   const [quizState, setQuizState] = useState<'home' | 'loading' | 'active' | 'results'>('home')
-  const [mode, setMode] = useState<'quick' | 'sunday'>('quick')
-  const [availableChapters, setAvailableChapters] = useState<{ id: number; name: string; topics: number }[]>([])
-  const [selectedChapters, setSelectedChapters] = useState<number[]>([1])
   const [questions, setQuestions] = useState<any[]>([])
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<any[]>([])
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [showExplain, setShowExplain] = useState(false)
   const [showXP, setShowXP] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(QUICK_SECS)
+  const [timeLeft, setTimeLeft] = useState(SUNDAY_SECS)
   const [result, setResult] = useState<any>(null)
   const [loadError, setLoadError] = useState('')
 
@@ -489,33 +382,6 @@ export default function QuizPage() {
       if (!session) { router.push('/auth/signin'); return }
       setUserId(session.user.id)
     })
-  }, [])
-
-  // ── Load chapters from content_chunks ─────────────────────────────────────
-  useEffect(() => {
-    async function load() {
-      if (!supabase) return
-      try {
-        const { data, error } = await supabase
-          .from('content_chunks')
-          .select('chapter')
-          .eq('board', 'KPK')
-          .eq('class', 11)
-        if (error) { console.error('chapters error:', error); return }
-        const unique = [...new Set(data?.map((r: any) => r.chapter) ?? [])]
-          .sort((a: any, b: any) => a - b)
-        setAvailableChapters(
-          unique.map((ch: any) => ({
-            id: ch,
-            name: CHAPTER_NAMES[ch] ?? 'Chapter ' + ch,
-            topics: TOPIC_COUNTS[ch] ?? 0,
-          })),
-        )
-      } catch (e) {
-        console.error('load chapters exception:', e)
-      }
-    }
-    load()
   }, [])
 
   // ── Timer ─────────────────────────────────────────────────────────────────
@@ -541,19 +407,18 @@ export default function QuizPage() {
   async function startQuiz() {
     if (!supabase) return
     if (!userId) { console.error('No userId'); return }
-    if (selectedChapters.length === 0) { setLoadError('Select at least one chapter.'); return }
+    if (!sundayUnlocked) return
 
     setLoadError('')
     setQuizState('loading')
-    const requiredCount = mode === 'sunday' ? SUNDAY_COUNT : QUICK_COUNT
 
     try {
+      // Fetch questions from all chapters, no chapter filter
       const { data: dbQ, error: dbErr } = await supabase
         .from('quiz_questions')
         .select('*')
-        .in('chapter_slug', selectedChapters.map(ch => String(ch)))
         .eq('board', 'KPK')
-        .limit(requiredCount)
+        .limit(SUNDAY_COUNT * 3) // fetch more to have shuffling headroom
 
       if (dbErr) console.error('quiz_questions fetch error:', dbErr)
 
@@ -561,16 +426,12 @@ export default function QuizPage() {
       console.log('DB questions:', pool.length)
 
       // Top up with AI if needed
-      if (pool.length < requiredCount) {
+      if (pool.length < SUNDAY_COUNT) {
         try {
           const res = await fetch('/api/generate-quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chapterSlugs: selectedChapters.map(ch => String(ch)),
-              count: requiredCount - pool.length,
-              board: 'KPK',
-            }),
+            body: JSON.stringify({ count: SUNDAY_COUNT - pool.length, board: 'KPK' }),
           })
           const aiData = await res.json()
           console.log('AI questions:', aiData.questions?.length)
@@ -581,11 +442,11 @@ export default function QuizPage() {
       }
 
       // Shuffle and slice
-      pool = pool.sort(() => Math.random() - 0.5).slice(0, requiredCount)
-      console.log('Final pool:', pool.length, pool)
+      pool = pool.sort(() => Math.random() - 0.5).slice(0, SUNDAY_COUNT)
+      console.log('Final pool:', pool.length)
 
       if (pool.length === 0) {
-        alert('No questions available for selected chapters. Please try different chapters.')
+        setLoadError('No questions available. Please try again later.')
         setQuizState('home')
         return
       }
@@ -595,7 +456,7 @@ export default function QuizPage() {
       setAnswers([])
       setSelectedAnswer(null)
       setShowExplain(false)
-      setTimeLeft(mode === 'sunday' ? SUNDAY_SECS : QUICK_SECS)
+      setTimeLeft(SUNDAY_SECS)
       setQuizState('active')
     } catch (e) {
       console.error('startQuiz error:', e)
@@ -627,7 +488,7 @@ export default function QuizPage() {
         const { error } = await supabase.rpc('record_topic_attempt', {
           p_user_id: userId,
           p_topic_slug: q.topic_slug,
-          p_chapter_slug: q.chapter_slug ?? String(selectedChapters[0]),
+          p_chapter_slug: q.chapter_slug ?? '',
           p_subject: 'Chemistry',
           p_board: 'KPK',
           p_was_correct: isCorrect,
@@ -672,8 +533,8 @@ export default function QuizPage() {
     const total = questions.length
     const pct = total > 0 ? Math.round((score / total) * 100) : 0
     const grade = getGrade(pct)
-    const xpEarned = score * 10 * (mode === 'sunday' ? 2 : 1)
-    const timeTaken = (mode === 'sunday' ? SUNDAY_SECS : QUICK_SECS) - timeLeft
+    const xpEarned = score * 20 // 2× multiplier (Sunday bonus)
+    const timeTaken = SUNDAY_SECS - timeLeft
 
     setResult({ score, total, pct, grade, xpEarned, answers: finalAnswers })
     setQuizState('results')
@@ -685,13 +546,14 @@ export default function QuizPage() {
         .from('quiz_attempts')
         .insert({
           user_id: userId,
-          mode,
-          chapter_slugs: JSON.stringify(selectedChapters.map(ch => String(ch))),
+          mode: 'sunday',
+          chapter_slugs: JSON.stringify(['all']),
           score,
           total,
           grade,
           xp_earned: xpEarned,
           time_taken_seconds: timeTaken,
+          completed_at: new Date().toISOString(),
           answers: JSON.stringify(finalAnswers),
         })
       if (attemptError) console.error('quiz_attempts insert error:', attemptError)
@@ -722,12 +584,7 @@ export default function QuizPage() {
     setShowExplain(false)
     setResult(null)
     setLoadError('')
-  }
-
-  function toggleChapter(id: number) {
-    setSelectedChapters(prev =>
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id],
-    )
+    setTimeLeft(SUNDAY_SECS)
   }
 
   function formatTime(secs: number) {
@@ -738,9 +595,8 @@ export default function QuizPage() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const progressPct = questions.length > 0 ? ((currentQ + 1) / questions.length) * 100 : 0
-  const resultGradeColor = result ? gradeColor(result.grade) : '#f97316'
+  const resultGradeColor = result ? gradeColor(result.grade) : '#a855f7'
 
-  // Missed questions: join answer objects with question objects by index
   const missedQs = (result?.answers ?? [])
     .map((a: any, i: number) => ({ ...a, q: questions[i] }))
     .filter((a: any) => !a.isCorrect && a.q)
@@ -777,7 +633,7 @@ export default function QuizPage() {
               ? `Question ${currentQ + 1} / ${questions.length}`
               : quizState === 'results'
                 ? 'Results'
-                : 'Quiz & Tests'}
+                : 'Sunday Test'}
           </h1>
           {quizState === 'active' && (
             <span style={{ marginLeft: 'auto', ...S.timer(timeLeft < 120) }}>
@@ -786,7 +642,7 @@ export default function QuizPage() {
           )}
         </div>
 
-        {showXP && <div style={S.xpFloat}>+10 XP ⚡</div>}
+        {showXP && <div style={S.xpFloat}>+20 XP ⚡</div>}
 
         <div style={S.inner}>
 
@@ -796,99 +652,118 @@ export default function QuizPage() {
           {quizState === 'loading' && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <div style={{ fontSize: '36px', marginBottom: '16px' }}>⏳</div>
-              <p style={{
-                color: '#94a3b8', fontSize: '16px', fontWeight: 600, margin: 0,
-              }}>
+              <p style={{ color: '#94a3b8', fontSize: '16px', fontWeight: 600, margin: 0 }}>
                 Loading questions... please wait
               </p>
             </div>
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              HOME — Mode Select + Chapter Picker
+              HOME — Sunday Test card
           ══════════════════════════════════════════════════════════════ */}
           {quizState === 'home' && (
             <>
-              <p style={S.sectionLabel}>Select Mode</p>
-              <div style={S.modeGrid}>
-                {/* Quick Quiz */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  style={S.card(mode === 'quick', '#f97316')}
-                  onClick={() => setMode('quick')}
-                  onKeyDown={e => e.key === 'Enter' && setMode('quick')}
-                >
-                  <div style={{ fontSize: '22px', marginBottom: '8px' }}>⚡</div>
-                  <div style={{ ...S.cardTitle, color: '#f97316' }}>Quick Quiz</div>
-                  <div style={S.cardMeta}>
-                    {QUICK_COUNT} questions<br />15 minutes
-                  </div>
-                </div>
+              {/* Hero card */}
+              <div style={{
+                background: sundayUnlocked
+                  ? 'linear-gradient(135deg, rgba(168,85,247,0.18), rgba(168,85,247,0.08))'
+                  : '#111d30',
+                border: `1.5px solid ${sundayUnlocked ? '#a855f7' : 'rgba(255,255,255,0.07)'}`,
+                borderRadius: '18px',
+                padding: '32px 24px',
+                textAlign: 'center',
+                marginBottom: '24px',
+              }}>
+                <div style={{ fontSize: '42px', marginBottom: '14px' }}>📋</div>
+                <h2 style={{
+                  fontFamily: 'var(--font-sora, Sora, sans-serif)',
+                  fontSize: '22px',
+                  fontWeight: 800,
+                  color: '#a855f7',
+                  margin: '0 0 8px',
+                }}>
+                  Sunday Test
+                </h2>
+                <p style={{ color: '#94a3b8', fontSize: '14px', margin: '0 0 6px' }}>
+                  {SUNDAY_COUNT} questions &nbsp;·&nbsp; 45 minutes &nbsp;·&nbsp; All Chapters
+                </p>
+                <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 24px' }}>
+                  KPK Board · FSc Chemistry · 2× XP bonus
+                </p>
 
-                {/* Sunday Test */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  style={{
-                    ...S.card(mode === 'sunday', '#a855f7'),
-                    opacity: sundayUnlocked ? 1 : 0.65,
-                  }}
-                  onClick={() => sundayUnlocked && setMode('sunday')}
-                  onKeyDown={e => e.key === 'Enter' && sundayUnlocked && setMode('sunday')}
-                >
-                  <div style={{ fontSize: '22px', marginBottom: '8px' }}>📋</div>
-                  <div style={{ ...S.cardTitle, color: '#a855f7' }}>Sunday Test</div>
-                  <div style={S.cardMeta}>
-                    {SUNDAY_COUNT} questions<br />45 minutes
+                {sundayUnlocked ? (
+                  <>
+                    {loadError && (
+                      <p style={{ color: '#f87171', fontSize: '13px', marginBottom: '12px' }}>
+                        {loadError}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      disabled={!userId}
+                      onClick={startQuiz}
+                      style={{
+                        padding: '14px 40px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: userId
+                          ? 'linear-gradient(135deg, #a855f7, #7c3aed)'
+                          : 'rgba(168,85,247,0.3)',
+                        color: userId ? '#fff' : 'rgba(255,255,255,0.4)',
+                        fontFamily: 'var(--font-sora, Sora, sans-serif)',
+                        fontSize: '15px',
+                        fontWeight: 700,
+                        cursor: userId ? 'pointer' : 'not-allowed',
+                        transition: 'all .15s',
+                        width: '100%',
+                        maxWidth: '280px',
+                      }}
+                    >
+                      {userId ? 'Begin Sunday Test' : 'Loading...'}
+                    </button>
+                  </>
+                ) : (
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 20px',
+                    borderRadius: '999px',
+                    background: 'rgba(100,116,139,0.12)',
+                    border: '1px solid rgba(100,116,139,0.25)',
+                    color: '#64748b',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                  }}>
+                    🔒 Available Sundays only &nbsp;·&nbsp; {daysAway} day{daysAway !== 1 ? 's' : ''} away
                   </div>
-                  {!sundayUnlocked && (
-                    <div style={{ marginTop: '6px', fontSize: '11px', color: '#a855f7', fontWeight: 600 }}>
-                      Available Sunday · {daysAway}d away
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
 
-              <p style={S.sectionLabel}>Select Chapters</p>
-              <div style={S.chipWrap}>
-                {availableChapters.map(ch => (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    style={S.chip(selectedChapters.includes(ch.id))}
-                    onClick={() => toggleChapter(ch.id)}
-                  >
-                    Ch {ch.id}: {ch.name}
-                  </button>
+              {/* Info cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {[
+                  { icon: '🎯', title: 'Full syllabus', desc: 'Questions from all 24 chapters' },
+                  { icon: '⏱', title: '45 minutes', desc: 'Timed test with live countdown' },
+                  { icon: '⚡', title: '2× XP bonus', desc: 'Double XP for Sunday tests' },
+                  { icon: '📊', title: 'Detailed results', desc: 'Review every missed question' },
+                ].map((item, i) => (
+                  <div key={i} style={{
+                    background: '#111d30',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '12px',
+                    padding: '14px',
+                  }}>
+                    <div style={{ fontSize: '20px', marginBottom: '6px' }}>{item.icon}</div>
+                    <div style={{
+                      fontFamily: 'var(--font-sora, Sora, sans-serif)',
+                      fontSize: '13px', fontWeight: 700, color: '#f1f5f9',
+                      marginBottom: '3px',
+                    }}>{item.title}</div>
+                    <div style={{ fontSize: '11.5px', color: '#64748b' }}>{item.desc}</div>
+                  </div>
                 ))}
               </div>
-
-              {loadError && (
-                <p style={{
-                  color: '#f87171', fontSize: '13px',
-                  marginBottom: '10px', textAlign: 'center',
-                }}>
-                  {loadError}
-                </p>
-              )}
-
-              <button
-                type="button"
-                style={S.startBtn(
-                  !userId ||
-                  selectedChapters.length === 0 ||
-                  (mode === 'sunday' && !sundayUnlocked),
-                )}
-                disabled={
-                  !userId ||
-                  selectedChapters.length === 0 ||
-                  (mode === 'sunday' && !sundayUnlocked)
-                }
-                onClick={startQuiz}
-              >
-                Start Quiz
-              </button>
             </>
           )}
 
@@ -965,98 +840,193 @@ export default function QuizPage() {
           {/* ══════════════════════════════════════════════════════════════
               RESULTS
           ══════════════════════════════════════════════════════════════ */}
-          {quizState === 'results' && result && (
-            <>
-              <div style={S.resultsCard}>
-                {/* Grade circle */}
-                <div style={S.gradeCircle(resultGradeColor)}>
-                  <span style={S.gradeLabel(resultGradeColor)}>{result.grade}</span>
-                </div>
+          {quizState === 'results' && result && (() => {
+            const gc = resultGradeColor
+            const uniqueWeakTopics: string[] = [...new Set<string>(missedQs.map((a: any) => a.q?.topic_slug).filter(Boolean))]
+            const timeFmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+            const timeTaken = SUNDAY_SECS - timeLeft
 
-                <p style={{
-                  fontFamily: 'var(--font-sora, Sora, sans-serif)',
-                  fontSize: '20px', fontWeight: 700,
-                  margin: '0 0 4px', color: '#f1f5f9',
-                }}>
-                  {result.pct >= 80 ? 'Excellent work!'
-                    : result.pct >= 60 ? 'Good effort!'
-                    : result.pct >= 40 ? 'Keep practising!'
-                    : 'Study harder!'}
-                </p>
-
-                <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
-                  {mode === 'quick' ? 'Quick Quiz' : 'Sunday Test'} · {result.total} questions
-                </p>
-
-                <div style={S.statRow}>
-                  <div style={S.statBox}>
-                    <div style={{ ...S.statVal, color: '#4ade80' }}>{result.score}</div>
-                    <div style={S.statLbl}>Correct</div>
+            return (
+              <>
+                {/* ── Score card ───────────────────────────────────────────── */}
+                <div style={{ ...S.resultsCard, marginBottom: '12px' }}>
+                  {/* Grade circle */}
+                  <div style={S.gradeCircle(gc)}>
+                    <span style={S.gradeLabel(gc)}>{result.grade}</span>
                   </div>
-                  <div style={S.statBox}>
-                    <div style={{ ...S.statVal, color: '#f87171' }}>{result.total - result.score}</div>
-                    <div style={S.statLbl}>Wrong</div>
-                  </div>
-                  <div style={S.statBox}>
-                    <div style={{ ...S.statVal, color: '#f59e0b' }}>{result.pct}%</div>
-                    <div style={S.statLbl}>Accuracy</div>
-                  </div>
-                </div>
 
-                <div style={S.xpBadge}>
-                  ⚡ +{result.xpEarned} XP earned
-                  {mode === 'sunday' && (
+                  <div style={{ fontSize: '30px', fontWeight: 800, color: '#f1f5f9', lineHeight: 1, marginBottom: '4px', fontFamily: 'var(--font-sora, Sora, sans-serif)' }}>
+                    {result.score}/{result.total}
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: gc, marginBottom: '10px' }}>
+                    {result.pct}%
+                  </div>
+
+                  <div style={S.xpBadge}>
+                    ⚡ +{result.xpEarned} XP earned
                     <span style={{ opacity: 0.7, fontWeight: 400 }}> (2× Sunday bonus)</span>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Action buttons */}
-              <div style={S.actionRow}>
-                <button type="button" style={S.outlineBtn} onClick={() => startQuiz()}>
-                  Retry
-                </button>
-                <button type="button" style={S.filledBtn} onClick={() => router.push('/dashboard')}>
-                  Dashboard
-                </button>
-              </div>
-
-              {/* Missed questions */}
-              {missedQs.length > 0 && (
-                <div style={{ marginTop: '28px' }}>
-                  <p style={{ ...S.sectionLabel, marginBottom: '12px' }}>
-                    Missed Questions ({missedQs.length})
+                  <p style={{ color: '#94a3b8', fontSize: '14px', margin: '12px 0 0' }}>
+                    {result.pct >= 80 ? "Excellent! You're well prepared 🎉"
+                      : result.pct >= 60 ? 'Good effort! Review weak topics 👍'
+                      : result.pct >= 40 ? 'Keep practicing! Focus on weak areas 📚'
+                      : 'Needs work. Revise these topics seriously ⚠️'}
                   </p>
-                  {missedQs.map((a: any, idx: number) => {
-                    const opts = getOptions(a.q)
-                    const correctText = opts[a.correct] ?? ''
-                    const selectedText = opts[a.selected] ?? ''
-                    const correctLetter = 'ABCD'[a.correct] ?? '?'
-                    const selectedLetter = 'ABCD'[a.selected] ?? '?'
-
-                    return (
-                      <div key={a.qid ?? idx} style={S.missedItem}>
-                        <div style={{ fontWeight: 600, marginBottom: '6px', color: '#f1f5f9' }}>
-                          {a.q?.question}
-                        </div>
-                        <div style={{ fontSize: '12.5px', color: '#f87171', marginBottom: '2px' }}>
-                          Your answer: {selectedLetter} — {selectedText}
-                        </div>
-                        <div style={{ fontSize: '12.5px', color: '#4ade80' }}>
-                          Correct: {correctLetter} — {correctText}
-                        </div>
-                        {a.q?.explanation && (
-                          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                            {a.q.explanation}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
                 </div>
-              )}
-            </>
-          )}
+
+                {/* ── Stat row ─────────────────────────────────────────────── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
+                  <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '12px', padding: '14px 8px', textAlign: 'center' }}>
+                    <div style={{ ...S.statVal, color: '#22c55e' }}>{result.score}</div>
+                    <div style={S.statLbl}>✅ Correct</div>
+                  </div>
+                  <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '12px', padding: '14px 8px', textAlign: 'center' }}>
+                    <div style={{ ...S.statVal, color: '#ef4444' }}>{result.total - result.score}</div>
+                    <div style={S.statLbl}>✗ Wrong</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', padding: '14px 8px', textAlign: 'center' }}>
+                    <div style={{ ...S.statVal, color: '#94a3b8' }}>{timeFmt(timeTaken)}</div>
+                    <div style={S.statLbl}>⏱ Time</div>
+                  </div>
+                </div>
+
+                {/* ── Weak topics ──────────────────────────────────────────── */}
+                {missedQs.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{
+                      fontSize: '12px', fontWeight: 700, color: '#ef4444',
+                      textTransform: 'uppercase' as const, letterSpacing: '0.08em',
+                      marginBottom: '10px',
+                    }}>
+                      ⚠️ Topics to Revise ({missedQs.length})
+                    </p>
+                    {missedQs.map((a: any, idx: number) => {
+                      const opts = getOptions(a.q)
+                      const selectedText = opts[a.selected] ?? ''
+                      const correctText = opts[a.correct] ?? ''
+                      const topicSlug = a.q?.topic_slug ?? ''
+                      const chapterSlug = a.q?.chapter_slug ?? ''
+                      const raw = a.q?.question ?? ''
+                      const qPreview = raw.length > 80 ? raw.slice(0, 80) + '…' : raw
+
+                      return (
+                        <div key={a.qid ?? idx} style={{
+                          background: 'rgba(239,68,68,0.06)',
+                          border: '1px solid rgba(239,68,68,0.15)',
+                          borderLeft: '3px solid #ef4444',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                          marginBottom: '8px',
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '5px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444' }}>
+                              {topicSlug ? topicSlug.replace(/-/g, ' ') : 'Unknown Topic'}
+                            </span>
+                            {topicSlug && (
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/chat?topic=${topicSlug}&chapter=${chapterSlug}`)}
+                                style={{
+                                  padding: '2px 8px', borderRadius: '4px',
+                                  background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.3)',
+                                  color: '#f97316', fontSize: '11px', fontWeight: 600,
+                                  cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit',
+                                }}
+                              >
+                                Study this →
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '7px', lineHeight: 1.4 }}>
+                            {qPreview}
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '4px',
+                              background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
+                              color: '#f87171', fontSize: '11px',
+                            }}>
+                              Your: {selectedText || '—'}
+                            </span>
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '4px',
+                              background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)',
+                              color: '#4ade80', fontSize: '11px',
+                            }}>
+                              Correct: {correctText}
+                            </span>
+                          </div>
+                          {a.q?.explanation && (
+                            <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '6px', lineHeight: 1.4 }}>
+                              {a.q.explanation}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* ── Suggested review ─────────────────────────────────────── */}
+                {uniqueWeakTopics.length > 0 && (
+                  <div style={{
+                    marginBottom: '16px', padding: '14px',
+                    background: '#111d30', borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px' }}>
+                      📚 Suggested next session:
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                      {uniqueWeakTopics.map((slug: string, i: number) => (
+                        <span key={i} style={{
+                          padding: '3px 10px', borderRadius: '999px',
+                          background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)',
+                          color: '#f97316', fontSize: '11px', fontWeight: 500,
+                        }}>
+                          {slug.replace(/-/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const first = missedQs[0] as any
+                        const chSlug = first?.q?.chapter_slug ?? ''
+                        const tSlug = first?.q?.topic_slug ?? ''
+                        router.push(`/chat?chapter=${chSlug}&mode=quiz&topic=${tSlug}`)
+                      }}
+                      style={{
+                        width: '100%', padding: '9px', borderRadius: '8px',
+                        background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.25)',
+                        color: '#f97316', fontSize: '13px', fontWeight: 700,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      Start Revision Session →
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Action buttons ───────────────────────────────────────── */}
+                <div style={S.actionRow}>
+                  {sundayUnlocked && (
+                    <button type="button" style={S.outlineBtn} onClick={() => startQuiz()}>
+                      Retake Test
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    style={{ ...S.filledBtn, gridColumn: sundayUnlocked ? 'auto' : '1 / -1' }}
+                    onClick={() => router.push('/dashboard')}
+                  >
+                    Dashboard
+                  </button>
+                </div>
+              </>
+            )
+          })()}
 
         </div>
       </div>
