@@ -1,66 +1,73 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
-import { getSupabaseClient } from '@/lib/supabase'
-import { getQuizQuestions } from '@/lib/getQuizQuestions'
-import { generateAIQuestions } from '@/lib/generateAIQuestions'
-import { saveQuizAttempt } from '@/lib/saveQuizAttempt'
-import { addXP } from '@/lib/updateXP'
+import { supabase } from '@/lib/supabase'
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Maps ─────────────────────────────────────────────────────────────────────
 
-interface QuizQuestion {
-  id: string
-  topic_slug: string
-  question: string
-  options: { A: string; B: string; C: string; D: string }
-  correct_answer: 'A' | 'B' | 'C' | 'D'
-  explanation?: string
+const CHAPTER_NAMES: Record<number, string> = {
+  1: 'Stoichiometry', 2: 'Atomic Structure', 3: 'Chemical Bonding',
+  4: 'States of Matter', 5: 'Thermochemistry', 6: 'Chemical Equilibrium',
+  7: 'Acids, Bases and Salts', 8: 'Electrochemistry', 9: 'Reaction Kinetics',
+  10: 'Organic Chemistry', 11: 'Hydrocarbons', 12: 'Alkyl Halides',
+  13: 'Alcohols and Phenols', 14: 'Aldehydes and Ketones', 15: 'Carboxylic Acids',
+  16: 'Macromolecules', 17: 'Common Chemical Industries', 18: 'Environmental Chemistry',
+  19: 'Analytical Chemistry', 20: 'Transition Elements', 21: 'Coordination Chemistry',
+  22: 'Biochemistry', 23: 'Nuclear Chemistry', 24: 'Chemistry of s-block Elements',
 }
 
-type QuizMode = 'quick' | 'sunday'
-type Screen = 'select' | 'quiz' | 'results'
+const TOPIC_COUNTS: Record<number, number> = {
+  1: 20, 2: 32, 3: 28, 4: 19, 5: 24, 6: 28, 7: 24, 8: 23, 9: 26, 10: 28,
+  11: 21, 12: 23, 13: 26, 14: 25, 15: 25, 16: 33, 17: 17, 18: 14, 19: 12,
+  20: 10, 21: 10, 22: 21, 23: 11, 24: 13,
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const QUICK_COUNT = 10
 const SUNDAY_COUNT = 35
-const QUICK_SECS = 15 * 60
-const SUNDAY_SECS = 45 * 60
+const QUICK_SECS = 900   // 15 min
+const SUNDAY_SECS = 2700 // 45 min
 
-const FALLBACK_CHAPTERS = [
-  'stoichiometry',
-  'atomic-structure',
-  'chemical-bonding',
-  'gases',
-  'thermochemistry',
-  'solutions',
-  'electrochemistry',
-  'reaction-kinetics',
-]
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
+function getOptions(q: any): string[] {
+  if (Array.isArray(q.options)) return q.options
+  if (q.options && typeof q.options === 'object') {
+    return [q.options.A ?? '', q.options.B ?? '', q.options.C ?? '', q.options.D ?? '']
   }
-  return a
+  return ['', '', '', '']
 }
 
-function getGrade(pct: number): { label: string; color: string } {
-  if (pct >= 90) return { label: 'A+', color: '#22c55e' }
-  if (pct >= 80) return { label: 'A', color: '#22c55e' }
-  if (pct >= 70) return { label: 'B+', color: '#eab308' }
-  if (pct >= 60) return { label: 'B', color: '#eab308' }
-  if (pct >= 50) return { label: 'C', color: '#f97316' }
-  return { label: 'F', color: '#ef4444' }
+function getCorrectIndex(q: any): number {
+  if (typeof q.correct_index === 'number') return q.correct_index
+  if (typeof q.correct === 'number') return q.correct
+  if (typeof q.correct_answer === 'string') {
+    return ['A', 'B', 'C', 'D'].indexOf(q.correct_answer)
+  }
+  return 0
+}
+
+function getGrade(pct: number): string {
+  if (pct >= 90) return 'A+'
+  if (pct >= 80) return 'A'
+  if (pct >= 70) return 'B+'
+  if (pct >= 60) return 'B'
+  if (pct >= 50) return 'C'
+  return 'F'
+}
+
+function gradeColor(g: string): string {
+  if (g === 'A+' || g === 'A') return '#22c55e'
+  if (g === 'B+') return '#84cc16'
+  if (g === 'B') return '#eab308'
+  if (g === 'C') return '#f97316'
+  return '#ef4444'
 }
 
 function daysUntilSunday(): number {
-  const day = new Date().getDay() // 0=Sun
+  const day = new Date().getDay()
   return day === 0 ? 0 : 7 - day
 }
 
@@ -199,13 +206,13 @@ const S = {
     marginBottom: '16px',
   } as React.CSSProperties,
 
-  progressBar: (pct: number): React.CSSProperties => ({
+  progressBar: {
     height: '4px',
     background: 'rgba(255,255,255,0.07)',
     borderRadius: '99px',
     overflow: 'hidden',
     marginBottom: '20px',
-  }),
+  } as React.CSSProperties,
 
   progressFill: (pct: number): React.CSSProperties => ({
     height: '100%',
@@ -243,9 +250,7 @@ const S = {
     marginBottom: '20px',
   } as React.CSSProperties,
 
-  optionBtn: (
-    state: 'idle' | 'correct' | 'wrong' | 'dim',
-  ): React.CSSProperties => ({
+  optionBtn: (state: 'idle' | 'correct' | 'wrong' | 'dim'): React.CSSProperties => ({
     width: '100%',
     display: 'flex',
     alignItems: 'center',
@@ -254,28 +259,20 @@ const S = {
     marginBottom: '8px',
     borderRadius: '10px',
     border: `1px solid ${
-      state === 'correct'
-        ? '#22c55e'
-        : state === 'wrong'
-          ? '#ef4444'
-          : 'rgba(255,255,255,0.08)'
+      state === 'correct' ? '#22c55e'
+      : state === 'wrong' ? '#ef4444'
+      : 'rgba(255,255,255,0.08)'
     }`,
     background:
-      state === 'correct'
-        ? 'rgba(34,197,94,0.12)'
-        : state === 'wrong'
-          ? 'rgba(239,68,68,0.10)'
-          : state === 'dim'
-            ? 'rgba(255,255,255,0.02)'
-            : 'rgba(255,255,255,0.04)',
+      state === 'correct' ? 'rgba(34,197,94,0.12)'
+      : state === 'wrong' ? 'rgba(239,68,68,0.10)'
+      : state === 'dim' ? 'rgba(255,255,255,0.02)'
+      : 'rgba(255,255,255,0.04)',
     color:
-      state === 'correct'
-        ? '#4ade80'
-        : state === 'wrong'
-          ? '#f87171'
-          : state === 'dim'
-            ? '#475569'
-            : '#cbd5e1',
+      state === 'correct' ? '#4ade80'
+      : state === 'wrong' ? '#f87171'
+      : state === 'dim' ? '#475569'
+      : '#cbd5e1',
     fontSize: '14px',
     cursor: state === 'idle' ? 'pointer' : 'default',
     transition: 'all .12s',
@@ -283,22 +280,15 @@ const S = {
     fontFamily: 'inherit',
   }),
 
-  letterBadge: (
-    state: 'idle' | 'correct' | 'wrong' | 'dim',
-  ): React.CSSProperties => ({
+  letterBadge: (state: 'idle' | 'correct' | 'wrong' | 'dim'): React.CSSProperties => ({
     width: '26px',
     height: '26px',
     borderRadius: '6px',
     background:
-      state === 'correct'
-        ? '#22c55e'
-        : state === 'wrong'
-          ? '#ef4444'
-          : 'rgba(255,255,255,0.1)',
-    color:
-      state === 'correct' || state === 'wrong'
-        ? '#fff'
-        : '#94a3b8',
+      state === 'correct' ? '#22c55e'
+      : state === 'wrong' ? '#ef4444'
+      : 'rgba(255,255,255,0.1)',
+    color: state === 'correct' || state === 'wrong' ? '#fff' : '#94a3b8',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -465,64 +455,64 @@ const S = {
 
 export default function QuizPage() {
   const router = useRouter()
-  const { user } = useAuth()
 
-  // Screen
-  const [screen, setScreen] = useState<Screen>('select')
-
-  // Select screen
-  const [mode, setMode] = useState<QuizMode>('quick')
-  const [availableChapters, setAvailableChapters] = useState<string[]>([])
-  const [selectedChapters, setSelectedChapters] = useState<string[]>([])
-  const [loadingStart, setLoadingStart] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [quizState, setQuizState] = useState<'home' | 'loading' | 'active' | 'results'>('home')
+  const [mode, setMode] = useState<'quick' | 'sunday'>('quick')
+  const [availableChapters, setAvailableChapters] = useState<{ id: number; name: string; topics: number }[]>([])
+  const [selectedChapters, setSelectedChapters] = useState<number[]>([1])
+  const [questions, setQuestions] = useState<any[]>([])
+  const [currentQ, setCurrentQ] = useState(0)
+  const [answers, setAnswers] = useState<any[]>([])
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [showExplain, setShowExplain] = useState(false)
+  const [showXP, setShowXP] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(QUICK_SECS)
+  const [result, setResult] = useState<any>(null)
   const [loadError, setLoadError] = useState('')
 
-  // Quiz screen
-  const [questions, setQuestions] = useState<QuizQuestion[]>([])
-  const [currentQ, setCurrentQ] = useState(0)
-  const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [answered, setAnswered] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(QUICK_SECS)
-  const [showXP, setShowXP] = useState(false)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Results
-  const [resultsSaved, setResultsSaved] = useState(false)
-
+  // Sunday gate
   const isSunday = new Date().getDay() === 0
-  const totalSecs = mode === 'quick' ? QUICK_SECS : SUNDAY_SECS
-  const quizCount = mode === 'quick' ? QUICK_COUNT : SUNDAY_COUNT
+  const forceTest =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('forceTest') === 'true'
+      : false
+  const sundayUnlocked = isSunday || forceTest
+  const daysAway = (7 - new Date().getDay()) % 7 || 7
 
-  // ── Load available chapters ────────────────────────────────────────────────
+  // ── Auth on mount ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!supabase) { router.push('/auth/signin'); return }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) { router.push('/auth/signin'); return }
+      setUserId(session.user.id)
+    })
+  }, [])
+
+  // ── Load chapters from content_chunks ─────────────────────────────────────
   useEffect(() => {
     async function load() {
-      const sb = getSupabaseClient()
-      if (!sb) {
-        setAvailableChapters(FALLBACK_CHAPTERS)
-        setSelectedChapters(FALLBACK_CHAPTERS.slice(0, 3))
-        return
-      }
+      if (!supabase) return
       try {
-        const { data } = await sb
-          .from('quiz_questions')
-          .select('chapter_slug')
-          .limit(200)
-
-        if (data && data.length > 0) {
-          const unique = Array.from(
-            new Set(data.map((r: any) => r.chapter_slug as string).filter(Boolean)),
-          )
-          setAvailableChapters(unique.length > 0 ? unique : FALLBACK_CHAPTERS)
-          setSelectedChapters(
-            (unique.length > 0 ? unique : FALLBACK_CHAPTERS).slice(0, 3),
-          )
-        } else {
-          setAvailableChapters(FALLBACK_CHAPTERS)
-          setSelectedChapters(FALLBACK_CHAPTERS.slice(0, 3))
-        }
-      } catch {
-        setAvailableChapters(FALLBACK_CHAPTERS)
-        setSelectedChapters(FALLBACK_CHAPTERS.slice(0, 3))
+        const { data, error } = await supabase
+          .from('content_chunks')
+          .select('chapter')
+          .eq('board', 'KPK')
+          .eq('class', 11)
+        if (error) { console.error('chapters error:', error); return }
+        const unique = [...new Set(data?.map((r: any) => r.chapter) ?? [])]
+          .sort((a: any, b: any) => a - b)
+        setAvailableChapters(
+          unique.map((ch: any) => ({
+            id: ch,
+            name: CHAPTER_NAMES[ch] ?? 'Chapter ' + ch,
+            topics: TOPIC_COUNTS[ch] ?? 0,
+          })),
+        )
+      } catch (e) {
+        console.error('load chapters exception:', e)
       }
     }
     load()
@@ -530,9 +520,9 @@ export default function QuizPage() {
 
   // ── Timer ─────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (screen !== 'quiz') return
+    if (quizState !== 'active') return
     timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
+      setTimeLeft(t => {
         if (t <= 1) {
           clearInterval(timerRef.current!)
           finishQuiz()
@@ -545,152 +535,199 @@ export default function QuizPage() {
       if (timerRef.current) clearInterval(timerRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen])
+  }, [quizState])
 
-  // ── Save results on screen=results ────────────────────────────────────────
-  useEffect(() => {
-    if (screen !== 'results' || resultsSaved) return
-    setResultsSaved(true)
-
-    const correctCount = questions.filter(
-      (q, i) => answers[i] === q.correct_answer,
-    ).length
-    const wrongCount = questions.length - correctCount
-    const accuracy =
-      questions.length > 0
-        ? Math.round((correctCount / questions.length) * 100)
-        : 0
-    const xpEarned =
-      correctCount * 10 * (mode === 'sunday' ? 2 : 1)
-
-    if (user?.id) {
-      saveQuizAttempt({
-        userId: user.id,
-        mode,
-        totalQuestions: questions.length,
-        correctCount,
-        wrongCount,
-        accuracy,
-        xpEarned,
-        chapterSlugs: selectedChapters,
-      }).catch(console.error)
-
-      addXP(user.id, xpEarned).catch(console.error)
-    }
-  }, [screen, resultsSaved, questions, answers, mode, user, selectedChapters])
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-
-  function toggleChapter(slug: string) {
-    setSelectedChapters((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
-    )
-  }
-
+  // ── startQuiz ─────────────────────────────────────────────────────────────
   async function startQuiz() {
-    if (selectedChapters.length === 0) {
-      setLoadError('Select at least one chapter.')
-      return
-    }
+    if (!supabase) return
+    if (!userId) { console.error('No userId'); return }
+    if (selectedChapters.length === 0) { setLoadError('Select at least one chapter.'); return }
+
     setLoadError('')
-    setLoadingStart(true)
+    setQuizState('loading')
+    const requiredCount = mode === 'sunday' ? SUNDAY_COUNT : QUICK_COUNT
 
     try {
-      let qs: QuizQuestion[] = []
+      const { data: dbQ, error: dbErr } = await supabase
+        .from('quiz_questions')
+        .select('*')
+        .in('chapter_slug', selectedChapters.map(ch => String(ch)))
+        .eq('board', 'KPK')
+        .limit(requiredCount)
 
-      if (mode === 'quick') {
+      if (dbErr) console.error('quiz_questions fetch error:', dbErr)
+
+      let pool: any[] = dbQ ?? []
+      console.log('DB questions:', pool.length)
+
+      // Top up with AI if needed
+      if (pool.length < requiredCount) {
         try {
-          const dbQs = await getQuizQuestions({
-            chapterSlugs: selectedChapters,
-            limit: QUICK_COUNT,
+          const res = await fetch('/api/generate-quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chapterSlugs: selectedChapters.map(ch => String(ch)),
+              count: requiredCount - pool.length,
+              board: 'KPK',
+            }),
           })
-          if (dbQs.length >= 5) {
-            qs = shuffle(dbQs).slice(0, QUICK_COUNT) as QuizQuestion[]
-          }
-        } catch {
-          // fall through to AI
-        }
-
-        if (qs.length < 5) {
-          qs = await generateAIQuestions({
-            chapterSlugs: selectedChapters,
-            count: QUICK_COUNT,
-          })
-        }
-      } else {
-        // Sunday test — try DB first
-        try {
-          const dbQs = await getQuizQuestions({
-            chapterSlugs: selectedChapters,
-            limit: SUNDAY_COUNT,
-          })
-          if (dbQs.length >= 10) {
-            qs = shuffle(dbQs).slice(0, SUNDAY_COUNT) as QuizQuestion[]
-          }
-        } catch {
-          // fall through to AI
-        }
-
-        if (qs.length < 10) {
-          qs = await generateAIQuestions({
-            chapterSlugs: selectedChapters,
-            count: SUNDAY_COUNT,
-          })
+          const aiData = await res.json()
+          console.log('AI questions:', aiData.questions?.length)
+          pool = [...pool, ...(aiData.questions ?? [])]
+        } catch (e) {
+          console.error('AI generation error:', e)
         }
       }
 
-      if (!qs || qs.length === 0) {
-        setLoadError('Could not load questions. Please try again.')
+      // Shuffle and slice
+      pool = pool.sort(() => Math.random() - 0.5).slice(0, requiredCount)
+      console.log('Final pool:', pool.length, pool)
+
+      if (pool.length === 0) {
+        alert('No questions available for selected chapters. Please try different chapters.')
+        setQuizState('home')
         return
       }
 
-      setQuestions(qs)
+      setQuestions(pool)
       setCurrentQ(0)
-      setAnswers({})
-      setAnswered(false)
-      setTimeLeft(mode === 'quick' ? QUICK_SECS : SUNDAY_SECS)
-      setResultsSaved(false)
-      setScreen('quiz')
-    } catch (err: any) {
-      setLoadError(err?.message ?? 'Failed to load questions.')
-    } finally {
-      setLoadingStart(false)
+      setAnswers([])
+      setSelectedAnswer(null)
+      setShowExplain(false)
+      setTimeLeft(mode === 'sunday' ? SUNDAY_SECS : QUICK_SECS)
+      setQuizState('active')
+    } catch (e) {
+      console.error('startQuiz error:', e)
+      setLoadError('Failed to load questions. Please try again.')
+      setQuizState('home')
     }
   }
 
-  function selectAnswer(letter: string) {
-    if (answered) return
-    setAnswers((prev) => ({ ...prev, [currentQ]: letter }))
-    setAnswered(true)
+  // ── selectAnswer ──────────────────────────────────────────────────────────
+  async function selectAnswer(idx: number) {
+    if (selectedAnswer !== null) return
+    if (!supabase) return
+
+    setSelectedAnswer(idx)
+    setShowExplain(true)
 
     const q = questions[currentQ]
-    if (letter === q.correct_answer) {
+    const correctIdx = getCorrectIndex(q)
+    const isCorrect = idx === correctIdx
+
+    if (isCorrect) {
       setShowXP(true)
       setTimeout(() => setShowXP(false), 1200)
     }
+
+    // Record topic attempt
+    if (userId && q.topic_slug) {
+      try {
+        const { error } = await supabase.rpc('record_topic_attempt', {
+          p_user_id: userId,
+          p_topic_slug: q.topic_slug,
+          p_chapter_slug: q.chapter_slug ?? String(selectedChapters[0]),
+          p_subject: 'Chemistry',
+          p_board: 'KPK',
+          p_was_correct: isCorrect,
+        })
+        if (error) console.error('record_topic_attempt error:', error)
+      } catch (e) {
+        console.error('record_topic_attempt exception:', e)
+      }
+    }
+
+    setAnswers(prev => [
+      ...prev,
+      {
+        qid: q.id,
+        topic_slug: q.topic_slug,
+        chapter_slug: q.chapter_slug,
+        selected: idx,
+        correct: correctIdx,
+        isCorrect,
+      },
+    ])
   }
 
+  // ── nextQuestion ──────────────────────────────────────────────────────────
   function nextQuestion() {
     if (currentQ + 1 >= questions.length) {
       finishQuiz()
-    } else {
-      setCurrentQ((n) => n + 1)
-      setAnswered(false)
+      return
+    }
+    setCurrentQ(c => c + 1)
+    setSelectedAnswer(null)
+    setShowExplain(false)
+  }
+
+  // ── finishQuiz ────────────────────────────────────────────────────────────
+  async function finishQuiz() {
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (!supabase) return
+
+    const finalAnswers = answers
+    const score = finalAnswers.filter((a: any) => a.isCorrect).length
+    const total = questions.length
+    const pct = total > 0 ? Math.round((score / total) * 100) : 0
+    const grade = getGrade(pct)
+    const xpEarned = score * 10 * (mode === 'sunday' ? 2 : 1)
+    const timeTaken = (mode === 'sunday' ? SUNDAY_SECS : QUICK_SECS) - timeLeft
+
+    setResult({ score, total, pct, grade, xpEarned, answers: finalAnswers })
+    setQuizState('results')
+
+    if (!userId) { console.error('No userId in finishQuiz'); return }
+
+    try {
+      const { error: attemptError } = await supabase
+        .from('quiz_attempts')
+        .insert({
+          user_id: userId,
+          mode,
+          chapter_slugs: JSON.stringify(selectedChapters.map(ch => String(ch))),
+          score,
+          total,
+          grade,
+          xp_earned: xpEarned,
+          time_taken_seconds: timeTaken,
+          answers: JSON.stringify(finalAnswers),
+        })
+      if (attemptError) console.error('quiz_attempts insert error:', attemptError)
+      else console.log('quiz_attempts saved successfully')
+    } catch (e) {
+      console.error('quiz_attempts insert exception:', e)
+    }
+
+    try {
+      const { error: xpError } = await supabase.rpc('increment_xp', {
+        p_user_id: userId,
+        p_amount: xpEarned,
+      })
+      if (xpError) console.error('increment_xp error:', xpError)
+      else console.log('XP added:', xpEarned)
+    } catch (e) {
+      console.error('increment_xp exception:', e)
     }
   }
 
-  const finishQuiz = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    setScreen('results')
-  }, [])
-
+  // ── Helpers ───────────────────────────────────────────────────────────────
   function resetAll() {
-    setScreen('select')
+    setQuizState('home')
     setQuestions([])
     setCurrentQ(0)
-    setAnswers({})
-    setAnswered(false)
-    setResultsSaved(false)
+    setAnswers([])
+    setSelectedAnswer(null)
+    setShowExplain(false)
+    setResult(null)
+    setLoadError('')
+  }
+
+  function toggleChapter(id: number) {
+    setSelectedChapters(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id],
+    )
   }
 
   function formatTime(secs: number) {
@@ -699,24 +736,16 @@ export default function QuizPage() {
     return `${m}:${s.toString().padStart(2, '0')}`
   }
 
-  // ── Derived values ─────────────────────────────────────────────────────────
-  const correctCount = questions.filter(
-    (q, i) => answers[i] === q.correct_answer,
-  ).length
-  const wrongCount = questions.length - correctCount
-  const accuracy =
-    questions.length > 0
-      ? Math.round((correctCount / questions.length) * 100)
-      : 0
-  const xpEarned = correctCount * 10 * (mode === 'sunday' ? 2 : 1)
-  const grade = getGrade(accuracy)
-  const progressPct =
-    questions.length > 0 ? ((currentQ + 1) / questions.length) * 100 : 0
-  const missedQuestions = questions.filter(
-    (q, i) => answers[i] !== q.correct_answer,
-  )
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const progressPct = questions.length > 0 ? ((currentQ + 1) / questions.length) * 100 : 0
+  const resultGradeColor = result ? gradeColor(result.grade) : '#f97316'
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Missed questions: join answer objects with question objects by index
+  const missedQs = (result?.answers ?? [])
+    .map((a: any, i: number) => ({ ...a, q: questions[i] }))
+    .filter((a: any) => !a.isCorrect && a.q)
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -733,43 +762,52 @@ export default function QuizPage() {
       `}</style>
 
       <div style={S.page}>
-        {/* ── Top bar ── */}
+
+        {/* ── Top bar ──────────────────────────────────────────────────────── */}
         <div style={S.topBar}>
           <button
             type="button"
             style={S.backBtn}
-            onClick={() =>
-              screen === 'select' ? router.back() : resetAll()
-            }
+            onClick={() => quizState === 'home' ? router.back() : resetAll()}
           >
             ←
           </button>
           <h1 style={S.pageTitle}>
-            {screen === 'select'
-              ? 'Quiz & Tests'
-              : screen === 'quiz'
-                ? `Question ${currentQ + 1} / ${questions.length}`
-                : 'Results'}
+            {quizState === 'active'
+              ? `Question ${currentQ + 1} / ${questions.length}`
+              : quizState === 'results'
+                ? 'Results'
+                : 'Quiz & Tests'}
           </h1>
-          {screen === 'quiz' && (
-            <span
-              style={{
-                marginLeft: 'auto',
-                ...S.timer(timeLeft < 120),
-              }}
-            >
+          {quizState === 'active' && (
+            <span style={{ marginLeft: 'auto', ...S.timer(timeLeft < 120) }}>
               {formatTime(timeLeft)}
             </span>
           )}
         </div>
 
-        {showXP && <div style={S.xpFloat}>+10 XP</div>}
+        {showXP && <div style={S.xpFloat}>+10 XP ⚡</div>}
 
         <div style={S.inner}>
-          {/* ════════════════════════════════════════════════════════════
-              SCREEN 1 — Mode Select
-          ════════════════════════════════════════════════════════════ */}
-          {screen === 'select' && (
+
+          {/* ══════════════════════════════════════════════════════════════
+              LOADING
+          ══════════════════════════════════════════════════════════════ */}
+          {quizState === 'loading' && (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ fontSize: '36px', marginBottom: '16px' }}>⏳</div>
+              <p style={{
+                color: '#94a3b8', fontSize: '16px', fontWeight: 600, margin: 0,
+              }}>
+                Loading questions... please wait
+              </p>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              HOME — Mode Select + Chapter Picker
+          ══════════════════════════════════════════════════════════════ */}
+          {quizState === 'home' && (
             <>
               <p style={S.sectionLabel}>Select Mode</p>
               <div style={S.modeGrid}>
@@ -779,22 +817,12 @@ export default function QuizPage() {
                   tabIndex={0}
                   style={S.card(mode === 'quick', '#f97316')}
                   onClick={() => setMode('quick')}
-                  onKeyDown={(e) => e.key === 'Enter' && setMode('quick')}
+                  onKeyDown={e => e.key === 'Enter' && setMode('quick')}
                 >
-                  <div
-                    style={{ fontSize: '22px', marginBottom: '8px' }}
-                  >
-                    ⚡
-                  </div>
-                  <div
-                    style={{ ...S.cardTitle, color: '#f97316' }}
-                  >
-                    Quick Quiz
-                  </div>
+                  <div style={{ fontSize: '22px', marginBottom: '8px' }}>⚡</div>
+                  <div style={{ ...S.cardTitle, color: '#f97316' }}>Quick Quiz</div>
                   <div style={S.cardMeta}>
-                    {QUICK_COUNT} questions
-                    <br />
-                    15 minutes
+                    {QUICK_COUNT} questions<br />15 minutes
                   </div>
                 </div>
 
@@ -804,38 +832,19 @@ export default function QuizPage() {
                   tabIndex={0}
                   style={{
                     ...S.card(mode === 'sunday', '#a855f7'),
-                    opacity: isSunday ? 1 : 0.65,
+                    opacity: sundayUnlocked ? 1 : 0.65,
                   }}
-                  onClick={() => isSunday && setMode('sunday')}
-                  onKeyDown={(e) =>
-                    e.key === 'Enter' && isSunday && setMode('sunday')
-                  }
+                  onClick={() => sundayUnlocked && setMode('sunday')}
+                  onKeyDown={e => e.key === 'Enter' && sundayUnlocked && setMode('sunday')}
                 >
-                  <div
-                    style={{ fontSize: '22px', marginBottom: '8px' }}
-                  >
-                    📋
-                  </div>
-                  <div
-                    style={{ ...S.cardTitle, color: '#a855f7' }}
-                  >
-                    Sunday Test
-                  </div>
+                  <div style={{ fontSize: '22px', marginBottom: '8px' }}>📋</div>
+                  <div style={{ ...S.cardTitle, color: '#a855f7' }}>Sunday Test</div>
                   <div style={S.cardMeta}>
-                    {SUNDAY_COUNT} questions
-                    <br />
-                    45 minutes
+                    {SUNDAY_COUNT} questions<br />45 minutes
                   </div>
-                  {!isSunday && (
-                    <div
-                      style={{
-                        marginTop: '6px',
-                        fontSize: '11px',
-                        color: '#a855f7',
-                        fontWeight: 600,
-                      }}
-                    >
-                      Available Sunday · {daysUntilSunday()}d away
+                  {!sundayUnlocked && (
+                    <div style={{ marginTop: '6px', fontSize: '11px', color: '#a855f7', fontWeight: 600 }}>
+                      Available Sunday · {daysAway}d away
                     </div>
                   )}
                 </div>
@@ -843,29 +852,23 @@ export default function QuizPage() {
 
               <p style={S.sectionLabel}>Select Chapters</p>
               <div style={S.chipWrap}>
-                {availableChapters.map((slug) => (
+                {availableChapters.map(ch => (
                   <button
-                    key={slug}
+                    key={ch.id}
                     type="button"
-                    style={S.chip(selectedChapters.includes(slug))}
-                    onClick={() => toggleChapter(slug)}
+                    style={S.chip(selectedChapters.includes(ch.id))}
+                    onClick={() => toggleChapter(ch.id)}
                   >
-                    {slug
-                      .replace(/-/g, ' ')
-                      .replace(/\b\w/g, (c) => c.toUpperCase())}
+                    Ch {ch.id}: {ch.name}
                   </button>
                 ))}
               </div>
 
               {loadError && (
-                <p
-                  style={{
-                    color: '#f87171',
-                    fontSize: '13px',
-                    marginBottom: '10px',
-                    textAlign: 'center',
-                  }}
-                >
+                <p style={{
+                  color: '#f87171', fontSize: '13px',
+                  marginBottom: '10px', textAlign: 'center',
+                }}>
                   {loadError}
                 </p>
               )}
@@ -873,29 +876,29 @@ export default function QuizPage() {
               <button
                 type="button"
                 style={S.startBtn(
-                  loadingStart ||
-                    selectedChapters.length === 0 ||
-                    (mode === 'sunday' && !isSunday),
+                  !userId ||
+                  selectedChapters.length === 0 ||
+                  (mode === 'sunday' && !sundayUnlocked),
                 )}
                 disabled={
-                  loadingStart ||
+                  !userId ||
                   selectedChapters.length === 0 ||
-                  (mode === 'sunday' && !isSunday)
+                  (mode === 'sunday' && !sundayUnlocked)
                 }
                 onClick={startQuiz}
               >
-                {loadingStart ? 'Loading…' : 'Start Quiz'}
+                Start Quiz
               </button>
             </>
           )}
 
-          {/* ════════════════════════════════════════════════════════════
-              SCREEN 2 — Quiz
-          ════════════════════════════════════════════════════════════ */}
-          {screen === 'quiz' && questions.length > 0 && (
+          {/* ══════════════════════════════════════════════════════════════
+              ACTIVE — Quiz screen
+          ══════════════════════════════════════════════════════════════ */}
+          {quizState === 'active' && questions.length > 0 && (
             <>
               {/* Progress bar */}
-              <div style={S.progressBar(progressPct)}>
+              <div style={S.progressBar}>
                 <div style={S.progressFill(progressPct)} />
               </div>
 
@@ -903,28 +906,28 @@ export default function QuizPage() {
                 {/* Topic label */}
                 {questions[currentQ]?.topic_slug && (
                   <div style={S.topicLabel}>
-                    {questions[currentQ].topic_slug
+                    {String(questions[currentQ].topic_slug)
                       .replace(/-/g, ' ')
-                      .replace(/\b\w/g, (c) => c.toUpperCase())}
+                      .replace(/\b\w/g, c => c.toUpperCase())}
                   </div>
                 )}
 
-                {/* Question */}
+                {/* Question text */}
                 <div style={S.questionText}>
                   {questions[currentQ]?.question}
                 </div>
 
                 {/* Options */}
-                {(['A', 'B', 'C', 'D'] as const).map((letter) => {
-                  const optionText =
-                    questions[currentQ]?.options?.[letter] ?? ''
-                  const chosen = answers[currentQ]
-                  const correct = questions[currentQ]?.correct_answer
+                {[0, 1, 2, 3].map(idx => {
+                  const letter = 'ABCD'[idx]
+                  const opts = getOptions(questions[currentQ])
+                  const optionText = opts[idx] ?? ''
+                  const correctIdx = getCorrectIndex(questions[currentQ])
 
                   let state: 'idle' | 'correct' | 'wrong' | 'dim' = 'idle'
-                  if (answered) {
-                    if (letter === correct) state = 'correct'
-                    else if (letter === chosen) state = 'wrong'
+                  if (selectedAnswer !== null) {
+                    if (idx === correctIdx) state = 'correct'
+                    else if (idx === selectedAnswer) state = 'wrong'
                     else state = 'dim'
                   }
 
@@ -933,8 +936,8 @@ export default function QuizPage() {
                       key={letter}
                       type="button"
                       style={S.optionBtn(state)}
-                      onClick={() => selectAnswer(letter)}
-                      disabled={answered}
+                      onClick={() => selectAnswer(idx)}
+                      disabled={selectedAnswer !== null}
                     >
                       <span style={S.letterBadge(state)}>{letter}</span>
                       <span>{optionText}</span>
@@ -943,7 +946,7 @@ export default function QuizPage() {
                 })}
 
                 {/* Explanation */}
-                {answered && questions[currentQ]?.explanation && (
+                {showExplain && questions[currentQ]?.explanation && (
                   <div style={S.explanationBox}>
                     <strong>Explanation: </strong>
                     {questions[currentQ].explanation}
@@ -951,152 +954,110 @@ export default function QuizPage() {
                 )}
               </div>
 
-              {answered && (
-                <button
-                  type="button"
-                  style={S.nextBtn}
-                  onClick={nextQuestion}
-                >
-                  {currentQ + 1 >= questions.length
-                    ? 'View Results'
-                    : 'Next Question →'}
+              {selectedAnswer !== null && (
+                <button type="button" style={S.nextBtn} onClick={nextQuestion}>
+                  {currentQ + 1 >= questions.length ? 'View Results' : 'Next Question →'}
                 </button>
               )}
             </>
           )}
 
-          {/* ════════════════════════════════════════════════════════════
-              SCREEN 3 — Results
-          ════════════════════════════════════════════════════════════ */}
-          {screen === 'results' && (
+          {/* ══════════════════════════════════════════════════════════════
+              RESULTS
+          ══════════════════════════════════════════════════════════════ */}
+          {quizState === 'results' && result && (
             <>
               <div style={S.resultsCard}>
-                <div style={S.gradeCircle(grade.color)}>
-                  <span style={S.gradeLabel(grade.color)}>
-                    {grade.label}
-                  </span>
+                {/* Grade circle */}
+                <div style={S.gradeCircle(resultGradeColor)}>
+                  <span style={S.gradeLabel(resultGradeColor)}>{result.grade}</span>
                 </div>
 
-                <p
-                  style={{
-                    fontFamily: 'var(--font-sora, Sora, sans-serif)',
-                    fontSize: '20px',
-                    fontWeight: 700,
-                    margin: '0 0 4px',
-                    color: '#f1f5f9',
-                  }}
-                >
-                  {accuracy >= 80
-                    ? 'Excellent work!'
-                    : accuracy >= 60
-                      ? 'Good effort!'
-                      : accuracy >= 40
-                        ? 'Keep practising!'
-                        : 'Study harder!'}
+                <p style={{
+                  fontFamily: 'var(--font-sora, Sora, sans-serif)',
+                  fontSize: '20px', fontWeight: 700,
+                  margin: '0 0 4px', color: '#f1f5f9',
+                }}>
+                  {result.pct >= 80 ? 'Excellent work!'
+                    : result.pct >= 60 ? 'Good effort!'
+                    : result.pct >= 40 ? 'Keep practising!'
+                    : 'Study harder!'}
                 </p>
 
                 <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
-                  {mode === 'quick' ? 'Quick Quiz' : 'Sunday Test'} ·{' '}
-                  {questions.length} questions
+                  {mode === 'quick' ? 'Quick Quiz' : 'Sunday Test'} · {result.total} questions
                 </p>
 
                 <div style={S.statRow}>
                   <div style={S.statBox}>
-                    <div style={{ ...S.statVal, color: '#4ade80' }}>
-                      {correctCount}
-                    </div>
+                    <div style={{ ...S.statVal, color: '#4ade80' }}>{result.score}</div>
                     <div style={S.statLbl}>Correct</div>
                   </div>
                   <div style={S.statBox}>
-                    <div style={{ ...S.statVal, color: '#f87171' }}>
-                      {wrongCount}
-                    </div>
+                    <div style={{ ...S.statVal, color: '#f87171' }}>{result.total - result.score}</div>
                     <div style={S.statLbl}>Wrong</div>
                   </div>
                   <div style={S.statBox}>
-                    <div style={{ ...S.statVal, color: '#f59e0b' }}>
-                      {accuracy}%
-                    </div>
+                    <div style={{ ...S.statVal, color: '#f59e0b' }}>{result.pct}%</div>
                     <div style={S.statLbl}>Accuracy</div>
                   </div>
                 </div>
 
                 <div style={S.xpBadge}>
-                  +{xpEarned} XP earned
+                  ⚡ +{result.xpEarned} XP earned
                   {mode === 'sunday' && (
-                    <span style={{ opacity: 0.7, fontWeight: 400 }}>
-                      {' '}(2× Sunday bonus)
-                    </span>
+                    <span style={{ opacity: 0.7, fontWeight: 400 }}> (2× Sunday bonus)</span>
                   )}
                 </div>
               </div>
 
               {/* Action buttons */}
               <div style={S.actionRow}>
-                <button
-                  type="button"
-                  style={S.outlineBtn}
-                  onClick={resetAll}
-                >
-                  Try Again
+                <button type="button" style={S.outlineBtn} onClick={() => startQuiz()}>
+                  Retry
                 </button>
-                <button
-                  type="button"
-                  style={S.filledBtn}
-                  onClick={() => router.push('/dashboard')}
-                >
+                <button type="button" style={S.filledBtn} onClick={() => router.push('/dashboard')}>
                   Dashboard
                 </button>
               </div>
 
               {/* Missed questions */}
-              {missedQuestions.length > 0 && (
+              {missedQs.length > 0 && (
                 <div style={{ marginTop: '28px' }}>
-                  <p
-                    style={{
-                      ...S.sectionLabel,
-                      marginBottom: '12px',
-                    }}
-                  >
-                    Missed Questions ({missedQuestions.length})
+                  <p style={{ ...S.sectionLabel, marginBottom: '12px' }}>
+                    Missed Questions ({missedQs.length})
                   </p>
-                  {missedQuestions.map((q, idx) => (
-                    <div key={q.id ?? idx} style={S.missedItem}>
-                      <div
-                        style={{
-                          fontWeight: 600,
-                          marginBottom: '4px',
-                          color: '#f1f5f9',
-                        }}
-                      >
-                        {q.question}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: '12.5px',
-                          color: '#4ade80',
-                        }}
-                      >
-                        Correct: {q.correct_answer} —{' '}
-                        {q.options?.[q.correct_answer]}
-                      </div>
-                      {q.explanation && (
-                        <div
-                          style={{
-                            fontSize: '12px',
-                            color: '#94a3b8',
-                            marginTop: '4px',
-                          }}
-                        >
-                          {q.explanation}
+                  {missedQs.map((a: any, idx: number) => {
+                    const opts = getOptions(a.q)
+                    const correctText = opts[a.correct] ?? ''
+                    const selectedText = opts[a.selected] ?? ''
+                    const correctLetter = 'ABCD'[a.correct] ?? '?'
+                    const selectedLetter = 'ABCD'[a.selected] ?? '?'
+
+                    return (
+                      <div key={a.qid ?? idx} style={S.missedItem}>
+                        <div style={{ fontWeight: 600, marginBottom: '6px', color: '#f1f5f9' }}>
+                          {a.q?.question}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div style={{ fontSize: '12.5px', color: '#f87171', marginBottom: '2px' }}>
+                          Your answer: {selectedLetter} — {selectedText}
+                        </div>
+                        <div style={{ fontSize: '12.5px', color: '#4ade80' }}>
+                          Correct: {correctLetter} — {correctText}
+                        </div>
+                        {a.q?.explanation && (
+                          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                            {a.q.explanation}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </>
           )}
+
         </div>
       </div>
     </>
