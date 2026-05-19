@@ -2723,6 +2723,23 @@ export default function ChatPage() {
           </div>
         )}
 
+        <div style={{ padding: '6px 10px 2px' }}>
+          <button
+            type="button"
+            onClick={() => router.push('/quiz')}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 10px', borderRadius: '9px', border: '1px solid rgba(249,115,22,0.25)',
+              background: 'rgba(249,115,22,0.07)', color: '#f97316',
+              fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'all .12s',
+            }}
+          >
+            <span>🧪</span>
+            <span>Quiz &amp; Tests</span>
+          </button>
+        </div>
+
         <div className="sb-foot">
           {process.env.NODE_ENV === 'development' && (
             <button
