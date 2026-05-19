@@ -19,7 +19,7 @@
  * The caller (tutorAgent) must NOT fall back to AI on a miss.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase';
 import type { QuestionType } from './classifyQuestionType';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -54,11 +54,7 @@ const EMPTY_RESULT: RetrievalResult = {
 // ── Supabase client ───────────────────────────────────────────────────────────
 
 function getClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key);
+  return getServiceClient();
 }
 
 // ── content_chunks row type ───────────────────────────────────────────────────

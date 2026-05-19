@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
@@ -48,10 +48,7 @@ export async function POST(req: NextRequest) {
 
   const suggested_review = weak_topics.slice(0, 5);
 
-  // Persist using service role key (bypasses RLS)
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const db = createClient(url, key);
+  const db = getServiceClient();
 
   const { error: dbError } = await db.from('student_quiz_results').insert({
     user_id,

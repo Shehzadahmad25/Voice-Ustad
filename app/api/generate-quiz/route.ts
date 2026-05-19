@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getServiceClient } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -157,7 +157,7 @@ async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
 
   if (supabaseUrl && serviceKey) {
     try {
-      const sb = createClient(supabaseUrl, serviceKey)
+      const sb = getServiceClient()
       const { data: chunks } = await sb
         .from('content_chunks')
         .select('topic_slug, term, book_definition, guide_explanation')

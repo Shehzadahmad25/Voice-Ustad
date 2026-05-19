@@ -8,6 +8,7 @@ const hasValidSupabaseUrl = Boolean(
 )
 
 let browserClient: SupabaseClient | null = null
+let serviceClient: SupabaseClient | null = null
 
 export const isSupabaseConfigured =
   hasValidSupabaseUrl && Boolean(supabaseAnonKey)
@@ -23,6 +24,19 @@ export function getSupabaseClient() {
 
   return browserClient
 }
+
+export function getServiceClient(): SupabaseClient {
+  if (!serviceClient) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const key =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    serviceClient = createClient(url, key)
+  }
+  return serviceClient
+}
+
+export const supabase = getSupabaseClient()
 
 export function getSupabaseConfigError() {
   if (!supabaseUrl) {

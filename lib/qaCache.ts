@@ -21,7 +21,7 @@
  *   CACHE_EMBEDDING_TIMEOUT_MS   — embedding call timeout (default 8000)
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase';
 
 // ── Analytics types ───────────────────────────────────────────────────────────
 
@@ -114,11 +114,7 @@ const EMBEDDING_MODEL         = 'text-embedding-3-small';  // 1536 dims, cheap
 // ── Supabase client (server-side only — uses service role key) ────────────────
 
 function getDb() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key);
+  return getServiceClient();
 }
 
 // ── Question normalization ────────────────────────────────────────────────────
