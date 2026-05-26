@@ -2,11 +2,32 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getSupabaseClient } from "@/lib/supabase";
 
 // FAQ CONTENT WILL BE ADDED HERE
 const faqItems: { q: string; a: string }[] = [];
 
 export default function Home() {
+  const router = useRouter();
+
+  // Forward stray OAuth codes to the callback handler, and redirect
+  // already-logged-in users straight to their dashboard.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+
+    if (code) {
+      router.push(`/auth/callback?code=${code}`);
+      return;
+    }
+
+    const supabase = getSupabaseClient();
+    supabase?.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.push("/dashboard");
+    });
+  }, [router]);
+
   const [mobOpen, setMobOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [email, setEmail] = useState("");
