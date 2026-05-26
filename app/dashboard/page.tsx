@@ -142,15 +142,16 @@ function chapterSlugToNum(slug?: string | null): number | null {
 
 // ── SVG Progress Ring ────────────────────────────────────────────────────────
 function ProgressRing({ pct, size = 40 }: { pct: number; size?: number }) {
+  const safePct = Math.max(0, Math.min(100, isFinite(pct) ? pct : 0))
   const r = (size - 6) / 2
   const circ = 2 * Math.PI * r
-  const dash = (pct / 100) * circ
+  const dash = (safePct / 100) * circ
   return (
     <svg width={size} height={size} style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={3} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#1e293b" strokeWidth={3} />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={pct >= 100 ? '#22c55e' : pct > 0 ? '#f97316' : 'rgba(255,255,255,0.12)'}
+        stroke={safePct >= 100 ? '#22c55e' : safePct > 0 ? '#f97316' : '#1e293b'}
         strokeWidth={3}
         strokeDasharray={`${dash} ${circ}`}
         strokeLinecap="round"
@@ -822,7 +823,7 @@ export default function DashboardPage() {
                               transform: 'translate(-50%,-50%)',
                               fontSize: '10px', fontWeight: '700', color: '#f1f5f9',
                             }}>
-                              {ch.pct}
+                              {Math.round(ch.pct ?? 0)}%
                             </span>
                           </div>
 
