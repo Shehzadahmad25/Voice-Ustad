@@ -1,10 +1,9 @@
 'use client'
 export const dynamic = 'force-dynamic';
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AuthLayout from '@/components/auth/AuthLayout'
 import { authService } from '@/lib/authService'
-import { getSupabaseClient } from '@/lib/supabase'
 
 const inputStyle: React.CSSProperties = {
   background: '#1a2035', border: '1px solid rgba(255,255,255,0.14)',
@@ -23,6 +22,14 @@ export default function SignInPage() {
   const [showPw, setShowPw]     = useState(false)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
+
+  // Show URL-level errors (e.g. ?error=oauth_failed from callback)
+  useEffect(() => {
+    const urlError = new URLSearchParams(window.location.search).get('error')
+    if (urlError === 'oauth_failed') setError('Google sign-in failed. Please try again.')
+    else if (urlError === 'no_code')    setError('OAuth flow incomplete. Please try again.')
+    else if (urlError === 'auth_failed') setError('Authentication failed. Please try again.')
+  }, [])
 
   const handleGoogle = async () => {
     try {

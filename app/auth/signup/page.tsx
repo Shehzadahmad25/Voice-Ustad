@@ -81,7 +81,7 @@ export default function SignUpPage() {
       sessionStorage.setItem('signup_email', email)
       sessionStorage.setItem('signup_name', fullName)
       sessionStorage.setItem('signup_phone', phone)
-      router.push('/auth/onboarding')
+      router.push('/dashboard')
     } catch (e) {
       console.error('Sign up error:', e)
       setError('Something went wrong. Please try again.')
