@@ -691,6 +691,21 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
         String(data.result?.urduTtsText || ''),
       ).catch(console.error);
     }
+    // ── Mark topic covered (non-fatal background call) ──────────────────────
+    if (_sbClient && _currentUserId && code) {
+      const chapterSlug = String(CHS[activeChIdx]?.n ?? '1');
+      _sbClient.rpc('mark_topic_covered', {
+        p_user_id:      _currentUserId,
+        p_topic_slug:   code,
+        p_chapter_slug: chapterSlug,
+        p_subject:      'Chemistry',
+        p_board:        'KPK',
+      }).then(({ error }: any) => {
+        if (error) console.error('[mark_topic_covered] error:', error);
+        else console.log('[mark_topic_covered] covered:', code, '| chapter:', chapterSlug);
+      }).catch((e: any) => console.error('[mark_topic_covered] exception:', e));
+    }
+    // ────────────────────────────────────────────────────────────────────────
     // If no Urdu text came back from topic-view (Vercel 10s limit), fetch it async
     if (!data.result?.urduTtsText && cardId) {
       fetchUrduForTopicCard(cardId, data.result);
@@ -1140,6 +1155,17 @@ async function send(){
   inp.value=''; resize(inp); updateSendBtn();
   appendUser(txt, ts(), true);
   if (_currentSessionId) { dbSaveMessage(_currentSessionId, 'user', txt).catch(console.error); }
+  // ── Update streak on first message of the day (non-fatal) ──────────────────
+  if (_sbClient && _currentUserId) {
+    const today = new Date().toDateString();
+    if (localStorage.getItem('vu_last_streak') !== today) {
+      localStorage.setItem('vu_last_streak', today); // set first so a failed RPC doesn't retry
+      _sbClient.rpc('update_streak', { p_user_id: _currentUserId })
+        .then(() => console.log('[send] streak updated'))
+        .catch((e: any) => console.error('[send] streak update error:', e));
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────────
   setSpin(true); showTyping();
 
   // ── Timeout — use a local variable so concurrent stale timers can't cross-cancel ──
