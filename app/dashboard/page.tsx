@@ -1,12 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-// ── AUTH BYPASS — development mode ──────────────────────────────────────────
-// Auth guard (router.push('/auth/signin')) is disabled.
-// A mock user is used when no real session exists.
-// To re-enable: restore `if (!u) { router.push('/auth/signin'); return }`
-// ────────────────────────────────────────────────────────────────────────────
-
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
@@ -51,25 +45,6 @@ const TOPIC_COUNTS: Record<number, number> = {
 const CLASS_11_CHAPTERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 const CLASS_12_CHAPTERS = [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
 const TOTAL_TOPICS = 486 // 290 (class 11) + 196 (class 12)
-
-// ── Mock data ────────────────────────────────────────────────────────────────
-const MOCK_USER = {
-  id: 'dev-user-bypass',
-  email: 'test@example.com',
-  user_metadata: { full_name: 'Test User' },
-}
-const MOCK_PROFILE = {
-  full_name: 'Test User',
-  email: 'test@example.com',
-  board: 'KPK',
-  class: '11',
-  goal: 'FSc Pre-Medical',
-  subscription_status: 'trial',
-  referral_code: null,
-  exam_date: null,
-  streak: 3,
-  xp: 150,
-}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type TabKey = 'coverage' | 'weak' | 'history'
@@ -239,11 +214,8 @@ export default function DashboardPage() {
           u = data?.user ?? null
         }
 
-        // AUTH BYPASS: use mock when no real session
         if (!u) {
-          setUser(MOCK_USER)
-          setProfile(MOCK_PROFILE)
-          setLoading(false)
+          router.push('/auth/signin')
           return
         }
 
@@ -367,20 +339,17 @@ export default function DashboardPage() {
     const loadCoverage = async () => {
       setCoverageLoading(true)
       try {
-        const isMock = user.id === 'dev-user-bypass'
         const chapterNums = activeClass === 11 ? CLASS_11_CHAPTERS : CLASS_12_CHAPTERS
 
-        // Fetch covered topics for real users
+        // Fetch covered topics
         let newCoveredSet = new Set<string>()
-        if (!isMock) {
-          const { data: coveredRows } = await supabase
-            .from('user_topic_coverage')
-            .select('topic_slug, chapter_slug')
-            .eq('user_id', user.id)
-          newCoveredSet = new Set<string>(
-            (coveredRows ?? []).map((r: any) => r.topic_slug).filter(Boolean)
-          )
-        }
+        const { data: coveredRows } = await supabase
+          .from('user_topic_coverage')
+          .select('topic_slug, chapter_slug')
+          .eq('user_id', user.id)
+        newCoveredSet = new Set<string>(
+          (coveredRows ?? []).map((r: any) => r.topic_slug).filter(Boolean)
+        )
         setCoveredSet(newCoveredSet)
 
         // Fetch all topic_slugs per chapter from content_chunks
@@ -422,7 +391,7 @@ export default function DashboardPage() {
         })
 
         setCoverageChapters(chapters)
-        if (!isMock) setCoveredCount(newCoveredSet.size)
+        setCoveredCount(newCoveredSet.size)
       } catch (e) {
         console.error('Coverage fetch error:', e)
         setCoverageChapters([])

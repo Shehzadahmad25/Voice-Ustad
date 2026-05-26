@@ -30,23 +30,10 @@ type ProfileInput = {
   goal:      UserProfile['goal']
 }
 
-// ── AUTH BYPASS HELPER ────────────────────────────────────────────────────────
-// Returns the Supabase client, or null when auth is disabled / unconfigured.
-// Every method below checks for null and returns a safe fallback instead of
-// throwing, so pages can import authService safely in dev-bypass mode.
-// To restore strict behaviour: revert to `getSupabaseOrThrow()` (see below).
+// Returns the Supabase client, or null when unconfigured.
 function getClient() {
   return getSupabaseClient() ?? null
 }
-
-// Kept here so restoring strict mode is a one-line change per call site:
-// function getSupabaseOrThrow() {
-//   const sb = getSupabaseClient()
-//   if (!sb) throw new Error('Supabase is not configured.')
-//   return sb
-// }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function getBrowserOrigin() {
   if (typeof window === 'undefined') return ''
@@ -124,7 +111,6 @@ async function syncAuthMarkerFromSession(session: Session | null) {
 export const authService = {
   async bootstrapSession() {
     const supabase = getClient()
-    // ── AUTH BYPASS: no Supabase client → no session, no cookie
     if (!supabase) return null
 
     const { data, error } = await supabase.auth.getSession()
@@ -172,7 +158,7 @@ export const authService = {
   async logout() {
     setAuthMarkerCookie(false)
     const supabase = getClient()
-    if (!supabase) return  // nothing to sign out of during bypass
+    if (!supabase) return
 
     const { error } = await supabase.auth.signOut()
     if (error) throw new Error(mapAuthError(error, 'Logout failed.'))
@@ -209,7 +195,6 @@ export const authService = {
 
   async getCurrentUser(): Promise<User | null> {
     const supabase = getClient()
-    // ── AUTH BYPASS: return null instead of throwing
     if (!supabase) return null
 
     // Check for an active session first — getUser() makes a network call and
@@ -319,7 +304,7 @@ export const authService = {
   ) {
     const supabase = getClient()
     if (!supabase) {
-      // Return a no-op subscription object so callers don't need to null-check
+      // No Supabase client — return a no-op subscription
       return { unsubscribe: () => {} }
     }
     const subscription = supabase.auth.onAuthStateChange((event, session) => {

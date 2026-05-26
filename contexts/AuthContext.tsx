@@ -1,38 +1,9 @@
 'use client'
 
-// ── AUTH BYPASS — development mode ──────────────────────────────────────────
-// When no real session exists, a mock user is injected so AuthGuard and all
-// pages that read from AuthContext work without login.
-// To re-enable: remove the MOCK_* constants and the bypass block in loadSession.
-// ────────────────────────────────────────────────────────────────────────────
-
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { authService } from '@/lib/authService'
 import { UserProfile } from '@/lib/supabase'
-
-const MOCK_USER = {
-  id: '23e10a78-6f05-4aa1-88f0-f1483adddf57',
-  email: 'test@example.com',
-  user_metadata: { full_name: 'Test User' },
-  app_metadata: {},
-  aud: 'authenticated',
-  created_at: new Date().toISOString(),
-} as unknown as User
-
-const MOCK_PROFILE: UserProfile = {
-  id:                  '23e10a78-6f05-4aa1-88f0-f1483adddf57',
-  email:               'test@example.com',
-  full_name:           'Test User',
-  phone:               '',
-  class:               '11',
-  board:               'KPK',
-  goal:                'FSc Pre-Medical',
-  referral_code:       null,
-  subscription_status: 'trial',
-  trial_ends_at:       null,
-  created_at:          new Date().toISOString(),
-}
 
 type AuthContextType = {
   user: User | null
@@ -74,27 +45,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!active) return
 
         if (currentSession?.user) {
-          // Real session — normal path
           setSession(currentSession)
           setUser(currentSession.user)
           await fetchProfile()
         } else {
-          // ── AUTH BYPASS: no real session → use mock user ─────────────────
-          // To re-enable auth guard: replace these three lines with:
-          //   setSession(null); setUser(null); setProfile(null); setLoading(false)
           setSession(null)
-          setUser(MOCK_USER)
-          setProfile(MOCK_PROFILE)
+          setUser(null)
+          setProfile(null)
           setLoading(false)
-          // ──────────────────────────────────────────────────────────────────
         }
       } catch (error) {
         console.error('Auth bootstrap error:', error)
         if (active) {
-          // On error also fall back to mock so pages don't break
           setSession(null)
-          setUser(MOCK_USER)
-          setProfile(MOCK_PROFILE)
+          setUser(null)
+          setProfile(null)
           setLoading(false)
         }
       } finally {
@@ -110,16 +75,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (nextSession?.user) {
-        // Real session arrived — use it
         setSession(nextSession)
         setUser(nextSession.user)
         setLoading(true)
         await fetchProfile()
       } else {
-        // No real session → keep / restore mock user so AuthGuard doesn't redirect
         setSession(null)
-        setUser(MOCK_USER)
-        setProfile(MOCK_PROFILE)
+        setUser(null)
+        setProfile(null)
         setLoading(false)
       }
     })

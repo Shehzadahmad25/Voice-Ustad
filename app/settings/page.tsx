@@ -6,16 +6,6 @@ import { getSupabaseClient } from '@/lib/supabase'
 import TopNav from '@/components/TopNav'
 import { useToast } from '@/components/ui/Toast'
 
-// ── AUTH BYPASS — development mock user ──────────────────────────────────────
-const MOCK_USER    = { id: 'dev-bypass-user', email: 'test@example.com' }
-const MOCK_PROFILE = {
-  full_name: 'Test User', phone: '', board: 'KPK', class: '11',
-  goal: 'FSc Pre-Medical', exam_date: null,
-  daily_reminder_enabled: true, exam_alerts_enabled: true,
-  streak_alerts_enabled: false, weekly_report_enabled: true,
-  response_language: 'english_text_urdu_voice', voice_speed: 'normal',
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 const fieldStyle: React.CSSProperties = {
   width: '100%', padding: '11px 14px', borderRadius: '10px',
@@ -115,27 +105,15 @@ export default function SettingsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        // ── AUTH BYPASS: use mock when no real session ──────────────────────
-        // To re-enable: replace the block below with:
-        //   const { data: { user: u } } = await supabase.auth.getUser()
-        //   if (!u) { router.push('/auth/signin'); return }
         let u: any = null
         if (supabase) {
           const { data } = await supabase.auth.getUser()
           u = data?.user ?? null
         }
         if (!u) {
-          setUser(MOCK_USER as any)
-          const p = MOCK_PROFILE as any
-          setProfile(p); setFullName(p.full_name); setPhone(p.phone)
-          setBoard(p.board); setStudentClass(p.class); setGoal(p.goal)
-          setExamDate(p.exam_date || '')
-          setDailyReminder(p.daily_reminder_enabled); setExamAlerts(p.exam_alerts_enabled)
-          setStreakAlerts(p.streak_alerts_enabled); setWeeklyReport(p.weekly_report_enabled)
-          setResponseLang(p.response_language); setVoiceSpeed(p.voice_speed)
+          router.push('/auth/signin')
           return
         }
-        // ───────────────────────────────────────────────────────────────────
         setUser(u)
         if (!supabase) { setLoading(false); return }
         const { data: p } = await supabase.from('profiles').select('*').eq('id', u.id).single()
@@ -169,7 +147,7 @@ export default function SettingsPage() {
   }, [])
 
   const savePersonal = async () => {
-    if (!supabase) { showToast('Auth disabled in dev mode', 'error'); return }
+    if (!supabase) { showToast('Database not configured', 'error'); return }
     try {
       const { error } = await supabase.from('profiles').update({ full_name: fullName, phone }).eq('id', user.id)
       if (error) throw error
@@ -178,7 +156,7 @@ export default function SettingsPage() {
   }
 
   const saveAcademic = async () => {
-    if (!supabase) { showToast('Auth disabled in dev mode', 'error'); return }
+    if (!supabase) { showToast('Database not configured', 'error'); return }
     try {
       const { error } = await supabase.from('profiles').update({
         board, class: studentClass, goal,
@@ -190,7 +168,7 @@ export default function SettingsPage() {
   }
 
   const saveVoice = async () => {
-    if (!supabase) { showToast('Auth disabled in dev mode', 'error'); return }
+    if (!supabase) { showToast('Database not configured', 'error'); return }
     try {
       const { error } = await supabase.from('profiles').update({ response_language: responseLang, voice_speed: voiceSpeed }).eq('id', user.id)
       if (error) throw error
@@ -220,7 +198,7 @@ export default function SettingsPage() {
   }
 
   const exportData = async () => {
-    if (!supabase) { showToast('Auth disabled in dev mode', 'error'); return }
+    if (!supabase) { showToast('Database not configured', 'error'); return }
     try {
       const [profileRes, sessionsRes, progressRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
@@ -238,7 +216,7 @@ export default function SettingsPage() {
   }
 
   const deleteAccount = async () => {
-    if (!supabase) { showToast('Auth disabled in dev mode', 'error'); return }
+    if (!supabase) { showToast('Database not configured', 'error'); return }
     try {
       await supabase.rpc('delete_user')
       router.push('/')

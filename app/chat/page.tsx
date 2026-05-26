@@ -2025,7 +2025,7 @@ async function dbLoadHistory() {
     }
   } catch { /* non-fatal */ }
 
-  if (!userId && _currentUserId && _currentUserId !== 'dev-bypass-user') {
+  if (!userId && _currentUserId) {
     userId = _currentUserId;
     console.log('[history] using context user id:', userId);
   }
