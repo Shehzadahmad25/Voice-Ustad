@@ -1,10 +1,26 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Pages that require a logged-in user
+// ── Route lists ───────────────────────────────────────────────────────────────
+
+// Always allow through — no auth check, no redirect
+const PUBLIC_ROUTES = [
+  '/',
+  '/auth/signin',
+  '/auth/signup',
+  '/auth/callback',   // ← MUST be public: OAuth lands here before session exists
+  '/auth/confirm',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify',
+  '/auth/success',
+  '/auth/onboarding',
+]
+
+// Require a logged-in user
 const PROTECTED_PREFIXES = ['/dashboard', '/chat', '/quiz', '/settings']
 
-// Auth pages — logged-in users shouldn't land here
+// Auth pages — logged-in users get bounced to /dashboard
 const AUTH_PREFIXES = ['/auth/signin', '/auth/signup', '/auth/login', '/login']
 
 const DEMO_KEY = process.env.DEMO_ACCESS_KEY
@@ -12,7 +28,7 @@ const DEMO_KEY = process.env.DEMO_ACCESS_KEY
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
-  // ── Demo API key guard (existing logic) ────────────────────────────────────
+  // ── Demo API key guard ─────────────────────────────────────────────────────
   const protectedApiRoutes = ['/api/chat', '/api/chat2', '/api/topic-view']
   if (DEMO_KEY && protectedApiRoutes.some(r => path.startsWith(r))) {
     const paramKey  = req.nextUrl.searchParams.get('demo')
@@ -22,14 +38,17 @@ export function middleware(req: NextRequest) {
     }
   }
 
+  // ── Public routes — always allow through, no auth check ───────────────────
+  if (PUBLIC_ROUTES.some(r => path === r || path.startsWith(r + '/'))) {
+    return NextResponse.next()
+  }
+
   // ── Auth-based routing ─────────────────────────────────────────────────────
-  // We use the lightweight `vu-auth` marker cookie that authService sets on
-  // every login and clears on logout.  This gives us a server-readable signal
-  // without needing cookie-based Supabase storage (the app uses localStorage).
+  // Uses the vu-auth marker cookie set by authService on login/logout.
   const isLoggedIn = Boolean(req.cookies.get('vu-auth')?.value)
 
-  // Redirect authenticated users away from auth pages / homepage
-  if (isLoggedIn && (path === '/' || AUTH_PREFIXES.some(p => path.startsWith(p)))) {
+  // Redirect authenticated users away from auth pages
+  if (isLoggedIn && AUTH_PREFIXES.some(p => path.startsWith(p))) {
     return NextResponse.redirect(new URL('/dashboard', req.url))
   }
 
@@ -54,13 +73,11 @@ export const config = {
     '/api/topic-view/:path*',
     // Pages (auth routing)
     '/',
+    '/auth/:path*',       // covers /auth/callback, /auth/signin, /auth/signup, etc.
+    '/login',
     '/dashboard/:path*',
     '/chat/:path*',
     '/quiz/:path*',
     '/settings/:path*',
-    '/auth/signin',
-    '/auth/signup',
-    '/auth/login',
-    '/login',
   ],
 }

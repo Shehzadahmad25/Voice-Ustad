@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AuthLayout from '@/components/auth/AuthLayout'
 import { authService } from '@/lib/authService'
+import { getSupabaseClient } from '@/lib/supabase'
 
 const inputStyle: React.CSSProperties = {
   background: '#1a2035', border: '1px solid rgba(255,255,255,0.14)',
@@ -35,7 +36,14 @@ export default function SignInPage() {
     try {
       setLoading(true)
       setError('')
-      await authService.loginWithGoogle()
+      const supabase = getSupabaseClient()
+      if (!supabase) throw new Error('Auth not configured.')
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'https://www.voiceustad.pk/auth/callback',
+        },
+      })
     } catch (err: any) {
       setError(err.message || 'Google sign-in failed.')
       setLoading(false)

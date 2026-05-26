@@ -1,98 +1,80 @@
 'use client'
-export const dynamic = 'force-dynamic'
-
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
 
-/**
- * OAuth callback — runs in the BROWSER so the Supabase client can exchange the
- * PKCE code and store the resulting session in localStorage (where every other
- * page looks for it).  A server-side route handler cannot do this because it
- * has no access to the browser's localStorage.
- */
-export default function AuthCallbackPage() {
+export default function AuthCallback() {
   const router = useRouter()
-  const [statusMsg, setStatusMsg] = useState('Signing you in…')
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const code   = params.get('code')
-    const error  = params.get('error')
-
-    if (error) {
-      console.error('[callback] provider error:', error)
-      router.replace('/auth/signin?error=oauth_failed')
-      return
-    }
-
-    if (!code) {
-      console.error('[callback] missing code param')
-      router.replace('/auth/signin?error=no_code')
-      return
-    }
-
     const supabase = getSupabaseClient()
     if (!supabase) {
-      console.error('[callback] Supabase not configured')
-      router.replace('/auth/signin?error=no_client')
+      router.push('/auth/signin?error=auth_failed')
       return
     }
 
-    supabase.auth
-      .exchangeCodeForSession(code)
-      .then(async ({ data, error: exchError }) => {
-        if (exchError || !data.session) {
-          console.error('[callback] exchange failed:', exchError?.message)
-          router.replace('/auth/signin?error=oauth_failed')
+    async function handleCallback() {
+      const { data, error } = await supabase!.auth.getSession()
+
+      if (error) {
+        console.error('Callback error:', error)
+        router.push('/auth/signin?error=auth_failed')
+        return
+      }
+
+      if (data.session) {
+        console.log('Session found, redirecting to dashboard')
+        router.push('/dashboard')
+        return
+      }
+
+      // No session yet — exchange the code from URL
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+
+      if (code) {
+        console.log('Exchanging code...')
+        const { error: exchangeError } = await supabase!.auth.exchangeCodeForSession(code)
+        if (exchangeError) {
+          console.error('Exchange error:', exchangeError)
+          router.push('/auth/signin?error=auth_failed')
           return
         }
+        router.push('/dashboard')
+        return
+      }
 
-        const userId = data.session.user.id
+      // Check hash fragment (implicit flow)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
 
-        // Route new users (no profile.class) to onboarding; returning users → dashboard
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('class')
-          .eq('id', userId)
-          .maybeSingle()
+      if (accessToken) {
+        console.log('Token in hash, session should be set')
+        router.push('/dashboard')
+        return
+      }
 
-        if (profile?.class) {
-          router.replace('/dashboard')
-        } else {
-          router.replace('/auth/onboarding')
-        }
-      })
-      .catch((err) => {
-        console.error('[callback] unexpected error:', err)
-        setStatusMsg('Something went wrong. Redirecting…')
-        router.replace('/auth/signin?error=oauth_failed')
-      })
-  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+      console.error('No code or token found')
+      router.push('/auth/signin?error=no_token')
+    }
+
+    handleCallback()
+  }, [router])
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0a0e1a',
+      background: '#07101f',
       display: 'flex',
-      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: '16px',
+      color: '#f1f5f9',
+      fontFamily: 'sans-serif'
     }}>
-      {/* Spinner */}
-      <div style={{
-        width: '40px',
-        height: '40px',
-        borderRadius: '50%',
-        border: '3px solid rgba(245,158,11,0.25)',
-        borderTop: '3px solid #f59e0b',
-        animation: 'spin 0.8s linear infinite',
-      }} />
-      <p style={{ color: '#64748b', fontSize: '14px', fontFamily: 'system-ui, sans-serif' }}>
-        {statusMsg}
-      </p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 16 }}>🎙️</div>
+        <div style={{ fontSize: 16, color: '#64748b' }}>Signing you in...</div>
+      </div>
     </div>
   )
 }
