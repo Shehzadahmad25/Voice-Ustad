@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getSubscriptionStatus } from '@/lib/subscription'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -375,12 +376,20 @@ export default function QuizPage() {
   const sundayUnlocked = isSunday || forceTest
   const daysAway = (7 - new Date().getDay()) % 7 || 7
 
-  // ── Auth on mount ──────────────────────────────────────────────────────────
+  // ── Auth + subscription gate on mount ─────────────────────────────────────
   useEffect(() => {
     if (!supabase) { router.push('/auth/signin'); return }
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/auth/signin'); return }
-      setUserId(session.user.id)
+      const uid = session.user.id
+      // ── Subscription gate ────────────────────────────────────────────────
+      const status = await getSubscriptionStatus(uid)
+      if (!status.hasAccess) {
+        router.push('/pricing?reason=expired')
+        return
+      }
+      // ────────────────────────────────────────────────────────────────────
+      setUserId(uid)
     })
   }, [])
 

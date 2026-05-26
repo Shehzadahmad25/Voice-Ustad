@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
 import { getFirstName } from '@/lib/utils'
+import { getSubscriptionStatus } from '@/lib/subscription'
 
 // ── Chapter metadata ─────────────────────────────────────────────────────────
 const CHAPTER_NAMES: Record<number, string> = {
@@ -219,6 +220,14 @@ export default function DashboardPage() {
           router.push('/auth/signin')
           return
         }
+
+        // ── Subscription gate ──────────────────────────────────────────────
+        const subStatus = await getSubscriptionStatus(u.id)
+        if (!subStatus.hasAccess) {
+          router.push('/pricing?reason=expired')
+          return
+        }
+        // ──────────────────────────────────────────────────────────────────
 
         setUser(u)
         if (!supabase) { setLoading(false); return }

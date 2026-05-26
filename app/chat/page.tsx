@@ -7,6 +7,7 @@ import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
 import { getTimeAgo } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSubscriptionStatus } from '@/lib/subscription';
 import TopNav from '@/components/TopNav';
 import QuizModal from '@/components/QuizModal';
 // CHAPTER DATA WILL BE LOADED FROM SUPABASE
@@ -59,6 +60,7 @@ let viewerTrial='Trial active';
 /* ─── Supabase session state (set by ChatPage component) ─── */
 let _sbClient: any = null;
 let _currentUserId: string | null = null;
+let _subscriptionStatus: any = null;
 let _currentSessionId: string | null = null;
 let _sessionHasTitle = false;
 let _setSessions: ((s: any[]) => void) | null = null;
@@ -2410,6 +2412,7 @@ export default function ChatPage() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [showQuizWarning, setShowQuizWarning] = useState(false);
   const [viewedTopics, setViewedTopics] = useState<Set<string>>(new Set());
+  const [subStatus, setSubStatus] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const displayName =
@@ -2442,6 +2445,18 @@ export default function ChatPage() {
     if (!_setSessions)    _setSessions = setSessions;
     if (!_setActiveSessionId) _setActiveSessionId = setActiveSessionId;
     dbLoadHistory();
+
+    // ── Subscription gate ────────────────────────────────────────────────────
+    getSubscriptionStatus(user.id).then(status => {
+      _subscriptionStatus = status;
+      if (!status.hasAccess) {
+        router.push('/pricing?reason=expired');
+        return;
+      }
+      setSubStatus(status);
+      console.log('[subscription] hasAccess:', status.hasAccess, '| isTrial:', status.isTrial, '| daysLeft:', status.daysLeft);
+    }).catch(e => console.error('[subscription] check error:', e));
+    // ─────────────────────────────────────────────────────────────────────────
   }, [user?.id]);
 
   useEffect(() => {
@@ -2513,6 +2528,28 @@ export default function ChatPage() {
   return (
     <div className="app" style={{ paddingTop: '62px' }}>
       <TopNav user={user} profile={profile} />
+
+      {/* ── Trial banner (TASK 3) ─────────────────────────────────────────── */}
+      {subStatus?.isTrial && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(249,115,22,0.15), rgba(245,158,11,0.1))',
+          borderBottom: '1px solid rgba(249,115,22,0.3)',
+          padding: '8px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: 13,
+          flexShrink: 0,
+        }}>
+          <span style={{ color: '#fed7aa' }}>
+            🎉 Free trial — <strong>{Math.max(0, subStatus.daysLeft)}</strong> day{subStatus.daysLeft !== 1 ? 's' : ''} remaining
+          </span>
+          <a href="/pricing" style={{ color: '#f97316', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            Upgrade Rs. 499/mo →
+          </a>
+        </div>
+      )}
+
       <div className="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
 
       <div className="modal-bg" id="upgradeBg" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
