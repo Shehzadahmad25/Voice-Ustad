@@ -23,6 +23,7 @@
       "Bash(cmd /c \"taskkill /F /PID 9808\")",
       "Bash(python3 -c \":*)",
       "Bash(node -e \":*)",
+      "Bash(npx tsc --noEmit *)",
       "Bash(taskkill /PID 15700 /F)",
       "Bash(cmd /c \"taskkill /PID 15700 /F\")",
       "Bash(cmd /c \"taskkill /PID 15700 /F 2>&1\")",
