@@ -24,6 +24,9 @@ let _setQuizChapterInfo: ((info: QuizChapterInfo | null) => void) | null = null;
 let _setViewedTopics: ((fn: (prev: Set<string>) => Set<string>) => void) | null = null;
 let _setSelectedClass: ((c: number) => void) | null = null;
 let _setShowQuiz: ((v: boolean) => void) | null = null;
+let _setPreparingQuiz: ((v: boolean) => void) | null = null;
+// Mirror of quizChapterInfo React state — readable from module-level async functions
+let _quizChapterInfo: QuizChapterInfo | null = null;
 let _selectedClass = 11;
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -511,7 +514,9 @@ function selCh(i: number){
       })
       .catch((e) => { console.error('[scope] fetch error:', e?.message); });
   }
-  if (_setQuizChapterInfo) _setQuizChapterInfo({ id: (CHS[i] as any).id || '', title: CHS[i]?.t || '', n: CHS[i]?.n || '' });
+  const chInfo: QuizChapterInfo = { id: (CHS[i] as any).id || '', title: CHS[i]?.t || '', n: CHS[i]?.n || '' };
+  _quizChapterInfo = chInfo;
+  if (_setQuizChapterInfo) _setQuizChapterInfo(chInfo);
   if (_setViewedTopics) _setViewedTopics(() => new Set());
   const sbSearch = document.getElementById('sbSearch') as HTMLInputElement;
   buildSb(sbSearch?.value || '');
@@ -2215,38 +2220,63 @@ async function fetchChapters() {
       console.log('URL params - chapter:', chapterNum, 'topic:', topicParam, 'mode:', modeParam);
 
       const waitForChapters = async () => {
+        // Show loading indicator while we wait
+        if (_setPreparingQuiz) _setPreparingQuiz(true);
+        // Auto-hide after 3s as a safety net
+        setTimeout(() => { if (_setPreparingQuiz) _setPreparingQuiz(false); }, 3000);
+
         let attempts = 0;
         while (attempts < 20) {
           if (CHS && CHS.length > 0) {
-            const idx = CHS.findIndex(ch => ch.n === chapterNum || ch.n === String(chapterNum));
+            const idx = CHS.findIndex(ch =>
+              ch.n === String(chapterNum) || Number(ch.n) === chapterNum
+            );
             if (idx !== -1) {
-              console.log('Selecting chapter index:', idx);
+              console.log('Chapter found at index:', idx, 'chapter n:', CHS[idx].n);
+
+              // Step 1: select the chapter (sets _quizChapterInfo synchronously)
               selCh(idx);
 
-              // If topic param exists, try to click its chip once scope loads
-              if (topicParam) {
-                setTimeout(() => {
-                  const topicEl = document.querySelector(`[data-topic="${topicParam}"]`);
-                  if (topicEl) (topicEl as HTMLElement).click();
-                }, 500);
+              // Step 2: wait for scope topics to finish loading from /api/chapter-topics
+              await new Promise(r => setTimeout(r, 600));
+
+              // Step 3: verify _quizChapterInfo is populated before opening modal
+              let readyAttempts = 0;
+              while (readyAttempts < 10) {
+                if (_quizChapterInfo?.n && _quizChapterInfo?.id && _quizChapterInfo?.title) {
+                  console.log('Quiz chapter ready:', _quizChapterInfo);
+                  break;
+                }
+                await new Promise(r => setTimeout(r, 200));
+                readyAttempts++;
               }
 
-              // Open quiz after React state (quizChapterInfo) has time to propagate
-              if (modeParam === 'quiz') {
-                setTimeout(() => { if (_setShowQuiz) _setShowQuiz(true); }, 800);
+              // If topic param exists, try to click its chip
+              if (topicParam) {
+                const topicEl = document.querySelector(`[data-topic="${topicParam}"]`);
+                if (topicEl) (topicEl as HTMLElement).click();
               }
+
+              // Step 4: open modal only when data is ready
+              if (modeParam === 'quiz') {
+                if (_setShowQuiz) _setShowQuiz(true);
+                console.log('Quiz modal opened with chapter:', _quizChapterInfo);
+              }
+
+              if (_setPreparingQuiz) _setPreparingQuiz(false);
               return;
             }
           }
           await new Promise(r => setTimeout(r, 150));
           attempts++;
         }
-        console.error('Chapters never loaded for param:', chapterNum);
+        console.error('Chapter never loaded:', chapterNum);
+        if (_setPreparingQuiz) _setPreparingQuiz(false);
       };
       waitForChapters();
 
     } else if (modeParam === 'quiz') {
-      // No chapter specified — select first chapter and open quiz
+      // No chapter specified — select first available chapter and open quiz
       if (CHS.length > 0) {
         selCh(0);
         setTimeout(() => { if (_setShowQuiz) _setShowQuiz(true); }, 800);
@@ -2439,6 +2469,7 @@ export default function ChatPage() {
   const [quizChapterInfo, setQuizChapterInfo] = useState<QuizChapterInfo | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showQuizWarning, setShowQuizWarning] = useState(false);
+  const [preparingQuiz, setPreparingQuiz] = useState(false);
   const [viewedTopics, setViewedTopics] = useState<Set<string>>(new Set());
   const [subStatus, setSubStatus] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -2509,6 +2540,7 @@ export default function ChatPage() {
     _setViewedTopics = setViewedTopics;
     _setSelectedClass = setSelectedClass;
     _setShowQuiz = setShowQuiz;
+    _setPreparingQuiz = setPreparingQuiz;
     dbLoadHistory();
     fetchChapters();
     const params = new URLSearchParams(window.location.search);
@@ -2805,7 +2837,35 @@ export default function ChatPage() {
 
         </div>{/* end sb-scroll-area */}
 
-        {quizChapterInfo && scopeTopics.length > 0 && (
+        {preparingQuiz ? (
+          <div className="sb-quiz-wrap">
+            <div style={{
+              width: '100%',
+              padding: '9px 14px',
+              background: 'rgba(249,115,22,0.08)',
+              border: '1px solid rgba(249,115,22,0.2)',
+              borderRadius: '9px',
+              color: '#f97316',
+              fontSize: '13px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+            }}>
+              <span style={{
+                width: '13px', height: '13px',
+                border: '2px solid rgba(249,115,22,0.3)',
+                borderTopColor: '#f97316',
+                borderRadius: '50%',
+                display: 'inline-block',
+                animation: 'spin 0.7s linear infinite',
+                flexShrink: 0,
+              }} />
+              Preparing quiz…
+            </div>
+          </div>
+        ) : quizChapterInfo && scopeTopics.length > 0 && (
           <div className="sb-quiz-wrap">
             <button
               onClick={() => {
