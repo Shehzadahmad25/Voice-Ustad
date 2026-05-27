@@ -6,10 +6,22 @@ import Link from 'next/link'
 import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
 import { getFirstName } from '@/lib/utils'
 
+// Module-level singleton — prevents "Multiple GoTrueClient" warning
+let _topNavClient: ReturnType<typeof createBrowserClient> | null = null
+function getTopNavClient() {
+  if (!_topNavClient) {
+    _topNavClient = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+  }
+  return _topNavClient
+}
+
 export default function TopNav({ user, profile }: { user?: any; profile?: any }) {
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const supabase = getTopNavClient()
 
   const firstName = getFirstName(profile, user)
   const initial = firstName[0]?.toUpperCase() || 'S'
@@ -26,7 +38,7 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
       .from('profiles')
       .select('full_name')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         if (data?.full_name) setDisplayName(data.full_name)
       })

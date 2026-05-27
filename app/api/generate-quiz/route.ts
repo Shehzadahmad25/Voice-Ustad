@@ -5,13 +5,17 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 interface TopicItem {
-  topic_title: string
+  topic_title?: string
+  term?: string          // ScopeTopic shape from chat sidebar
   topic_code?: string
+  topic_slug?: string
 }
 
 // ── Legacy chapter-quiz shape (from chat sidebar) ────────────────────────────
 interface LegacyBody {
-  chapter_id?: string | number
+  chapter_id?: string | number   // Supabase UUID — used to fetch chunks as fallback
+  chapterId?: string | number    // alias
+  chapterNumber?: string         // '1'–'24'
   chapter_title?: string
   topics?: TopicItem[]
 }
@@ -25,9 +29,17 @@ interface QuizBody {
 
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as LegacyBody & QuizBody
+  console.log('[generate-quiz] received body:', JSON.stringify({
+    chapter_title: body.chapter_title,
+    chapterId: body.chapterId ?? body.chapter_id,
+    chapterNumber: body.chapterNumber,
+    topicsLength: body.topics?.length,
+    topicsSample: body.topics?.slice(0, 2),
+    chapterSlugs: body.chapterSlugs,
+  }))
 
   // Route to legacy handler if legacy fields present
-  if (body.chapter_title && Array.isArray(body.topics)) {
+  if (body.chapter_title || body.chapterId || body.chapter_id) {
     return handleLegacy(body as LegacyBody)
   }
 
@@ -37,14 +49,9 @@ export async function POST(req: NextRequest) {
 
 // ── Legacy handler (chat sidebar "Take Chapter Quiz") ─────────────────────────
 async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
-  const { chapter_title, topics } = body
-
-  if (!chapter_title || !topics?.length) {
-    return NextResponse.json(
-      { ok: false, error: 'chapter_title and topics[] required' },
-      { status: 400 },
-    )
-  }
+  const resolvedChapterId = body.chapterId ?? body.chapter_id
+  let resolvedTitle = body.chapter_title ?? ''
+  let resolvedTopics: TopicItem[] = body.topics ?? []
 
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
@@ -54,14 +61,49 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
     )
   }
 
-  const count =
-    topics.length <= 5 ? 30 : topics.length <= 10 ? 40 : 50
-  const topicList = topics.map((t) => t.topic_title).join(', ')
+  // If topics array is empty or missing, fetch from content_chunks by chapter_id / chapter_number
+  if (resolvedTopics.length === 0 && resolvedChapterId) {
+    try {
+      const sb = getServiceClient()
+      const { data: chunks } = await sb
+        .from('content_chunks')
+        .select('topic_slug, term, book_definition')
+        .eq('chapter_id', String(resolvedChapterId))
+        .limit(60)
+
+      if (chunks && chunks.length > 0) {
+        resolvedTopics = chunks.map((c: any) => ({
+          topic_title: c.term || c.topic_slug || 'General',
+          term: c.term || c.topic_slug || 'General',
+          topic_slug: c.topic_slug,
+        }))
+        console.log('[generate-quiz legacy] fetched', resolvedTopics.length, 'topics from chunks by chapter_id')
+      }
+    } catch (err) {
+      console.warn('[generate-quiz legacy] chunk fallback failed:', err)
+    }
+  }
+
+  // Last-resort: if we still have no topics, generate a general chapter quiz
+  if (resolvedTopics.length === 0) {
+    resolvedTopics = [{ topic_title: `${resolvedTitle || 'Chemistry'} — General`, term: `${resolvedTitle || 'Chemistry'} — General` }]
+    console.warn('[generate-quiz legacy] no topics found, using generic fallback')
+  }
+
+  // Normalise topic names — accept both `term` and `topic_title` shapes
+  const topicNames = resolvedTopics
+    .map(t => t.term || t.topic_title || '')
+    .filter(Boolean)
+
+  const count = topicNames.length <= 5 ? 30 : topicNames.length <= 10 ? 40 : 50
+  const topicList = topicNames.join(', ')
   const seed = Math.random().toString(36).substring(7)
+
+  console.log('[generate-quiz legacy] chapter:', resolvedTitle, '| topics:', topicNames.length, '| count:', count)
 
   const prompt = `You are a chemistry teacher creating a multiple choice quiz for FSc (Grade 11) students in Pakistan studying KPK board.
 
-Chapter: ${chapter_title}
+Chapter: ${resolvedTitle || 'FSc Chemistry'}
 Variation seed: ${seed} — use this to generate fresh, unique questions different from previous runs.
 
 You must cover ALL of these topics: ${topicList}
