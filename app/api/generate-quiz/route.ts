@@ -28,80 +28,89 @@ interface QuizBody {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as LegacyBody & QuizBody
-  console.log('[generate-quiz] received body:', JSON.stringify({
-    chapter_title: body.chapter_title,
-    chapterId: body.chapterId ?? body.chapter_id,
-    chapterNumber: body.chapterNumber,
-    topicsLength: body.topics?.length,
-    topicsSample: body.topics?.slice(0, 2),
-    chapterSlugs: body.chapterSlugs,
-  }))
-
-  // Route to legacy handler if legacy fields present
-  if (body.chapter_title || body.chapterId || body.chapter_id) {
-    return handleLegacy(body as LegacyBody)
+  // FIX 4 — API key guard at the very top
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('[generate-quiz] OPENAI_API_KEY not set')
+    return NextResponse.json({ questions: [], error: 'API key not configured' }, { status: 500 })
   }
 
-  // New quiz-page handler
-  return handleQuizPage(body as QuizBody)
+  // FIX 1 — entire handler wrapped in try/catch, always returns JSON
+  try {
+    const body = (await req.json()) as LegacyBody & QuizBody
+    console.log('[generate-quiz] body:', JSON.stringify({
+      chapter_title: body.chapter_title,
+      chapterId: body.chapterId ?? body.chapter_id,
+      chapterNumber: body.chapterNumber,
+      topicsLength: body.topics?.length,
+      topicsSample: body.topics?.slice(0, 2),
+      chapterSlugs: body.chapterSlugs,
+    }))
+
+    // Route to legacy handler if legacy fields present
+    if (body.chapter_title || body.chapterId || body.chapter_id) {
+      return handleLegacy(body as LegacyBody)
+    }
+
+    // New quiz-page handler
+    return handleQuizPage(body as QuizBody)
+
+  } catch (error: any) {
+    console.error('[generate-quiz] fatal error:', error)
+    return NextResponse.json(
+      { questions: [], error: error?.message ?? 'Unknown error' },
+      { status: 500 },
+    )
+  }
 }
 
 // ── Legacy handler (chat sidebar "Take Chapter Quiz") ─────────────────────────
 async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
-  const resolvedChapterId = body.chapterId ?? body.chapter_id
-  let resolvedTitle = body.chapter_title ?? ''
-  let resolvedTopics: TopicItem[] = body.topics ?? []
+  try {
+    const resolvedChapterId = body.chapterId ?? body.chapter_id
+    let resolvedTitle = body.chapter_title ?? ''
+    let resolvedTopics: TopicItem[] = body.topics ?? []
 
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    return NextResponse.json(
-      { ok: false, error: 'OPENAI_API_KEY not configured' },
-      { status: 500 },
-    )
-  }
+    // If topics array is empty or missing, fetch from content_chunks by chapter_id
+    if (resolvedTopics.length === 0 && resolvedChapterId) {
+      try {
+        const sb = getServiceClient()
+        const { data: chunks } = await sb
+          .from('content_chunks')
+          .select('topic_slug, term, book_definition')
+          .eq('chapter_id', String(resolvedChapterId))
+          .limit(60)
 
-  // If topics array is empty or missing, fetch from content_chunks by chapter_id / chapter_number
-  if (resolvedTopics.length === 0 && resolvedChapterId) {
-    try {
-      const sb = getServiceClient()
-      const { data: chunks } = await sb
-        .from('content_chunks')
-        .select('topic_slug, term, book_definition')
-        .eq('chapter_id', String(resolvedChapterId))
-        .limit(60)
-
-      if (chunks && chunks.length > 0) {
-        resolvedTopics = chunks.map((c: any) => ({
-          topic_title: c.term || c.topic_slug || 'General',
-          term: c.term || c.topic_slug || 'General',
-          topic_slug: c.topic_slug,
-        }))
-        console.log('[generate-quiz legacy] fetched', resolvedTopics.length, 'topics from chunks by chapter_id')
+        if (chunks && chunks.length > 0) {
+          resolvedTopics = chunks.map((c: any) => ({
+            topic_title: c.term || c.topic_slug || 'General',
+            term: c.term || c.topic_slug || 'General',
+            topic_slug: c.topic_slug,
+          }))
+          console.log('[generate-quiz legacy] fetched', resolvedTopics.length, 'topics from chunks by chapter_id')
+        }
+      } catch (chunkErr: any) {
+        console.warn('[generate-quiz legacy] chunk fallback failed:', chunkErr?.message)
       }
-    } catch (err) {
-      console.warn('[generate-quiz legacy] chunk fallback failed:', err)
     }
-  }
 
-  // Last-resort: if we still have no topics, generate a general chapter quiz
-  if (resolvedTopics.length === 0) {
-    resolvedTopics = [{ topic_title: `${resolvedTitle || 'Chemistry'} — General`, term: `${resolvedTitle || 'Chemistry'} — General` }]
-    console.warn('[generate-quiz legacy] no topics found, using generic fallback')
-  }
+    // Last-resort: generic topic so quiz always generates
+    if (resolvedTopics.length === 0) {
+      resolvedTopics = [{ topic_title: `${resolvedTitle || 'Chemistry'} — General`, term: `${resolvedTitle || 'Chemistry'} — General` }]
+      console.warn('[generate-quiz legacy] no topics found, using generic fallback')
+    }
 
-  // Normalise topic names — accept both `term` and `topic_title` shapes
-  const topicNames = resolvedTopics
-    .map(t => t.term || t.topic_title || '')
-    .filter(Boolean)
+    // Normalise topic names — accept both `term` and `topic_title` shapes
+    const topicNames = resolvedTopics
+      .map(t => t.term || t.topic_title || '')
+      .filter(Boolean)
 
-  const count = topicNames.length <= 5 ? 30 : topicNames.length <= 10 ? 40 : 50
-  const topicList = topicNames.join(', ')
-  const seed = Math.random().toString(36).substring(7)
+    const count = topicNames.length <= 5 ? 30 : topicNames.length <= 10 ? 40 : 50
+    const topicList = topicNames.join(', ')
+    const seed = Math.random().toString(36).substring(7)
 
-  console.log('[generate-quiz legacy] chapter:', resolvedTitle, '| topics:', topicNames.length, '| count:', count)
+    console.log('[generate-quiz legacy] chapter:', resolvedTitle, '| topics:', topicNames.length, '| count:', count)
 
-  const prompt = `You are a chemistry teacher creating a multiple choice quiz for FSc (Grade 11) students in Pakistan studying KPK board.
+    const prompt = `You are a chemistry teacher creating a multiple choice quiz for FSc (Grade 11) students in Pakistan studying KPK board.
 
 Chapter: ${resolvedTitle || 'FSc Chemistry'}
 Variation seed: ${seed} — use this to generate fresh, unique questions different from previous runs.
@@ -134,70 +143,63 @@ Return ONLY a valid JSON array with no markdown, no explanation, no code fences.
   }
 ]`
 
-  const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      temperature: 0.7,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
+    // FIX 2 — OpenAI call wrapped in its own try/catch
+    let openaiRes: Response
+    try {
+      openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          temperature: 0.7,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+    } catch (fetchErr: any) {
+      console.error('[generate-quiz legacy] OpenAI fetch failed:', fetchErr?.message)
+      return NextResponse.json({ questions: [], error: 'AI generation failed: ' + (fetchErr?.message ?? 'network error') })
+    }
 
-  if (!openaiRes.ok) {
-    const errText = await openaiRes.text()
-    console.error('[generate-quiz legacy] OpenAI error:', errText)
-    return NextResponse.json(
-      { ok: false, error: `OpenAI API error: ${openaiRes.status}` },
-      { status: 500 },
-    )
+    if (!openaiRes.ok) {
+      const errText = await openaiRes.text()
+      console.error('[generate-quiz legacy] OpenAI HTTP error:', openaiRes.status, errText.slice(0, 200))
+      return NextResponse.json({ questions: [], error: `OpenAI API error: ${openaiRes.status}` })
+    }
+
+    const openaiData = await openaiRes.json()
+    const rawText: string = openaiData.choices?.[0]?.message?.content ?? ''
+    console.log('[generate-quiz legacy] raw response:', rawText.substring(0, 200))
+
+    // FIX 3 — Parse response safely
+    let questions: unknown[]
+    try {
+      const jsonMatch = rawText.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) throw new Error('No JSON array in response')
+      questions = JSON.parse(jsonMatch[0])
+      if (!Array.isArray(questions) || questions.length === 0)
+        throw new Error('Empty questions array')
+    } catch (parseError: any) {
+      console.error('[generate-quiz legacy] JSON parse error:', parseError?.message, '| raw:', rawText.slice(0, 500))
+      return NextResponse.json({ questions: [], error: 'Failed to parse AI response' })
+    }
+
+    return NextResponse.json({ ok: true, questions, count })
+
+  } catch (error: any) {
+    console.error('[generate-quiz legacy] unhandled error:', error)
+    return NextResponse.json({ questions: [], error: error?.message ?? 'Unknown error' }, { status: 500 })
   }
-
-  const openaiData = await openaiRes.json()
-  const rawText: string = openaiData.choices?.[0]?.message?.content ?? ''
-
-  let questions: unknown[]
-  try {
-    const jsonMatch = rawText.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) throw new Error('No JSON array in response')
-    questions = JSON.parse(jsonMatch[0])
-    if (!Array.isArray(questions) || questions.length === 0)
-      throw new Error('Empty questions array')
-  } catch (e) {
-    console.error('[generate-quiz legacy] parse error:', e, 'raw:', rawText.slice(0, 500))
-    return NextResponse.json(
-      { ok: false, error: 'Failed to parse OpenAI response' },
-      { status: 500 },
-    )
-  }
-
-  return NextResponse.json({ ok: true, questions, count })
 }
 
 // ── New quiz-page handler ─────────────────────────────────────────────────────
 async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
-  const { chapterSlugs = [], count = 10 } = body
+  try {
+    const { chapterSlugs = [], count = 10 } = body
 
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    return NextResponse.json(
-      { ok: false, error: 'OPENAI_API_KEY not configured' },
-      { status: 500 },
-    )
-  }
-
-  // Fetch context chunks from Supabase using service role key
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
-
-  let contextLines: string[] = []
-
-  if (supabaseUrl && serviceKey) {
+    let contextLines: string[] = []
     try {
       const sb = getServiceClient()
       const { data: chunks } = await sb
@@ -213,24 +215,23 @@ async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
           return `[${c.topic_slug ?? 'general'}]: ${parts}`
         })
       }
-    } catch (err) {
-      console.warn('[generate-quiz] content_chunks fetch failed, proceeding without context:', err)
+    } catch (chunkErr: any) {
+      console.warn('[generate-quiz page] content_chunks fetch failed:', chunkErr?.message)
     }
-  }
 
-  const contextBlock =
-    contextLines.length > 0
-      ? `\nUse this syllabus context to ground your questions:\n${contextLines.join('\n')}\n`
-      : ''
+    const contextBlock =
+      contextLines.length > 0
+        ? `\nUse this syllabus context to ground your questions:\n${contextLines.join('\n')}\n`
+        : ''
 
-  const chapterNote =
-    chapterSlugs.length > 0
-      ? `Focus on these chapters/topics: ${chapterSlugs.join(', ')}.`
-      : 'Cover general FSc Chemistry topics.'
+    const chapterNote =
+      chapterSlugs.length > 0
+        ? `Focus on these chapters/topics: ${chapterSlugs.join(', ')}.`
+        : 'Cover general FSc Chemistry topics.'
 
-  const seed = Math.random().toString(36).substring(7)
+    const seed = Math.random().toString(36).substring(7)
 
-  const prompt = `You are a chemistry teacher creating a multiple choice quiz for FSc students in Pakistan (KPK board).
+    const prompt = `You are a chemistry teacher creating a multiple choice quiz for FSc students in Pakistan (KPK board).
 ${contextBlock}
 ${chapterNote}
 Variation seed: ${seed}
@@ -251,44 +252,52 @@ Return ONLY valid JSON (no markdown, no code fences) matching this schema:
   ]
 }`
 
-  const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
+    // FIX 2 — OpenAI call wrapped in its own try/catch
+    let openaiRes: Response
+    try {
+      openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          temperature: 0.7,
+          response_format: { type: 'json_object' },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+    } catch (fetchErr: any) {
+      console.error('[generate-quiz page] OpenAI fetch failed:', fetchErr?.message)
+      return NextResponse.json({ questions: [], error: 'AI generation failed: ' + (fetchErr?.message ?? 'network error') })
+    }
 
-  if (!openaiRes.ok) {
-    const errText = await openaiRes.text()
-    console.error('[generate-quiz] OpenAI error:', errText)
-    return NextResponse.json(
-      { ok: false, error: `OpenAI API error: ${openaiRes.status}` },
-      { status: 500 },
-    )
+    if (!openaiRes.ok) {
+      const errText = await openaiRes.text()
+      console.error('[generate-quiz page] OpenAI HTTP error:', openaiRes.status, errText.slice(0, 200))
+      return NextResponse.json({ questions: [], error: `OpenAI API error: ${openaiRes.status}` })
+    }
+
+    const openaiData = await openaiRes.json()
+    const rawText: string = openaiData.choices?.[0]?.message?.content ?? '{}'
+    console.log('[generate-quiz page] raw response:', rawText.substring(0, 200))
+
+    // FIX 3 — Parse response safely
+    let questions: unknown[] = []
+    try {
+      const parsed = JSON.parse(rawText)
+      questions = parsed.questions ?? []
+      if (!Array.isArray(questions)) throw new Error('questions is not array')
+    } catch (parseError: any) {
+      console.error('[generate-quiz page] JSON parse error:', parseError?.message, '| raw:', rawText.slice(0, 500))
+      return NextResponse.json({ questions: [], error: 'Failed to parse AI response' })
+    }
+
+    return NextResponse.json({ ok: true, questions })
+
+  } catch (error: any) {
+    console.error('[generate-quiz page] unhandled error:', error)
+    return NextResponse.json({ questions: [], error: error?.message ?? 'Unknown error' }, { status: 500 })
   }
-
-  const openaiData = await openaiRes.json()
-  const rawText: string = openaiData.choices?.[0]?.message?.content ?? ''
-
-  let questions: unknown[] = []
-  try {
-    const parsed = JSON.parse(rawText)
-    questions = parsed.questions ?? []
-    if (!Array.isArray(questions)) throw new Error('questions is not array')
-  } catch (e) {
-    console.error('[generate-quiz] parse error:', e, 'raw:', rawText.slice(0, 500))
-    return NextResponse.json(
-      { ok: false, error: 'Failed to parse AI response' },
-      { status: 500 },
-    )
-  }
-
-  return NextResponse.json({ ok: true, questions })
 }
