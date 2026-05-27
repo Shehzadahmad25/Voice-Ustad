@@ -69,6 +69,9 @@ let _currentSessionId: string | null = null;
 let _sessionHasTitle = false;
 let _setSessions: ((s: any[]) => void) | null = null;
 let _setActiveSessionId: ((id: string | null) => void) | null = null;
+// ── Audio / topic tracking ───────────────────────────────────────────────────
+let _currentTopicCode: string | null = null;  // set in viewTopic(), read in dbSaveMessage
+const _dbMsgIdForCardId: Record<string, string> = {}; // DOM card id → DB message UUID
 
 function computeViewerInitial(name: string){
   const parts = String(name || '')
@@ -631,6 +634,7 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
   if (busy) return;
   const title = String(topicTitle || '').replace(/\s+/g, ' ').trim();
   const code  = String(topicCode  || '').trim();
+  _currentTopicCode = code || null; // track for dbSaveMessage topic_slug
   console.log('[viewTopic] title:', title, '| code:', code, '| chN:', chN, '| activeChIdx:', activeChIdx, '| CHS[activeChIdx].n:', CHS[activeChIdx]?.n);
   if (!title && !code) return;
   if (_setViewedTopics) _setViewedTopics((prev) => new Set([...prev, title]));
@@ -697,7 +701,9 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
         'assistant',
         JSON.stringify(data.result),
         String(data.result?.urduTtsText || ''),
-      ).catch(console.error);
+      ).then(dbId => {
+        if (dbId && cardId) _dbMsgIdForCardId[cardId] = dbId;
+      }).catch(console.error);
     }
     // ── Mark topic covered (non-fatal background call) ──────────────────────
     if (_currentUserId && code) {
@@ -963,6 +969,19 @@ async function fetchUrduForTopicCard(id: string, r: any) {
       const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
       if (retryBtn) retryBtn.style.display = 'none';
       if (btn) btn.disabled = false;
+      // TASK 1 — save audio to DB message (non-fatal)
+      const dbMsgId = _dbMsgIdForCardId[id];
+      if (dbMsgId) {
+        const sbAudio = getSupabaseClient() ?? _sbClient;
+        sbAudio?.from('chat_messages')
+          .update({ urdu_audio_text: urduText, urdu_audio_url: audioB64 })
+          .eq('id', dbMsgId)
+          .then(({ error }: any) => {
+            if (error) console.error('[audio] save to DB failed:', error.message);
+            else console.log('[audio] saved audio to message:', dbMsgId, '| b64 len:', audioB64.length);
+          })
+          .catch((e: any) => console.error('[audio] save exception:', e?.message));
+      }
     } else {
       // TTS step failed server-side — enable button and fall back to prefetch
       console.log('[fetchUrdu] no audio in response, falling back to prefetch');
@@ -1520,7 +1539,7 @@ function appendAI(r, time, save=true){
     </div>`;
 
   const inner2 = getInner();
-  if (!inner2) return;
+  if (!inner2) return id;
   inner2.appendChild(w); scrollDn();
   setVoiceSource(id, (voiceSources[id] || 'unknown'));
   prefetchUrduAudio(id);
@@ -1532,6 +1551,7 @@ function appendAI(r, time, save=true){
     buildSb((document.getElementById('sbSearch') as HTMLInputElement | null)?.value ?? ''); // refresh dot indicators
     buildPrevChats();
   }
+  return id;
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2136,10 +2156,10 @@ async function dbSaveMessage(
   role: 'user' | 'assistant',
   content: string,
   urduAudioText?: string
-) {
-  if (!sessionId) return;
+): Promise<string | null> {
+  if (!sessionId) return null;
   const sb = getSupabaseClient() ?? _sbClient;
-  if (!sb) return;
+  if (!sb) return null;
   // Resolve user ID — prefer module-level ref, fall back to auth session
   let resolvedUserId = _currentUserId;
   if (!resolvedUserId) {
@@ -2148,7 +2168,7 @@ async function dbSaveMessage(
       resolvedUserId = session?.user?.id ?? null;
     } catch { /* ignore */ }
   }
-  if (!resolvedUserId) { console.warn('[message] missing userId — skipping save | sessionId:', sessionId); return; }
+  if (!resolvedUserId) { console.warn('[message] missing userId — skipping save | sessionId:', sessionId); return null; }
   try {
     const { data: msgData, error: msgError } = await sb
       .from('chat_messages')
@@ -2158,11 +2178,12 @@ async function dbSaveMessage(
         role,
         content,
         urdu_audio_text: urduAudioText || null,
+        topic_slug: _currentTopicCode ?? null,   // TASK 2 — save topic code
         created_at: new Date().toISOString(),
       })
       .select('id')
       .single();
-    console.log('[message] saved id:', msgData?.id ?? 'null', '| error:', msgError?.message ?? 'none');
+    console.log('[message] saved id:', msgData?.id ?? 'null', '| topic_slug:', _currentTopicCode ?? 'null', '| error:', msgError?.message ?? 'none');
     if (msgError) console.error('[message] insert error detail:', msgError);
     const isFirstUserMsg = role === 'user' && !_sessionHasTitle;
     if (isFirstUserMsg) _sessionHasTitle = true;
@@ -2173,7 +2194,8 @@ async function dbSaveMessage(
     }).eq('id', sessionId);
     try { await sb.rpc('increment_message_count', { session_id: sessionId }); } catch {}
     await dbLoadHistory();
-  } catch (e) { console.error('[message] dbSaveMessage exception:', e); }
+    return msgData?.id ?? null;  // return DB id so callers can link DOM card → DB row
+  } catch (e) { console.error('[message] dbSaveMessage exception:', e); return null; }
 }
 
 async function dbLoadSession(sessionId: string) {
@@ -2195,6 +2217,12 @@ async function dbLoadSession(sessionId: string) {
     if (msgs.length > 0) {
       started = true;
       appendDivider('Restored conversation');
+
+      // TASK 3 — find last assistant message with saved audio for restoration
+      const lastAudioMsg = [...msgs].reverse().find(
+        (m: any) => m.role === 'assistant' && m.urdu_audio_text
+      );
+
       for (const msg of msgs) {
         if (msg.role === 'user') {
           appendUser(msg.content, formatTime(msg.created_at), false);
@@ -2202,7 +2230,49 @@ async function dbLoadSession(sessionId: string) {
           let resp: any;
           try { resp = JSON.parse(msg.content); } catch { resp = { text: msg.content, points: [] }; }
           if (!resp.urduTtsText && msg.urdu_audio_text) resp.urduTtsText = msg.urdu_audio_text;
-          appendAI(resp, formatTime(msg.created_at), false);
+          const cardId = appendAI(resp, formatTime(msg.created_at), false);
+
+          // TASK 3 — restore audio for the last assistant message only
+          if (cardId && msg.id === lastAudioMsg?.id) {
+            try {
+              const urduText = String(msg.urdu_audio_text || '').trim();
+              console.log('[session-load] restoring audio for message:', msg.id, '| urdu chars:', urduText.length);
+              if (urduText) urduSummaries[cardId] = urduText;
+
+              if (msg.urdu_audio_url) {
+                // Audio base64 saved — restore directly, no re-fetch needed
+                console.log('[session-load] restoring saved audio b64, len:', msg.urdu_audio_url.length);
+                audioUrls[cardId]  = `data:audio/mpeg;base64,${msg.urdu_audio_url}`;
+                audioCacheKeys[cardId] = putCachedAudio(urduText, msg.urdu_audio_url);
+                ttsReady[cardId]   = true;
+                setVoiceSource(cardId, 'openai');
+                // Update play button
+                const btn = document.getElementById('btn_' + cardId) as HTMLButtonElement | null;
+                if (btn) btn.disabled = false;
+                const retryBtn = document.getElementById('retry_' + cardId) as HTMLButtonElement | null;
+                if (retryBtn) retryBtn.style.display = 'none';
+              } else if (urduText) {
+                // urdu_audio_url not stored — check local cache, then re-fetch
+                const cached = getCachedAudio(urduText);
+                if (cached) {
+                  console.log('[session-load] restored audio from localStorage cache');
+                  audioUrls[cardId]      = `data:audio/mpeg;base64,${cached.audioBase64}`;
+                  audioCacheKeys[cardId] = cached.key;
+                  ttsReady[cardId]       = true;
+                  setVoiceSource(cardId, 'openai');
+                } else {
+                  console.log('[session-load] re-fetching audio for topic:', msg.topic_slug);
+                  // Build minimal r object for fetchUrduForTopicCard
+                  let rObj: any = {};
+                  try { rObj = JSON.parse(msg.content); } catch {}
+                  rObj.topic_slug = msg.topic_slug || rObj.topic_slug || '';
+                  fetchUrduForTopicCard(cardId, rObj);
+                }
+              }
+            } catch (audioErr: any) {
+              console.warn('[session-load] audio restore failed:', audioErr?.message);
+            }
+          }
         }
       }
       scrollDn(true);
