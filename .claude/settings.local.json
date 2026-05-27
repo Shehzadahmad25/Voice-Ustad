@@ -39,7 +39,8 @@
       "Bash(node -e ' *)",
       "Bash(node)",
       "Bash(node -e \"const pkg=require\\('./package.json'\\);console.log\\(JSON.stringify\\(pkg.dependencies,null,2\\)\\)\")",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(node test-search.js)"
     ],
     "additionalDirectories": [
       "c:\\Users\\hp\\Desktop\\Voice-Ustad\\app\\chapter"

@@ -48,16 +48,7 @@ const CLASS_12_CHAPTERS = [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
 const TOTAL_TOPICS = 486 // 290 (class 11) + 196 (class 12)
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type TabKey = 'coverage' | 'weak' | 'history'
-
-interface CoverageChapter {
-  chapter: number
-  name: string
-  total: number
-  done: number
-  pct: number
-  topicSlugs: string[]
-}
+type TabKey = 'plan' | 'weak' | 'history'
 
 interface WeakTopic {
   topic_slug: string
@@ -182,12 +173,10 @@ export default function DashboardPage() {
   const [coveredCount, setCoveredCount] = useState(0)
   const [weakCount, setWeakCount] = useState(0)
 
-  // Coverage tab
-  const [activeClass, setActiveClass] = useState<11 | 12>(11)
-  const [coverageChapters, setCoverageChapters] = useState<CoverageChapter[]>([])
-  const [coveredSet, setCoveredSet] = useState<Set<string>>(new Set())
-  const [weakSet, setWeakSet] = useState<Set<string>>(new Set())
-  const [coverageLoading, setCoverageLoading] = useState(false)
+  // Study Plan tab
+  const [studyWeakTopic, setStudyWeakTopic] = useState<WeakTopic | null>(null)
+  const [studyLastChapter, setStudyLastChapter] = useState<number | null>(null)
+  const [studyNextChapter, setStudyNextChapter] = useState<number>(1)
 
   // Tab data
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
@@ -195,8 +184,7 @@ export default function DashboardPage() {
   const [heatmapDays, setHeatmapDays] = useState<HeatmapDay[]>([])
 
   // UI state
-  const [activeTab, setActiveTab] = useState<TabKey>('coverage')
-  const [expandedChapter, setExpandedChapter] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<TabKey>('plan')
   const [tooltipDay, setTooltipDay] = useState<{ idx: number; x: number; y: number } | null>(null)
   const heatRef = useRef<HTMLDivElement>(null)
 
@@ -253,9 +241,10 @@ export default function DashboardPage() {
         quizRes,
         sqrRes,
         heatmapRes,
+        lastCovRes,
       ] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', uid).single(),
-        supabase.from('user_topic_coverage').select('topic_slug', { count: 'exact' }).eq('user_id', uid),
+        supabase.from('user_topic_coverage').select('topic_slug, chapter_slug', { count: 'exact' }).eq('user_id', uid),
         supabase.from('user_topic_performance').select('id', { count: 'exact' }).eq('user_id', uid).eq('strength_label', 'weak'),
         supabase
           .from('user_topic_performance')
@@ -281,6 +270,12 @@ export default function DashboardPage() {
           .select('created_at')
           .eq('user_id', uid)
           .gte('created_at', new Date(Date.now() - 70 * 24 * 60 * 60 * 1000).toISOString()),
+        supabase
+          .from('user_topic_coverage')
+          .select('chapter_slug')
+          .eq('user_id', uid)
+          .order('covered_at', { ascending: false })
+          .limit(1),
       ])
 
       setProfile(profileRes.data)
@@ -295,7 +290,29 @@ export default function DashboardPage() {
 
       const weakData: WeakTopic[] = weakDetailRes.data || []
       setWeakTopics(weakData)
-      setWeakSet(new Set(weakData.map(w => w.topic_slug).filter(Boolean)))
+
+      // ── Study Plan goals ─────────────────────────────────────────────────
+      // Goal 1: top weak topic for Revise card
+      setStudyWeakTopic(weakData[0] ?? null)
+
+      // Goal 2: last studied chapter for Continue card
+      const lastCovRow = (lastCovRes.data as any[])?.[0]
+      if (lastCovRow?.chapter_slug) {
+        const n = Number(lastCovRow.chapter_slug)
+        setStudyLastChapter(isNaN(n) ? null : n)
+      } else {
+        setStudyLastChapter(null)
+      }
+
+      // Goal 3: first unstarted chapter for Start New card
+      const coveredChapterNums = new Set<number>(
+        ((coveredCountRes.data as any[]) || [])
+          .map((r: any) => { const n = Number(r.chapter_slug); return isNaN(n) ? null : n })
+          .filter((n): n is number => n !== null)
+      )
+      const nextCh = ([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24] as number[])
+        .find(ch => !coveredChapterNums.has(ch)) ?? 1
+      setStudyNextChapter(nextCh)
 
       // Merge quiz_attempts + student_quiz_results into unified history
       const attempts: QuizAttempt[] = quizRes.data || []
@@ -361,79 +378,7 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
-  // ── Coverage fetch — refetches when user or activeClass changes ─────────────
-  useEffect(() => {
-    if (!user) return
-    if (!supabase) return
-
-    const loadCoverage = async () => {
-      setCoverageLoading(true)
-      try {
-        const chapterNums = activeClass === 11 ? CLASS_11_CHAPTERS : CLASS_12_CHAPTERS
-
-        // Fetch covered topics
-        let newCoveredSet = new Set<string>()
-        const { data: coveredRows } = await supabase
-          .from('user_topic_coverage')
-          .select('topic_slug, chapter_slug')
-          .eq('user_id', user.id)
-        newCoveredSet = new Set<string>(
-          (coveredRows ?? []).map((r: any) => r.topic_slug).filter(Boolean)
-        )
-        setCoveredSet(newCoveredSet)
-
-        // Fetch all topic_slugs per chapter from content_chunks
-        const { data: chunkRows, error: chunkErr } = await supabase
-          .from('content_chunks')
-          .select('chapter, topic_slug')
-          .eq('board', 'KPK')
-          .eq('class', activeClass)
-          .in('chapter', chapterNums)
-
-        if (chunkErr) {
-          console.error('Coverage chunks fetch error:', chunkErr)
-          setCoverageChapters([])
-          return
-        }
-
-        // Deduplicate topic_slugs per chapter
-        const chapterTopicMap: Record<number, Set<string>> = {}
-        ;(chunkRows ?? []).forEach((row: any) => {
-          const ch = Number(row.chapter)
-          if (!chapterTopicMap[ch]) chapterTopicMap[ch] = new Set()
-          if (row.topic_slug) chapterTopicMap[ch].add(row.topic_slug)
-        })
-
-        // Build final chapters array
-        const chapters: CoverageChapter[] = chapterNums.map(ch => {
-          const topicSlugs = chapterTopicMap[ch] ?? new Set<string>()
-          const total = TOPIC_COUNTS[ch]
-          const done = [...topicSlugs].filter(slug => newCoveredSet.has(slug)).length
-          const pct = total > 0 ? Math.round((done / total) * 100) : 0
-          return {
-            chapter: ch,
-            name: CHAPTER_NAMES[ch],
-            total,
-            done,
-            pct,
-            topicSlugs: [...topicSlugs],
-          }
-        })
-
-        setCoverageChapters(chapters)
-        setCoveredCount(newCoveredSet.size)
-      } catch (e) {
-        console.error('Coverage fetch error:', e)
-        setCoverageChapters([])
-      } finally {
-        setCoverageLoading(false)
-      }
-    }
-
-    loadCoverage()
-  }, [user, activeClass])
-
-  // Empty heatmap fallback for mock user
+  // Empty heatmap fallback
   useEffect(() => {
     if (heatmapDays.length === 0 && !loading) {
       const days: HeatmapDay[] = []
@@ -516,20 +461,6 @@ export default function DashboardPage() {
     cursor: 'pointer',
     transition: 'color 0.15s',
     whiteSpace: 'nowrap',
-  })
-
-  const classToggleBtnStyle = (active: boolean): React.CSSProperties => ({
-    padding: '7px 20px',
-    borderRadius: '8px',
-    border: '1px solid',
-    borderColor: active ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.1)',
-    background: active ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)',
-    color: active ? '#f97316' : '#64748b',
-    fontFamily: 'inherit',
-    fontWeight: '700',
-    fontSize: '13px',
-    cursor: 'pointer',
-    transition: 'all 0.15s',
   })
 
   return (
@@ -793,220 +724,229 @@ export default function DashboardPage() {
             marginBottom: '20px',
             overflowX: 'auto',
           }}>
-            {(['coverage', 'weak', 'history'] as TabKey[]).map(tab => (
+            {(['plan', 'weak', 'history'] as TabKey[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 style={tabBtnStyle(activeTab === tab)}
               >
-                {tab === 'coverage' ? '📊 Coverage' : tab === 'weak' ? '⚠️ Weak Topics' : '📝 Quiz History'}
+                {tab === 'plan' ? '📅 Study Plan' : tab === 'weak' ? '⚠️ Weak Topics' : '📝 Quiz History'}
               </button>
             ))}
           </div>
 
-          {/* ── Coverage Tab ──────────────────────────────────────────────── */}
-          {activeTab === 'coverage' && (
+          {/* ── Study Plan Tab ─────────────────────────────────────────────── */}
+          {activeTab === 'plan' && (
             <div>
-              {/* Class toggle */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                {([11, 12] as const).map(c => (
-                  <button
-                    key={c}
-                    onClick={() => { setActiveClass(c); setExpandedChapter(null) }}
-                    style={classToggleBtnStyle(activeClass === c)}
-                  >
-                    Class {c}
-                  </button>
-                ))}
+              {/* Header */}
+              <div style={{ marginBottom: '20px' }}>
+                <h2 style={{
+                  fontSize: '17px', fontWeight: '800', color: '#f1f5f9',
+                  margin: '0 0 4px', fontFamily: 'var(--font-sora, inherit)',
+                }}>
+                  📅 Today&apos;s Study Plan
+                </h2>
+                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  {' · '}{examDays} days to exam
+                </p>
               </div>
 
-              {coverageLoading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Sk key={i} h="64px" r="12px" />
-                  ))}
+              {loading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {Array.from({ length: 3 }).map((_, i) => <Sk key={i} h="88px" r="12px" />)}
                 </div>
-              ) : coverageChapters.length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '32px 0' }}>
-                  No content found for Class {activeClass}
-                </p>
               ) : (
-                <div>
-                  {coverageChapters.map(ch => {
-                    const isExpanded = expandedChapter === ch.chapter
-                    const statusLabel = ch.pct >= 100 ? 'DONE' : ch.pct > 0 ? 'IN PROG' : 'TODO'
-                    const statusColor = ch.pct >= 100 ? '#22c55e' : ch.pct > 0 ? '#f97316' : '#475569'
-                    const statusBg = ch.pct >= 100 ? 'rgba(34,197,94,0.1)' : ch.pct > 0 ? 'rgba(249,115,22,0.1)' : 'rgba(71,85,105,0.15)'
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
 
-                    return (
-                      <div key={ch.chapter}>
-                        <div
-                          className={`db-chapter-card${isExpanded ? ' expanded' : ''}`}
-                          onClick={() => setExpandedChapter(isExpanded ? null : ch.chapter)}
-                        >
-                          {/* Progress ring */}
-                          <div style={{ position: 'relative', flexShrink: 0 }}>
-                            <ProgressRing pct={ch.pct} size={44} />
-                            <span style={{
-                              position: 'absolute', top: '50%', left: '50%',
-                              transform: 'translate(-50%,-50%)',
-                              fontSize: '10px', fontWeight: '700', color: '#f1f5f9',
-                            }}>
-                              {Math.round(ch.pct ?? 0)}%
-                            </span>
-                          </div>
-
-                          {/* Info */}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{
-                              fontSize: '14px', fontWeight: '700', color: '#f1f5f9',
-                              margin: '0 0 4px', overflow: 'hidden',
-                              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              Ch {ch.chapter}: {ch.name}
-                            </p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontSize: '12px', color: '#64748b' }}>
-                                {ch.done}/{ch.total} topics
-                              </span>
-                              <div style={{
-                                flex: 1, height: '4px',
-                                background: 'rgba(255,255,255,0.08)',
-                                borderRadius: '4px', overflow: 'hidden',
-                                maxWidth: '120px',
-                              }}>
-                                <div style={{
-                                  width: `${ch.pct}%`, height: '100%',
-                                  background: statusColor,
-                                  borderRadius: '4px',
-                                  transition: 'width 0.4s ease',
-                                }} />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Status badge */}
-                          <span style={{
-                            padding: '3px 8px', borderRadius: '6px',
-                            fontSize: '10px', fontWeight: '700',
-                            background: statusBg, color: statusColor,
-                            border: `1px solid ${statusColor}33`,
-                            flexShrink: 0,
-                          }}>
-                            {statusLabel}
-                          </span>
-
-                          {/* Chevron */}
-                          <span style={{
-                            color: '#475569', fontSize: '14px', flexShrink: 0,
-                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s',
-                            display: 'inline-block',
-                          }}>
-                            ▾
-                          </span>
+                  {/* Goal 1: Revise weak topic */}
+                  {studyWeakTopic ? (
+                    <div style={{
+                      background: '#111d30',
+                      border: '1px solid #1a2d47',
+                      borderLeft: '4px solid #ef4444',
+                      borderRadius: '12px',
+                      padding: '16px 18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: '11px', fontWeight: '700', color: '#fca5a5',
+                          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px',
+                        }}>
+                          ⚠️ Revise
                         </div>
-
-                        {/* Expanded topic chips */}
-                        {isExpanded && (
-                          <div style={{
-                            ...cardBase,
-                            marginTop: '-4px',
-                            marginBottom: '8px',
-                            borderTopLeftRadius: '4px',
-                            borderTopRightRadius: '4px',
-                            borderTop: 'none',
-                            background: 'rgba(13,22,38,0.8)',
-                          }}>
-                            {ch.topicSlugs.length === 0 ? (
-                              <p style={{ color: '#475569', fontSize: '12px' }}>No topic data available.</p>
-                            ) : (
-                              <>
-                                <p style={{
-                                  fontSize: '11px', color: '#475569',
-                                  marginBottom: '10px', fontWeight: '600',
-                                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                                }}>
-                                  Topics
-                                </p>
-                                <div className="db-chapter-chips">
-                                  {ch.topicSlugs.map(slug => {
-                                    const isCovered = coveredSet.has(slug)
-                                    const isWeak = weakSet.has(slug)
-                                    const bg = isCovered
-                                      ? 'rgba(34,197,94,0.12)'
-                                      : isWeak
-                                        ? 'rgba(249,115,22,0.12)'
-                                        : 'rgba(255,255,255,0.04)'
-                                    const border = isCovered
-                                      ? '1px solid rgba(34,197,94,0.3)'
-                                      : isWeak
-                                        ? '1px solid rgba(249,115,22,0.3)'
-                                        : '1px solid rgba(255,255,255,0.08)'
-                                    const color = isCovered ? '#22c55e' : isWeak ? '#f97316' : '#64748b'
-
-                                    return (
-                                      <span
-                                        key={slug}
-                                        style={{
-                                          padding: '4px 10px',
-                                          borderRadius: '20px',
-                                          fontSize: '11px',
-                                          fontWeight: '500',
-                                          background: bg,
-                                          border,
-                                          color,
-                                          maxWidth: '200px',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                          whiteSpace: 'nowrap',
-                                          display: 'inline-block',
-                                        }}
-                                        title={slug}
-                                      >
-                                        {isCovered ? '✓ ' : isWeak ? '⚠ ' : ''}{slug.replace(/-/g, ' ')}
-                                      </span>
-                                    )
-                                  })}
-                                </div>
-                              </>
-                            )}
-
-                            {/* Take Quiz button */}
-                            <div style={{
-                              marginTop: '12px',
-                              paddingTop: '10px',
-                              borderTop: '1px solid rgba(255,255,255,0.06)',
-                              display: 'flex',
-                              justifyContent: 'flex-end',
-                            }}>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  router.push(`/chat?chapter=${ch.chapter}&mode=quiz`)
-                                }}
-                                style={{
-                                  padding: '7px 16px', borderRadius: '8px',
-                                  background: 'rgba(249,115,22,0.1)',
-                                  border: '1px solid rgba(249,115,22,0.25)',
-                                  color: '#f97316', fontFamily: 'inherit',
-                                  fontWeight: '700', fontSize: '12px',
-                                  cursor: 'pointer',
-                                  transition: 'background 0.15s',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.2)' }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.1)' }}
-                              >
-                                Take Quiz →
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                        <div style={{
+                          fontSize: '15px', fontWeight: '700', color: '#f1f5f9', marginBottom: '2px',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {studyWeakTopic.topic_slug
+                            .split('-')
+                            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+                            .join(' ')}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>
+                          Accuracy: {Math.round(studyWeakTopic.accuracy ?? 0)}% · Needs review
+                        </div>
                       </div>
-                    )
-                  })}
+                      <button
+                        onClick={() => router.push(`/chat?chapter=${studyWeakTopic.chapter_slug}&topic=${studyWeakTopic.topic_slug}`)}
+                        style={{
+                          padding: '8px 16px', borderRadius: '9px',
+                          background: 'rgba(239,68,68,0.1)',
+                          border: '1px solid rgba(239,68,68,0.25)',
+                          color: '#ef4444', fontFamily: 'inherit',
+                          fontWeight: '700', fontSize: '13px',
+                          cursor: 'pointer', flexShrink: 0,
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+                      >
+                        Study →
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{
+                      background: '#111d30',
+                      border: '1px solid #1a2d47',
+                      borderLeft: '4px solid #475569',
+                      borderRadius: '12px',
+                      padding: '16px 18px',
+                    }}>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+                        ⚠️ Revise
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#64748b' }}>
+                        No weak topics yet — keep practicing!
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Goal 2: Continue last studied chapter */}
+                  <div style={{
+                    background: '#111d30',
+                    border: '1px solid #1a2d47',
+                    borderLeft: '4px solid #3b82f6',
+                    borderRadius: '12px',
+                    padding: '16px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: '11px', fontWeight: '700', color: '#93c5fd',
+                        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px',
+                      }}>
+                        📖 Continue
+                      </div>
+                      <div style={{
+                        fontSize: '15px', fontWeight: '700', color: '#f1f5f9', marginBottom: '2px',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {studyLastChapter !== null
+                          ? `Ch ${studyLastChapter}: ${CHAPTER_NAMES[studyLastChapter] ?? `Chapter ${studyLastChapter}`}`
+                          : 'Ch 1: Stoichiometry'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        {studyLastChapter !== null ? 'Pick up where you left off' : 'Start your first chapter'}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => router.push(`/chat?chapter=${studyLastChapter ?? 1}`)}
+                      style={{
+                        padding: '8px 16px', borderRadius: '9px',
+                        background: 'rgba(59,130,246,0.1)',
+                        border: '1px solid rgba(59,130,246,0.25)',
+                        color: '#60a5fa', fontFamily: 'inherit',
+                        fontWeight: '700', fontSize: '13px',
+                        cursor: 'pointer', flexShrink: 0,
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.2)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)' }}
+                    >
+                      {studyLastChapter !== null ? 'Continue →' : 'Start →'}
+                    </button>
+                  </div>
+
+                  {/* Goal 3: Start next unstarted chapter */}
+                  <div style={{
+                    background: '#111d30',
+                    border: '1px solid #1a2d47',
+                    borderLeft: '4px solid #22c55e',
+                    borderRadius: '12px',
+                    padding: '16px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: '11px', fontWeight: '700', color: '#86efac',
+                        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px',
+                      }}>
+                        🚀 Start New
+                      </div>
+                      <div style={{
+                        fontSize: '15px', fontWeight: '700', color: '#f1f5f9', marginBottom: '2px',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        Ch {studyNextChapter}: {CHAPTER_NAMES[studyNextChapter] ?? `Chapter ${studyNextChapter}`}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        Next unstarted chapter
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => router.push(`/chat?chapter=${studyNextChapter}`)}
+                      style={{
+                        padding: '8px 16px', borderRadius: '9px',
+                        background: 'rgba(34,197,94,0.1)',
+                        border: '1px solid rgba(34,197,94,0.25)',
+                        color: '#22c55e', fontFamily: 'inherit',
+                        fontWeight: '700', fontSize: '13px',
+                        cursor: 'pointer', flexShrink: 0,
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.2)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.1)' }}
+                    >
+                      Start →
+                    </button>
+                  </div>
                 </div>
               )}
+
+              {/* Stats row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                {[
+                  { value: 3, label: 'Goals today', color: '#f97316' },
+                  { value: 0, label: 'Completed', color: '#22c55e' },
+                  { value: examDays, label: 'Days to exam', color: '#60a5fa' },
+                ].map((stat, i) => (
+                  <div key={i} style={{
+                    background: '#111d30',
+                    border: '1px solid #1a2d47',
+                    borderRadius: '10px',
+                    padding: '14px 12px',
+                    textAlign: 'center',
+                  }}>
+                    <div style={{
+                      fontSize: '26px', fontWeight: '900', color: stat.color,
+                      lineHeight: 1, fontFamily: 'var(--font-sora, inherit)',
+                    }}>
+                      {stat.value}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

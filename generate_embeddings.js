@@ -49,7 +49,7 @@ async function main() {
     .select('id, term, book_definition, guide_explanation, example_q, example_solution, keywords')
     .is('embedding', null)
     .eq('board', 'KPK')
-    .eq('class', 11)
+    .eq('class', 12)
     .eq('subject', 'Chemistry');
 
   if (error) {
