@@ -246,12 +246,12 @@ export default function DashboardPage() {
       ] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', uid).single(),
         supabase.from('user_topic_coverage').select('topic_slug, chapter_slug', { count: 'exact' }).eq('user_id', uid),
-        supabase.from('user_topic_performance').select('id', { count: 'exact' }).eq('user_id', uid).eq('strength_label', 'weak'),
+        supabase.from('user_topic_performance').select('id', { count: 'exact' }).eq('user_id', uid).or('strength_label.eq.weak,and(strength_label.eq.unrated,accuracy.eq.0,total_attempts.gte.1)'),
         supabase
           .from('user_topic_performance')
           .select('topic_slug, chapter_slug, accuracy, total_attempts, strength_label')
           .eq('user_id', uid)
-          .eq('strength_label', 'weak')
+          .or('strength_label.eq.weak,and(strength_label.eq.unrated,accuracy.eq.0,total_attempts.gte.1)')
           .gt('total_attempts', 0)
           .order('accuracy', { ascending: true })
           .limit(10),
