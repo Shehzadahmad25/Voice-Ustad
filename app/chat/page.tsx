@@ -8,6 +8,7 @@ import { getTimeAgo } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptionStatus } from '@/lib/subscription';
+import { getSupabaseClient } from '@/lib/supabase';
 import TopNav from '@/components/TopNav';
 import QuizModal from '@/components/QuizModal';
 // CHAPTER DATA WILL BE LOADED FROM SUPABASE
@@ -699,9 +700,9 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
       ).catch(console.error);
     }
     // ── Mark topic covered (non-fatal background call) ──────────────────────
-    if (_sbClient && _currentUserId && code) {
+    if (_currentUserId && code) {
       const chapterSlug = String(CHS[activeChIdx]?.n ?? '1');
-      _sbClient.rpc('mark_topic_covered', {
+      ;(getSupabaseClient() ?? _sbClient)?.rpc('mark_topic_covered', {
         p_user_id:      _currentUserId,
         p_topic_slug:   code,
         p_chapter_slug: chapterSlug,
@@ -1163,11 +1164,11 @@ async function send(){
   appendUser(txt, ts(), true);
   if (_currentSessionId) { dbSaveMessage(_currentSessionId, 'user', txt).catch(console.error); }
   // ── Update streak on first message of the day (non-fatal) ──────────────────
-  if (_sbClient && _currentUserId) {
+  if (_currentUserId) {
     const today = new Date().toDateString();
     if (localStorage.getItem('vu_last_streak') !== today) {
       localStorage.setItem('vu_last_streak', today); // set first so a failed RPC doesn't retry
-      _sbClient.rpc('update_streak', { p_user_id: _currentUserId })
+      ;(getSupabaseClient() ?? _sbClient)?.rpc('update_streak', { p_user_id: _currentUserId })
         .then(() => console.log('[send] streak updated'))
         .catch((e: any) => console.error('[send] streak update error:', e));
     }
@@ -2083,20 +2084,20 @@ async function dbLoadHistory() {
 }
 
 async function dbCreateSession(): Promise<string | null> {
-  if (!_sbClient) return null;
+  const sb = getSupabaseClient() ?? _sbClient;
+  if (!sb) return null;
 
-  // STEP 3 — resolve user ID from auth if module-level ref is null
+  // Resolve user ID — prefer module-level ref, fall back to auth session
   let resolvedUserId = _currentUserId;
   if (!resolvedUserId) {
     try {
-      const { data: { session } } = await _sbClient.auth.getSession();
+      const { data: { session } } = await sb.auth.getSession();
       resolvedUserId = session?.user?.id ?? null;
     } catch (authErr) {
       console.error('[session] auth.getSession() failed:', authErr);
     }
   }
 
-  // STEP 2 — pre-insert logging
   console.log('[session] Attempting to create session');
   console.log('[session] _currentUserId:', _currentUserId);
   console.log('[session] resolvedUserId:', resolvedUserId);
@@ -2107,7 +2108,7 @@ async function dbCreateSession(): Promise<string | null> {
   }
 
   try {
-    const { data, error } = await _sbClient
+    const { data, error } = await sb
       .from('chat_sessions')
       .insert({
         user_id: resolvedUserId,
@@ -2136,18 +2137,20 @@ async function dbSaveMessage(
   content: string,
   urduAudioText?: string
 ) {
-  if (!_sbClient || !sessionId) return;
-  // STEP 5 — resolve user ID from auth if module-level ref is null
+  if (!sessionId) return;
+  const sb = getSupabaseClient() ?? _sbClient;
+  if (!sb) return;
+  // Resolve user ID — prefer module-level ref, fall back to auth session
   let resolvedUserId = _currentUserId;
   if (!resolvedUserId) {
     try {
-      const { data: { session } } = await _sbClient.auth.getSession();
+      const { data: { session } } = await sb.auth.getSession();
       resolvedUserId = session?.user?.id ?? null;
     } catch { /* ignore */ }
   }
   if (!resolvedUserId) { console.warn('[session] dbSaveMessage: no user ID, skipping'); return; }
   try {
-    await _sbClient.from('chat_messages').insert({
+    await sb.from('chat_messages').insert({
       session_id: sessionId,
       user_id: resolvedUserId,
       role,
@@ -2156,12 +2159,12 @@ async function dbSaveMessage(
     });
     const isFirstUserMsg = role === 'user' && !_sessionHasTitle;
     if (isFirstUserMsg) _sessionHasTitle = true;
-    await _sbClient.from('chat_sessions').update({
+    await sb.from('chat_sessions').update({
       last_message: content.slice(0, 100),
       updated_at: new Date().toISOString(),
       ...(isFirstUserMsg ? { title: content.slice(0, 50) } : {}),
     }).eq('id', sessionId);
-    try { await _sbClient.rpc('increment_message_count', { session_id: sessionId }); } catch {}
+    try { await sb.rpc('increment_message_count', { session_id: sessionId }); } catch {}
     await dbLoadHistory();
   } catch (e) { console.error('dbSaveMessage error:', e); }
 }
@@ -2208,10 +2211,11 @@ async function dbLoadSession(sessionId: string) {
 async function dbDeleteSession(sessionId: string, e: any) {
   e?.stopPropagation?.();
   if (!window.confirm('Delete this conversation? This cannot be undone.')) return;
-  if (!_sbClient) return;
+  const sbDel = getSupabaseClient() ?? _sbClient;
+  if (!sbDel) return;
   try {
-    await _sbClient.from('chat_messages').delete().eq('session_id', sessionId);
-    await _sbClient.from('chat_sessions').delete().eq('id', sessionId);
+    await sbDel.from('chat_messages').delete().eq('session_id', sessionId);
+    await sbDel.from('chat_sessions').delete().eq('id', sessionId);
     if (_currentSessionId === sessionId) {
       _currentSessionId = null;
       if (_setActiveSessionId) _setActiveSessionId(null);
