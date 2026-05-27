@@ -174,6 +174,7 @@ export default function DashboardPage() {
 
   // Auth / profile
   const [user, setUser] = useState<any>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -206,140 +207,159 @@ export default function DashboardPage() {
     document.documentElement.style.overflow = 'auto'
   }, [])
 
-  // ── Initial data load (auth, profile, stats, weak, quiz history, heatmap) ──
-  useEffect(() => {
-    const load = async () => {
+  // ── Data load — called on mount and whenever the tab becomes visible again ──
+  const loadDashboardData = async () => {
+    try {
+      let u: any = null
+      if (supabase) {
+        const { data } = await supabase.auth.getUser()
+        u = data?.user ?? null
+      }
+
+      if (!u) {
+        router.push('/auth/signin')
+        return
+      }
+
+      // ── Subscription gate ──────────────────────────────────────────────
+      const subStatus = await getSubscriptionStatus(u.id)
+      if (!subStatus.hasAccess) {
+        router.push('/pricing?reason=expired')
+        return
+      }
+      // ──────────────────────────────────────────────────────────────────
+
+      setUser(u)
+      setUserId(u.id)
+      if (!supabase) { setLoading(false); return }
+
+      const uid = u.id
+
+      // Try dashboard summary RPC first
+      let summaryData: any = null
       try {
-        let u: any = null
-        if (supabase) {
-          const { data } = await supabase.auth.getUser()
-          u = data?.user ?? null
+        const { data: rpcData, error: rpcErr } = await supabase
+          .rpc('get_dashboard_summary', { p_user_id: uid, p_board: 'KPK' })
+        if (!rpcErr) summaryData = rpcData
+      } catch {
+        // RPC not available, will fall back to individual queries
+      }
+
+      const [
+        profileRes,
+        coveredCountRes,
+        weakCountRes,
+        weakDetailRes,
+        quizRes,
+        sqrRes,
+        heatmapRes,
+      ] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', uid).single(),
+        supabase.from('user_topic_coverage').select('topic_slug', { count: 'exact' }).eq('user_id', uid),
+        supabase.from('user_topic_performance').select('id', { count: 'exact' }).eq('user_id', uid).eq('strength_label', 'weak'),
+        supabase
+          .from('user_topic_performance')
+          .select('topic_slug, chapter_slug, accuracy, total_attempts, strength_label')
+          .eq('user_id', uid)
+          .eq('strength_label', 'weak')
+          .order('accuracy', { ascending: true })
+          .limit(10),
+        supabase
+          .from('quiz_attempts')
+          .select('id, mode, chapter_slugs, score, total, accuracy, grade, xp_earned, completed_at')
+          .eq('user_id', uid)
+          .order('completed_at', { ascending: false })
+          .limit(15),
+        supabase
+          .from('student_quiz_results')
+          .select('id, chapter_id, chapter_title, score, total_questions, percentage, taken_at')
+          .eq('user_id', uid)
+          .order('taken_at', { ascending: false })
+          .limit(15),
+        supabase
+          .from('chat_sessions')
+          .select('created_at')
+          .eq('user_id', uid)
+          .gte('created_at', new Date(Date.now() - 70 * 24 * 60 * 60 * 1000).toISOString()),
+      ])
+
+      setProfile(profileRes.data)
+
+      if (summaryData) {
+        setCoveredCount(summaryData.topics_covered ?? coveredCountRes.count ?? 0)
+        setWeakCount(summaryData.weak_topics ?? weakCountRes.count ?? 0)
+      } else {
+        setCoveredCount(coveredCountRes.count || 0)
+        setWeakCount(weakCountRes.count || 0)
+      }
+
+      const weakData: WeakTopic[] = weakDetailRes.data || []
+      setWeakTopics(weakData)
+      setWeakSet(new Set(weakData.map(w => w.topic_slug).filter(Boolean)))
+
+      // Merge quiz_attempts + student_quiz_results into unified history
+      const attempts: QuizAttempt[] = quizRes.data || []
+      const sqrItems: QuizAttempt[] = (sqrRes.data || []).map((r: any) => ({
+        id: r.id,
+        score: r.score,
+        total: r.total_questions,
+        mode: 'chat-quiz',
+        chapter_slugs: JSON.stringify([String(r.chapter_id)]),
+        accuracy: r.percentage,
+        grade: undefined,
+        xp_earned: undefined,
+        completed_at: r.taken_at,
+      }))
+      // De-duplicate by preferring quiz_attempts (chat-quiz entries) which were added after QuizModal Task 6
+      // Keep sqrRes entries only if their chapter+time doesn't overlap with an existing quiz_attempts row
+      const attemptTimestamps = new Set(attempts.map(a => a.completed_at?.slice(0, 16)))
+      const uniqueSqr = sqrItems.filter(s => !attemptTimestamps.has(s.completed_at?.slice(0, 16)))
+      const merged = [...attempts, ...uniqueSqr]
+        .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
+        .slice(0, 15)
+      setQuizHistory(merged)
+
+      // Heatmap from chat_sessions
+      if (heatmapRes.data) {
+        const dayCounts = new Map<string, number>()
+        const now = Date.now()
+        for (let i = 69; i >= 0; i--) {
+          const d = new Date(now - i * 86400000)
+          dayCounts.set(d.toISOString().slice(0, 10), 0)
         }
-
-        if (!u) {
-          router.push('/auth/signin')
-          return
+        for (const row of heatmapRes.data) {
+          const key = (row.created_at as string).slice(0, 10)
+          if (dayCounts.has(key)) dayCounts.set(key, (dayCounts.get(key) || 0) + 1)
         }
+        setHeatmapDays(Array.from(dayCounts.entries()).map(([date, count]) => ({ date, count })))
+      }
+    } catch (e) {
+      console.error('Dashboard load error:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-        // ── Subscription gate ──────────────────────────────────────────────
-        const subStatus = await getSubscriptionStatus(u.id)
-        if (!subStatus.hasAccess) {
-          router.push('/pricing?reason=expired')
-          return
-        }
-        // ──────────────────────────────────────────────────────────────────
+  // ── Mount ────────────────────────────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadDashboardData() }, [])
 
-        setUser(u)
-        if (!supabase) { setLoading(false); return }
+  // ── Visibility refresh — re-fetches when user returns to this tab ────────────
+  useEffect(() => {
+    if (!userId) return
 
-        const userId = u.id
-
-        // Try dashboard summary RPC first
-        let summaryData: any = null
-        try {
-          const { data: rpcData, error: rpcErr } = await supabase
-            .rpc('get_dashboard_summary', { p_user_id: userId, p_board: 'KPK' })
-          if (!rpcErr) summaryData = rpcData
-        } catch {
-          // RPC not available, will fall back to individual queries
-        }
-
-        const [
-          profileRes,
-          coveredCountRes,
-          weakCountRes,
-          weakDetailRes,
-          quizRes,
-          sqrRes,
-          heatmapRes,
-        ] = await Promise.all([
-          supabase.from('profiles').select('*').eq('id', userId).single(),
-          supabase.from('user_topic_coverage').select('topic_slug', { count: 'exact' }).eq('user_id', userId),
-          supabase.from('user_topic_performance').select('id', { count: 'exact' }).eq('user_id', userId).eq('strength_label', 'weak'),
-          supabase
-            .from('user_topic_performance')
-            .select('topic_slug, chapter_slug, accuracy, total_attempts, strength_label')
-            .eq('user_id', userId)
-            .eq('strength_label', 'weak')
-            .order('accuracy', { ascending: true })
-            .limit(10),
-          supabase
-            .from('quiz_attempts')
-            .select('id, mode, chapter_slugs, score, total, accuracy, grade, xp_earned, completed_at')
-            .eq('user_id', userId)
-            .order('completed_at', { ascending: false })
-            .limit(15),
-          supabase
-            .from('student_quiz_results')
-            .select('id, chapter_id, chapter_title, score, total_questions, percentage, taken_at')
-            .eq('user_id', userId)
-            .order('taken_at', { ascending: false })
-            .limit(15),
-          supabase
-            .from('chat_sessions')
-            .select('created_at')
-            .eq('user_id', userId)
-            .gte('created_at', new Date(Date.now() - 70 * 24 * 60 * 60 * 1000).toISOString()),
-        ])
-
-        setProfile(profileRes.data)
-
-        if (summaryData) {
-          setCoveredCount(summaryData.topics_covered ?? coveredCountRes.count ?? 0)
-          setWeakCount(summaryData.weak_topics ?? weakCountRes.count ?? 0)
-        } else {
-          setCoveredCount(coveredCountRes.count || 0)
-          setWeakCount(weakCountRes.count || 0)
-        }
-
-        const weakData: WeakTopic[] = weakDetailRes.data || []
-        setWeakTopics(weakData)
-        setWeakSet(new Set(weakData.map(w => w.topic_slug).filter(Boolean)))
-
-        // Merge quiz_attempts + student_quiz_results into unified history
-        const attempts: QuizAttempt[] = quizRes.data || []
-        const sqrItems: QuizAttempt[] = (sqrRes.data || []).map((r: any) => ({
-          id: r.id,
-          score: r.score,
-          total: r.total_questions,
-          mode: 'chat-quiz',
-          chapter_slugs: JSON.stringify([String(r.chapter_id)]),
-          accuracy: r.percentage,
-          grade: undefined,
-          xp_earned: undefined,
-          completed_at: r.taken_at,
-        }))
-        // De-duplicate by preferring quiz_attempts (chat-quiz entries) which were added after QuizModal Task 6
-        // Keep sqrRes entries only if their chapter+time doesn't overlap with an existing quiz_attempts row
-        const attemptTimestamps = new Set(attempts.map(a => a.completed_at?.slice(0, 16)))
-        const uniqueSqr = sqrItems.filter(s => !attemptTimestamps.has(s.completed_at?.slice(0, 16)))
-        const merged = [...attempts, ...uniqueSqr]
-          .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
-          .slice(0, 15)
-        setQuizHistory(merged)
-
-        // Heatmap from chat_sessions
-        if (heatmapRes.data) {
-          const dayCounts = new Map<string, number>()
-          const now = Date.now()
-          for (let i = 69; i >= 0; i--) {
-            const d = new Date(now - i * 86400000)
-            dayCounts.set(d.toISOString().slice(0, 10), 0)
-          }
-          for (const row of heatmapRes.data) {
-            const key = (row.created_at as string).slice(0, 10)
-            if (dayCounts.has(key)) dayCounts.set(key, (dayCounts.get(key) || 0) + 1)
-          }
-          setHeatmapDays(Array.from(dayCounts.entries()).map(([date, count]) => ({ date, count })))
-        }
-      } catch (e) {
-        console.error('Dashboard load error:', e)
-      } finally {
-        setLoading(false)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadDashboardData()
       }
     }
-    load()
-  }, [])
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
 
   // ── Coverage fetch — refetches when user or activeClass changes ─────────────
   useEffect(() => {
