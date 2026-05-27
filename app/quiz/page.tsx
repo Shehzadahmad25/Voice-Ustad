@@ -491,13 +491,21 @@ export default function QuizPage() {
       setTimeout(() => setShowXP(false), 1200)
     }
 
-    // Record topic attempt
+    // Record topic attempt — ensure p_chapter_slug is a chapter number ('1'–'24'), never a UUID
     if (userId && q.topic_slug) {
       try {
+        const rawSlug = q.chapter_slug ?? q.chapter ?? ''
+        const parsed = parseInt(String(rawSlug), 10)
+        const safeChapterSlug = !isNaN(parsed) && parsed >= 1 && parsed <= 24 ? String(parsed) : ''
+        console.log('Saving topic attempt:', {
+          topic_slug: q.topic_slug,
+          chapter_slug: safeChapterSlug,
+          was_correct: isCorrect,
+        })
         const { error } = await supabase.rpc('record_topic_attempt', {
           p_user_id: userId,
           p_topic_slug: q.topic_slug,
-          p_chapter_slug: q.chapter_slug ?? '',
+          p_chapter_slug: safeChapterSlug,
           p_subject: 'Chemistry',
           p_board: 'KPK',
           p_was_correct: isCorrect,

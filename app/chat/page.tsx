@@ -17,7 +17,7 @@ const CHS: Array<{p:number; cls:number; n:string; t:string; chips:string[]; foll
 const SHOW_CHAPTER_SCOPE = true;
 
 interface ScopeTopic { topic_slug: string; term: string; page_ref: number | null; section: string; }
-interface QuizChapterInfo { id: string; title: string; }
+interface QuizChapterInfo { id: string; title: string; n: string; }
 
 let _setScopeTopics: ((t: ScopeTopic[]) => void) | null = null;
 let _setQuizChapterInfo: ((info: QuizChapterInfo | null) => void) | null = null;
@@ -511,7 +511,7 @@ function selCh(i: number){
       })
       .catch((e) => { console.error('[scope] fetch error:', e?.message); });
   }
-  if (_setQuizChapterInfo) _setQuizChapterInfo({ id: (CHS[i] as any).id || '', title: CHS[i]?.t || '' });
+  if (_setQuizChapterInfo) _setQuizChapterInfo({ id: (CHS[i] as any).id || '', title: CHS[i]?.t || '', n: CHS[i]?.n || '' });
   if (_setViewedTopics) _setViewedTopics(() => new Set());
   const sbSearch = document.getElementById('sbSearch') as HTMLInputElement;
   buildSb(sbSearch?.value || '');
@@ -2683,6 +2683,7 @@ export default function ChatPage() {
         <QuizModal
           chapterId={quizChapterInfo.id}
           chapterTitle={quizChapterInfo.title}
+          chapterNumber={quizChapterInfo.n}
           topics={scopeTopics}
           userId={user?.id || ''}
           onClose={() => setShowQuiz(false)}

@@ -41,6 +41,8 @@ export interface ScopeTopic {
 interface Props {
   chapterId: string;
   chapterTitle: string;
+  /** Chapter unit number as a string: '1' … '24'. Used for p_chapter_slug in RPCs. */
+  chapterNumber: string;
   topics: ScopeTopic[];
   userId: string;
   onClose: () => void;
@@ -140,7 +142,7 @@ const loadingMessages = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function QuizModal({ chapterId, chapterTitle, topics, userId, onClose }: Props) {
+export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topics, userId, onClose }: Props) {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
@@ -231,7 +233,7 @@ export default function QuizModal({ chapterId, chapterTitle, topics, userId, onC
             yourAnswer: selectedText,
             correctAnswer: correctText,
             topicSlug: (q.topic_name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-            chapterSlug: String(chapterId),
+            chapterSlug: chapterNumber,
           });
         }
       });
@@ -270,7 +272,7 @@ export default function QuizModal({ chapterId, chapterTitle, topics, userId, onC
           await supabase.from('quiz_attempts').insert({
             user_id: userId,
             mode: 'chat-quiz',
-            chapter_slugs: JSON.stringify([String(chapterId)]),
+            chapter_slugs: JSON.stringify([chapterNumber]),
             score,
             total,
             grade,
@@ -293,14 +295,20 @@ export default function QuizModal({ chapterId, chapterTitle, topics, userId, onC
           const q = questions[i];
           if (!q.topic_name) continue;
           const topicSlug = String(q.topic_name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const isCorrect = answersArr[i] === q.correct_answer;
+          console.log('Saving topic attempt:', {
+            topic_slug: topicSlug,
+            chapter_slug: chapterNumber,
+            was_correct: isCorrect,
+          });
           try {
             await supabase.rpc('record_topic_attempt', {
               p_user_id: userId,
               p_topic_slug: topicSlug,
-              p_chapter_slug: String(chapterId),
+              p_chapter_slug: chapterNumber,
               p_subject: 'Chemistry',
               p_board: 'KPK',
-              p_was_correct: answersArr[i] === q.correct_answer,
+              p_was_correct: isCorrect,
             });
           } catch { /* non-fatal */ }
         }
