@@ -2148,15 +2148,22 @@ async function dbSaveMessage(
       resolvedUserId = session?.user?.id ?? null;
     } catch { /* ignore */ }
   }
-  if (!resolvedUserId) { console.warn('[session] dbSaveMessage: no user ID, skipping'); return; }
+  if (!resolvedUserId) { console.warn('[message] missing userId — skipping save | sessionId:', sessionId); return; }
   try {
-    await sb.from('chat_messages').insert({
-      session_id: sessionId,
-      user_id: resolvedUserId,
-      role,
-      content,
-      urdu_audio_text: urduAudioText || null,
-    });
+    const { data: msgData, error: msgError } = await sb
+      .from('chat_messages')
+      .insert({
+        session_id: sessionId,
+        user_id: resolvedUserId,
+        role,
+        content,
+        urdu_audio_text: urduAudioText || null,
+        created_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+    console.log('[message] saved id:', msgData?.id ?? 'null', '| error:', msgError?.message ?? 'none');
+    if (msgError) console.error('[message] insert error detail:', msgError);
     const isFirstUserMsg = role === 'user' && !_sessionHasTitle;
     if (isFirstUserMsg) _sessionHasTitle = true;
     await sb.from('chat_sessions').update({
@@ -2166,18 +2173,21 @@ async function dbSaveMessage(
     }).eq('id', sessionId);
     try { await sb.rpc('increment_message_count', { session_id: sessionId }); } catch {}
     await dbLoadHistory();
-  } catch (e) { console.error('dbSaveMessage error:', e); }
+  } catch (e) { console.error('[message] dbSaveMessage exception:', e); }
 }
 
 async function dbLoadSession(sessionId: string) {
-  if (!_sbClient) return;
+  const sb = getSupabaseClient() ?? _sbClient;
+  if (!sb) { console.error('[session-click] no supabase client available'); return; }
+  console.log('[session-click] clicked session:', sessionId);
   try {
-    const { data, error } = await _sbClient
+    const { data, error } = await sb
       .from('chat_messages')
       .select('*')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true });
-    if (error) { console.error('Load session error:', error); return; }
+    console.log('[session-click] messages:', data?.length ?? 0, '| error:', error?.message ?? 'none');
+    if (error) { console.error('[session-click] error loading messages:', error); return; }
     started = false; chatHistory = [];
     const m = document.getElementById('msgs') as HTMLElement;
     if (m) m.innerHTML = '<div class="msgs-inner" id="msgsInner"></div>';
@@ -2197,6 +2207,7 @@ async function dbLoadSession(sessionId: string) {
       }
       scrollDn(true);
     } else {
+      console.log('[session-click] no messages found — session exists but is empty');
       showWelcome();
     }
     _currentSessionId = sessionId;
@@ -2205,7 +2216,7 @@ async function dbLoadSession(sessionId: string) {
     if (typeof window !== 'undefined')
       window.history.pushState({}, '', '/chat?session=' + sessionId);
     closeSb();
-  } catch (e) { console.error('dbLoadSession error:', e); }
+  } catch (e) { console.error('[session-click] dbLoadSession exception:', e); }
 }
 
 async function dbDeleteSession(sessionId: string, e: any) {
