@@ -2083,26 +2083,51 @@ async function dbLoadHistory() {
 }
 
 async function dbCreateSession(): Promise<string | null> {
-  if (!_sbClient || !_currentUserId) return null;
+  if (!_sbClient) return null;
+
+  // STEP 3 — resolve user ID from auth if module-level ref is null
+  let resolvedUserId = _currentUserId;
+  if (!resolvedUserId) {
+    try {
+      const { data: { session } } = await _sbClient.auth.getSession();
+      resolvedUserId = session?.user?.id ?? null;
+    } catch (authErr) {
+      console.error('[session] auth.getSession() failed:', authErr);
+    }
+  }
+
+  // STEP 2 — pre-insert logging
+  console.log('[session] Attempting to create session');
+  console.log('[session] _currentUserId:', _currentUserId);
+  console.log('[session] resolvedUserId:', resolvedUserId);
+
+  if (!resolvedUserId) {
+    console.error('[session] No user ID — cannot create session');
+    return null;
+  }
+
   try {
     const { data, error } = await _sbClient
       .from('chat_sessions')
       .insert({
-        user_id: _currentUserId,
+        user_id: resolvedUserId,
         title: 'New Conversation',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .select()
       .single();
-    if (error || !data) { console.error('Session create error:', error); return null; }
+
+    console.log('[session] result:', data, 'error:', error);
+
+    if (error || !data) { console.error('[session] create error:', error); return null; }
     _currentSessionId = data.id;
     _sessionHasTitle = false;
     if (_setActiveSessionId) _setActiveSessionId(data.id);
     if (typeof window !== 'undefined')
       window.history.pushState({}, '', '/chat?session=' + data.id);
     return data.id;
-  } catch (e) { console.error('dbCreateSession error:', e); return null; }
+  } catch (e) { console.error('[session] dbCreateSession exception:', e); return null; }
 }
 
 async function dbSaveMessage(
@@ -2111,11 +2136,20 @@ async function dbSaveMessage(
   content: string,
   urduAudioText?: string
 ) {
-  if (!_sbClient || !_currentUserId || !sessionId) return;
+  if (!_sbClient || !sessionId) return;
+  // STEP 5 — resolve user ID from auth if module-level ref is null
+  let resolvedUserId = _currentUserId;
+  if (!resolvedUserId) {
+    try {
+      const { data: { session } } = await _sbClient.auth.getSession();
+      resolvedUserId = session?.user?.id ?? null;
+    } catch { /* ignore */ }
+  }
+  if (!resolvedUserId) { console.warn('[session] dbSaveMessage: no user ID, skipping'); return; }
   try {
     await _sbClient.from('chat_messages').insert({
       session_id: sessionId,
-      user_id: _currentUserId,
+      user_id: resolvedUserId,
       role,
       content,
       urdu_audio_text: urduAudioText || null,
