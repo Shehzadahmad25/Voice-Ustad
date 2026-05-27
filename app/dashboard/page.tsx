@@ -252,6 +252,7 @@ export default function DashboardPage() {
           .select('topic_slug, chapter_slug, accuracy, total_attempts, strength_label')
           .eq('user_id', uid)
           .eq('strength_label', 'weak')
+          .gt('total_attempts', 0)
           .order('accuracy', { ascending: true })
           .limit(10),
         supabase
@@ -793,21 +794,41 @@ export default function DashboardPage() {
                           Accuracy: {Math.round(studyWeakTopic.accuracy ?? 0)}% · Needs review
                         </div>
                       </div>
-                      <button
-                        onClick={() => router.push(`/chat?chapter=${studyWeakTopic.chapter_slug}&topic=${studyWeakTopic.topic_slug}`)}
-                        style={{
-                          padding: '8px 16px', borderRadius: '9px',
-                          background: 'rgba(239,68,68,0.1)',
-                          border: '1px solid rgba(239,68,68,0.25)',
-                          color: '#ef4444', fontFamily: 'inherit',
-                          fontWeight: '700', fontSize: '13px',
-                          cursor: 'pointer', flexShrink: 0,
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
-                      >
-                        Study →
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                        <button
+                          onClick={() => {
+                            console.log('Weak topic routing:', studyWeakTopic)
+                            router.push(`/chat?chapter=${studyWeakTopic.chapter_slug}&topic=${studyWeakTopic.topic_slug}`)
+                          }}
+                          style={{
+                            padding: '7px 14px', borderRadius: '8px',
+                            background: 'rgba(239,68,68,0.1)',
+                            border: '1px solid rgba(239,68,68,0.25)',
+                            color: '#ef4444', fontFamily: 'inherit',
+                            fontWeight: '700', fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+                        >
+                          Study →
+                        </button>
+                        <button
+                          onClick={() => router.push(`/chat?chapter=${studyWeakTopic.chapter_slug}&mode=quiz`)}
+                          style={{
+                            padding: '7px 14px', borderRadius: '8px',
+                            background: 'rgba(249,115,22,0.1)',
+                            border: '1px solid rgba(249,115,22,0.25)',
+                            color: '#f97316', fontFamily: 'inherit',
+                            fontWeight: '700', fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.2)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.1)' }}
+                        >
+                          Quiz →
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div style={{

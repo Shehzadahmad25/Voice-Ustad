@@ -2204,24 +2204,52 @@ async function fetchChapters() {
     });
     buildSb();
 
-    // Handle URL params: ?chapter=N&mode=quiz auto-selects the chapter and opens quiz
+    // Handle URL params: ?chapter=N&topic=slug&mode=quiz
     const params = new URLSearchParams(window.location.search);
     const chapterParam = params.get('chapter');
-    const modeParam = params.get('mode');
+    const topicParam   = params.get('topic');
+    const modeParam    = params.get('mode');
+
     if (chapterParam) {
-      const idx = CHS.findIndex(c => c.n === chapterParam);
-      if (idx >= 0) {
-        selCh(idx);
-        if (modeParam === 'quiz') {
-          // Delay slightly so quizChapterInfo React state has time to propagate
-          setTimeout(() => { if (_setShowQuiz) _setShowQuiz(true); }, 150);
+      const chapterNum = parseInt(chapterParam, 10);
+      console.log('URL params - chapter:', chapterNum, 'topic:', topicParam, 'mode:', modeParam);
+
+      const waitForChapters = async () => {
+        let attempts = 0;
+        while (attempts < 20) {
+          if (CHS && CHS.length > 0) {
+            const idx = CHS.findIndex(ch => ch.n === chapterNum || ch.n === String(chapterNum));
+            if (idx !== -1) {
+              console.log('Selecting chapter index:', idx);
+              selCh(idx);
+
+              // If topic param exists, try to click its chip once scope loads
+              if (topicParam) {
+                setTimeout(() => {
+                  const topicEl = document.querySelector(`[data-topic="${topicParam}"]`);
+                  if (topicEl) (topicEl as HTMLElement).click();
+                }, 500);
+              }
+
+              // Open quiz after React state (quizChapterInfo) has time to propagate
+              if (modeParam === 'quiz') {
+                setTimeout(() => { if (_setShowQuiz) _setShowQuiz(true); }, 800);
+              }
+              return;
+            }
+          }
+          await new Promise(r => setTimeout(r, 150));
+          attempts++;
         }
-      }
+        console.error('Chapters never loaded for param:', chapterNum);
+      };
+      waitForChapters();
+
     } else if (modeParam === 'quiz') {
       // No chapter specified — select first chapter and open quiz
       if (CHS.length > 0) {
         selCh(0);
-        setTimeout(() => { if (_setShowQuiz) _setShowQuiz(true); }, 150);
+        setTimeout(() => { if (_setShowQuiz) _setShowQuiz(true); }, 800);
       }
     }
   } catch (e) { console.error('fetchChapters error:', e); }
