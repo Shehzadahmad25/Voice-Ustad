@@ -2210,16 +2210,34 @@ async function fetchChapters() {
     buildSb();
 
     // Handle URL params: ?chapter=N&topic=slug&mode=quiz
+    console.log('=== URL PARAM HANDLER ===');
+    console.log('window.location.search:', window.location.search);
+    // Also try reading directly from window.location (Step 4 verification)
+    const urlParamsDirect = new URLSearchParams(window.location.search);
+    console.log('Chapter from window.location:', urlParamsDirect.get('chapter'));
+    console.log('Mode from window.location:', urlParamsDirect.get('mode'));
+
     const params = new URLSearchParams(window.location.search);
     const chapterParam = params.get('chapter');
     const topicParam   = params.get('topic');
     const modeParam    = params.get('mode');
+
+    console.log('chapterParam:', chapterParam);
+    console.log('chapterNum (parsed):', chapterParam ? parseInt(chapterParam, 10) : 'N/A');
+    console.log('modeParam:', modeParam);
+    console.log('CHS length at URL-param time:', CHS?.length);
+    console.log('CHS chapters:', CHS?.map(c => c.n));
 
     if (chapterParam) {
       const chapterNum = parseInt(chapterParam, 10);
       console.log('URL params - chapter:', chapterNum, 'topic:', topicParam, 'mode:', modeParam);
 
       const waitForChapters = async () => {
+        // Log CHS structure so we can see what ch.n actually looks like
+        console.log('=== waitForChapters fired ===');
+        console.log('CHS length:', CHS?.length);
+        CHS?.forEach((ch, i) => console.log(`CHS[${i}].n =`, ch.n, typeof ch.n));
+
         // Show loading indicator while we wait
         if (_setPreparingQuiz) _setPreparingQuiz(true);
         // Auto-hide after 3s as a safety net
@@ -2231,8 +2249,10 @@ async function fetchChapters() {
             const idx = CHS.findIndex(ch =>
               ch.n === String(chapterNum) || Number(ch.n) === chapterNum
             );
+            console.log('Search attempt', attempts, '— chapterNum:', chapterNum, '— idx:', idx, '— CHS.length:', CHS.length);
             if (idx !== -1) {
               console.log('Chapter found at index:', idx, 'chapter n:', CHS[idx].n);
+              console.log('Chapter data:', CHS[idx]);
 
               // Step 1: select the chapter (sets _quizChapterInfo synchronously)
               selCh(idx);
