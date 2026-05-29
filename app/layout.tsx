@@ -24,15 +24,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         {/* TODO: remove Eruda after Android scroll bug is fixed */}
-        <Script
-          src="https://cdn.jsdelivr.net/npm/eruda"
-          strategy="beforeInteractive"
-          onLoad={() => {
-            if (typeof window !== 'undefined') {
-              (window as any).eruda?.init()
-            }
-          }}
-        />
+        <Script src="https://cdn.jsdelivr.net/npm/eruda" strategy="lazyOnload" id="eruda-script" />
+        <Script id="eruda-init" strategy="lazyOnload">{`if(typeof eruda !== 'undefined') eruda.init()`}</Script>
         <AuthProvider>
           <ToastProvider>
             {children}
