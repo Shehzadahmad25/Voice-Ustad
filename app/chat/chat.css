@@ -49,7 +49,7 @@
 
 /* iOS safe area */
 @supports (padding: max(0px)) {
-  .input-area  { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  .input-area  { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .topbar      { padding-top: max(0px, env(safe-area-inset-top)); }
   .toast-wrap  { bottom: max(24px, calc(env(safe-area-inset-bottom) + 80px)); }
 }
@@ -1230,7 +1230,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .input-area {
   background: var(--bg);
   border-top: 1px solid var(--border);
-  padding: 14px 0 16px; flex-shrink: 0; z-index: 20;
+  padding: 14px 0 0; flex-shrink: 0; z-index: 20;
 }
 .input-inner { max-width: 740px; margin: 0 auto; padding: 0 24px; }
 .input-box {
