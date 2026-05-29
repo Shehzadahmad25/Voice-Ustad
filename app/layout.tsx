@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/Toast'
+import InstallButton from '@/components/InstallButton'
 
 export const metadata: Metadata = {
   title: 'VoiceUstad – AI Chemistry Tutor for FSc Students | Pakistan',
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ToastProvider>
             {children}
+            <InstallButton />
           </ToastProvider>
         </AuthProvider>
       </body>
