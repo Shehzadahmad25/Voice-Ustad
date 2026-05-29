@@ -197,28 +197,39 @@ export default function DashboardPage() {
   const [debug, setDebug] = useState('')
   useEffect(() => {
     const update = () => {
-      const b = document.body
-      const h = document.documentElement
-      const bs = getComputedStyle(b)
-      const hs = getComputedStyle(h)
-      setDebug(JSON.stringify({
-        bodyOverflow: bs.overflow,
-        bodyOverflowY: bs.overflowY,
-        bodyHeight: bs.height,
-        bodyPosition: bs.position,
-        bodyInline: b.getAttribute('style') || 'none',
-        htmlOverflow: hs.overflow,
-        htmlOverflowY: hs.overflowY,
-        htmlHeight: hs.height,
-        htmlInline: h.getAttribute('style') || 'none',
-        scrollHeight: b.scrollHeight,
-        clientHeight: b.clientHeight,
-        canScroll: b.scrollHeight > b.clientHeight,
-      }, null, 1))
+      // Walk DOM chain from dashboard content up to html
+      const root = document.querySelector('.db-page-content') as HTMLElement | null
+      let el: HTMLElement | null = root
+      const chain: object[] = []
+      let depth = 0
+      while (el && depth < 8) {
+        const s = getComputedStyle(el)
+        chain.push({
+          tag: el.tagName + (el.className ? '.' + String(el.className).slice(0, 20) : ''),
+          overflow: s.overflow,
+          overflowY: s.overflowY,
+          height: s.height,
+          position: s.position,
+        })
+        el = el.parentElement
+        depth++
+      }
+
+      // Find elements with overflow:hidden that have clipped content
+      const locked = Array.from(document.querySelectorAll('*'))
+        .filter(el => {
+          const s = getComputedStyle(el as Element)
+          return (s.overflowY === 'hidden' || s.overflow === 'hidden')
+            && (el as HTMLElement).scrollHeight > (el as HTMLElement).clientHeight + 5
+        })
+        .map(el => el.tagName + '.' + String((el as HTMLElement).className).slice(0, 25))
+        .slice(0, 10)
+
+      setDebug(JSON.stringify({ chain, locked }, null, 1))
     }
     update()
-    const interval = setInterval(update, 500)
-    return () => clearInterval(interval)
+    const i = setInterval(update, 500)
+    return () => clearInterval(i)
   }, [])
   // END DEBUG
 
