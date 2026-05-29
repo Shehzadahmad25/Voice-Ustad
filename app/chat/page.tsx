@@ -2728,7 +2728,7 @@ export default function ChatPage() {
   }, []);
 
   return (
-    <div className="app" style={{ paddingTop: '62px' }}>
+    <div className="app">
       <TopNav user={user} profile={profile} />
 
       {/* ── Trial banner (TASK 3) ─────────────────────────────────────────── */}
