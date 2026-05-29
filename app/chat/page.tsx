@@ -2867,7 +2867,7 @@ export default function ChatPage() {
       <aside className="sidebar" id="sb">
         <div className="sb-header">
           <div className="sb-brand">
-            <img src="/icon-192x192.png" alt="VoiceUstad" className="sb-logo" style={{ padding: 0, background: 'none', boxShadow: 'none', objectFit: 'cover' }} />
+            <img src="/icon-192x192.png" alt="VoiceUstad" className="sb-logo" />
             <span className="sb-name">VoiceUstad</span>
             <div className="sb-pill"><span className="blink-dot"></span>Online</div>
           </div>

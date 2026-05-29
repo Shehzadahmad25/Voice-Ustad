@@ -157,13 +157,8 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   background: linear-gradient(180deg, rgba(245,158,11,.04), transparent);
 }
 .sb-logo {
-  width: 32px; height: 32px; border-radius: 9px;
-  background: #f59e0b;
-  color: #000;
-  font-weight: 800; font-size: .85rem;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(245,158,11,.3);
+  width: 32px; height: 32px; border-radius: 8px;
+  object-fit: cover; flex-shrink: 0;
 }
 .sb-name { font-size: .88rem; font-weight: 700; flex: 1; color: var(--t1); letter-spacing: -.2px; }
 .sb-pill {
@@ -505,10 +500,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   border-radius: 999px; padding: 2px 8px;
 }
 .tb-title { font-size:.95rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color: var(--t1); }
-.tb-meta {
-  margin-top: 3px; font-size: .68rem; color: var(--t3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.tb-meta { display: none; }
 .tb-right { display:flex; align-items:center; gap:7px; flex-shrink:0; }
 .tb-status {
   display: flex; align-items: center; gap: 5px;
@@ -1528,7 +1520,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   .ai-tip { padding: 9px 11px; gap: 7px; }
   .tip-txt { font-size: .76rem; }
 
-  .input-area { padding: 10px 0 12px; }
+  .input-area { padding: 10px 0 0; }
   .input-inner { padding: 0 14px; }
   .input-box   { padding: 9px 9px 9px 14px; border-radius: 16px; }
   #msg { font-size: .84rem; }
@@ -1654,7 +1646,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   /* Tighter message area */
   .msgs { padding: 10px 0 8px; }
   .msgs-inner { padding: 0 12px; }
-  .input-area { padding: 6px 0 8px; }
+  .input-area { padding: 6px 0 0; }
   .input-inner { padding: 0 12px; }
   /* Welcome screen: horizontal layout */
   .welcome { padding: 12px 14px; }
