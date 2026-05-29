@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -38,6 +39,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <InstallButton />
           </ToastProvider>
         </AuthProvider>
+        <Script id="sw-register" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                  .then(function(reg) {
+                    console.log('[SW] Registered:', reg.scope)
+                  })
+                  .catch(function(err) {
+                    console.log('[SW] Registration failed:', err)
+                  })
+              })
+            }
+          `}
+        </Script>
       </body>
     </html>
   )
