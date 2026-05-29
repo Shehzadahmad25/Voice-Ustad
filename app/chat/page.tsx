@@ -57,7 +57,6 @@ const TRIAL_DAYS=7;
 const SEND_TIMEOUT_MS=45000;
 let viewerName='Student';
 let viewerInitial='S';
-let viewerEmail='';
 let viewerFocus='Chemistry focus';
 let viewerTrial='Trial active';
 
@@ -110,18 +109,16 @@ function updateViewerUi(){
   }
 
   const welcomeMetaEl = document.getElementById('wlMeta');
-  if (welcomeMetaEl) welcomeMetaEl.textContent = `${viewerFocus} - ${viewerTrial}`;
+  if (welcomeMetaEl) welcomeMetaEl.textContent = viewerFocus;
 }
 
 function setViewerContext(next: {
   name?: string;
-  email?: string;
   focus?: string;
   trial?: string;
 }){
   viewerName = String(next.name || viewerName || 'Student').trim() || 'Student';
   viewerInitial = computeViewerInitial(viewerName);
-  viewerEmail = String(next.email || '').trim();
   viewerFocus = String(next.focus || viewerFocus || 'Chemistry focus').trim();
   viewerTrial = String(next.trial || viewerTrial || 'Trial active').trim();
   updateViewerUi();
@@ -1124,10 +1121,10 @@ function showWelcome(){
   if (m) m.innerHTML=`<div class="msgs-inner" id="msgsInner">
     <div class="welcome">
       <div class="wl-eyebrow" id="wlEyebrow">Welcome back, ${esc(viewerName)}</div>
-      <div class="wl-logo" aria-hidden="true">V</div>
+      <img src="/icon-192x192.png" alt="VoiceUstad" style="width:80px;height:80px;border-radius:16px;object-fit:cover;" />
       <h2 class="wl-h"><span>Welcome to VoiceUstad</span></h2>
       <p class="wl-p" id="wlBody">Ask in English. Get a clear explanation with optional Urdu audio.</p>
-      <div class="wl-meta" id="wlMeta">${esc(viewerFocus)} - ${esc(viewerTrial)}</div>
+      <div class="wl-meta" id="wlMeta">${esc(viewerFocus)}</div>
       <div class="wl-grid" id="wlGrid" role="list"></div>
     </div>
   </div>`;
@@ -2615,7 +2612,6 @@ export default function ChatPage() {
 
   const displayName =
     profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Student';
-  const email = profile?.email || user?.email || '';
   const focus = [profile?.board, profile?.goal]
     .filter(Boolean)
     .join(' - ') || 'Chemistry focus';
@@ -2715,11 +2711,10 @@ export default function ChatPage() {
   useEffect(() => {
     setViewerContext({
       name: displayName,
-      email,
       focus,
       trial: trialStatus,
     });
-  }, [displayName, email, focus, trialStatus]);
+  }, [displayName, focus, trialStatus]);
 
   useEffect(() => {
     const container = document.getElementById('msgs');
