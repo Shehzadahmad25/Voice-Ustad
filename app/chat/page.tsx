@@ -2695,16 +2695,19 @@ export default function ChatPage() {
 
     return () => {
       window.removeEventListener('orientationchange', onOrientationChange);
-      // Use '' (not 'auto') to fully remove inline style — 'auto' leaves a
-      // stale inline rule that breaks Android Chrome scroll on next page.
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      document.body.style.height = '';
-      document.documentElement.style.overflow = '';
-      document.documentElement.style.height = '';
-      document.documentElement.style.position = '';
+      // Nuclear cleanup — restore ALL scroll properties
+      const props = [
+        'overflow', 'overflowY', 'overflowX',
+        'position', 'top', 'left', 'width', 'height',
+      ];
+      props.forEach(prop => {
+        (document.body.style as any)[prop] = '';
+        (document.documentElement.style as any)[prop] = '';
+      });
+      // Force scroll re-enable
+      document.body.setAttribute('style', '');
+      document.documentElement.setAttribute('style', '');
+      console.log('[chat] unmount cleanup done');
     };
   }, []);
 

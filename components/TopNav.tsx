@@ -95,12 +95,14 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
         display:'flex', alignItems:'center', gap:'10px', marginLeft: 'auto',
         paddingLeft:'16px', borderLeft:'1px solid rgba(255,255,255,0.08)',
       }}>
-        <div style={{
-          width:'32px', height:'32px', borderRadius:'50%',
-          background:'#f59e0b',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:'13px', fontWeight:'700', color:'#000', flexShrink:0,
-        }}>{initial}</div>
+        <Link href="/profile" style={{ textDecoration: 'none', flexShrink: 0 }}>
+          <div style={{
+            width:'32px', height:'32px', borderRadius:'50%',
+            background:'#f59e0b',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:'13px', fontWeight:'700', color:'#000',
+          }}>{initial}</div>
+        </Link>
         <span className="topnav-email" style={{ fontSize:'12px', color:'#94a3b8' }}>{displayName || user?.email}</span>
         <button onClick={handleLogout} style={{
           padding:'5px 12px', borderRadius:'7px', fontSize:'12px', fontWeight:'500',
