@@ -192,9 +192,16 @@ export default function DashboardPage() {
 
   // Reset scroll on mount
   useEffect(() => {
-    window.scrollTo(0, 0)
-    document.body.style.overflow = 'auto'
-    document.documentElement.style.overflow = 'auto'
+    // Reset any scroll locks left by previous page (chat sets overflow:hidden on body+html)
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.height = '';
+    document.documentElement.style.position = '';
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [])
 
   // ── Data load — called on mount and whenever the tab becomes visible again ──

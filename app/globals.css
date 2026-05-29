@@ -125,6 +125,7 @@ html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
@@ -133,6 +134,7 @@ body {
   color: #fff;
   overflow-x: hidden;
   margin: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 h1, h2, h3, h4, h5, button {

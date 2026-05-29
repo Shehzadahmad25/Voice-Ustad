@@ -2699,8 +2699,16 @@ export default function ChatPage() {
 
     return () => {
       window.removeEventListener('orientationchange', onOrientationChange);
-      document.body.style.overflow = 'auto';
-      document.documentElement.style.overflow = 'auto';
+      // Use '' (not 'auto') to fully remove inline style — 'auto' leaves a
+      // stale inline rule that breaks Android Chrome scroll on next page.
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.height = '';
+      document.documentElement.style.position = '';
     };
   }, []);
 
