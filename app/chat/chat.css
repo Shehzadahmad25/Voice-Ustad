@@ -114,7 +114,8 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 ═══════════════════════════════════════ */
 .app {
   display: flex;
-  height: calc(100dvh - 62px); /* account for TopNav */
+  margin-top: 62px;             /* offset for fixed TopNav */
+  height: calc(100dvh - 62px); /* fill viewport below TopNav */
   overflow: hidden;
 }
 
