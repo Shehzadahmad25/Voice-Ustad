@@ -588,9 +588,7 @@ function closeSb(){
   if (sb) sb.classList.remove('on');
   if (ov) ov.classList.remove('on');
   const scrollY = (window as any)._savedScrollY ?? 0;
-  document.body.style.overflow = '';
-  document.body.style.top = '';
-  document.body.style.width = '';
+  document.body.setAttribute('style', '');
   window.scrollTo(0, scrollY);
 }
 
