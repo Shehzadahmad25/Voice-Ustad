@@ -146,6 +146,8 @@ body {
   .mobile-full  { width: 100% !important; }
   .mobile-stack { flex-direction: column !important; }
   .mobile-small { font-size: 12px !important; }
+  /* Extra bottom padding so PWA install banner doesn't cover content */
+  .pwa-safe-bottom { padding-bottom: 80px !important; }
 }
 
 h1, h2, h3, h4, h5, button {

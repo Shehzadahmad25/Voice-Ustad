@@ -181,6 +181,22 @@ export default function PricingPage() {
           </ol>
         </div>
 
+        {/* Install as PWA */}
+        <div style={{
+          textAlign: 'center',
+          padding: '24px 16px',
+          borderTop: '1px solid #1a2d47',
+          marginTop: '24px',
+        }}>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', marginBottom: '8px' }}>
+            📱 Install as App — No App Store Needed
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.7 }}>
+            <strong style={{ color: '#94a3b8' }}>Android:</strong> Tap ⋮ menu in Chrome → &quot;Add to Home Screen&quot;<br />
+            <strong style={{ color: '#94a3b8' }}>iPhone:</strong> Tap Share button → &quot;Add to Home Screen&quot;
+          </div>
+        </div>
+
         {/* Back link */}
         <p style={{ textAlign: 'center', marginTop: '28px', fontSize: '13px', color: '#475569' }}>
           Questions?{' '}
