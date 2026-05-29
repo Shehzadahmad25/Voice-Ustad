@@ -474,22 +474,32 @@ export default function DashboardPage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#07101f', fontFamily: 'inherit' }}>
+    <div style={{ minHeight: '100vh', background: '#07101f', fontFamily: 'inherit', overflowX: 'hidden' }}>
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
       <style>{`
         .db-stats-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(2, 1fr);
           gap: 12px;
         }
         .db-nav-center { display: flex; }
+        .db-page-content { padding: 32px 20px 80px; }
+        .db-tab-long  { display: inline; }
+        .db-tab-short { display: none; }
+        .db-goal-card { flex-direction: row; }
+        .db-quiz-grid { gap: 10px; }
         @media (max-width: 900px) {
           .db-stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 640px) {
           .db-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
           .db-nav-center { display: none !important; }
+          .db-page-content { padding: 16px 12px 80px; }
+          .db-tab-long  { display: none; }
+          .db-tab-short { display: inline; }
+          .db-quiz-grid { gap: 8px; }
+          .db-nav-pill-xp { display: none !important; }
         }
         .db-chapter-chips {
           display: flex;
@@ -564,7 +574,7 @@ export default function DashboardPage() {
           <span style={{ ...pillStyle, background: 'rgba(249,115,22,0.1)', color: '#f97316', border: '1px solid rgba(249,115,22,0.2)' }}>
             🔥 {streak}
           </span>
-          <span style={{ ...pillStyle, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
+          <span className="db-nav-pill-xp" style={{ ...pillStyle, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
             ⚡ {xp} XP
           </span>
           <div style={{
@@ -599,7 +609,7 @@ export default function DashboardPage() {
       </nav>
 
       {/* ── Page content ────────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 20px 80px' }}>
+      <div className="db-page-content" style={{ maxWidth: '900px', margin: '0 auto' }}>
 
         {/* ── Greeting Banner ─────────────────────────────────────────────── */}
         <div style={{
@@ -740,7 +750,9 @@ export default function DashboardPage() {
                 onClick={() => setActiveTab(tab)}
                 style={tabBtnStyle(activeTab === tab)}
               >
-                {tab === 'plan' ? '📅 Study Plan' : tab === 'weak' ? '⚠️ Weak Topics' : '📝 Quiz History'}
+                {tab === 'plan'    ? <><span className="db-tab-long">📅 Study Plan</span><span className="db-tab-short">📅 Plan</span></> :
+                 tab === 'weak'    ? <><span className="db-tab-long">⚠️ Weak Topics</span><span className="db-tab-short">⚠️ Weak</span></> :
+                                    <><span className="db-tab-long">📝 Quiz History</span><span className="db-tab-short">📝 History</span></>}
               </button>
             ))}
           </div>
@@ -992,7 +1004,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Chapter cards 2-col grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                    <div className="db-quiz-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
                       {visibleChapters.map(ch => (
                         <button
                           key={ch}
