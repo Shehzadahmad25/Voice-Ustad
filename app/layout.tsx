@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/Toast'
+import Script from 'next/script'
 
 export const metadata: Metadata = {
   title: 'VoiceUstad – AI Chemistry Tutor for FSc Students | Pakistan',
@@ -22,6 +23,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        {/* TODO: remove Eruda after Android scroll bug is fixed */}
+        <Script
+          src="https://cdn.jsdelivr.net/npm/eruda"
+          strategy="beforeInteractive"
+          onLoad={() => {
+            if (typeof window !== 'undefined') {
+              (window as any).eruda?.init()
+            }
+          }}
+        />
         <AuthProvider>
           <ToastProvider>
             {children}
