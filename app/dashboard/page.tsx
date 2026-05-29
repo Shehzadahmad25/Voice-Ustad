@@ -193,6 +193,35 @@ export default function DashboardPage() {
   const heatRef = useRef<HTMLDivElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(true)
 
+  // DEBUG REMOVE LATER
+  const [debug, setDebug] = useState('')
+  useEffect(() => {
+    const update = () => {
+      const b = document.body
+      const h = document.documentElement
+      const bs = getComputedStyle(b)
+      const hs = getComputedStyle(h)
+      setDebug(JSON.stringify({
+        bodyOverflow: bs.overflow,
+        bodyOverflowY: bs.overflowY,
+        bodyHeight: bs.height,
+        bodyPosition: bs.position,
+        bodyInline: b.getAttribute('style') || 'none',
+        htmlOverflow: hs.overflow,
+        htmlOverflowY: hs.overflowY,
+        htmlHeight: hs.height,
+        htmlInline: h.getAttribute('style') || 'none',
+        scrollHeight: b.scrollHeight,
+        clientHeight: b.clientHeight,
+        canScroll: b.scrollHeight > b.clientHeight,
+      }, null, 1))
+    }
+    update()
+    const interval = setInterval(update, 500)
+    return () => clearInterval(interval)
+  }, [])
+  // END DEBUG
+
   // Reset scroll on mount — aggressive timing to beat chat's unmount cleanup race
   useEffect(() => {
     const reset = () => {
@@ -486,6 +515,28 @@ export default function DashboardPage() {
 
   return (
     <div className="pwa-safe-bottom" style={{ minHeight: '100vh', background: '#060d19', overflowX: 'hidden', overflowY: 'auto', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
+
+      {/* DEBUG REMOVE LATER */}
+      <div style={{
+        position: 'fixed',
+        top: 70,
+        left: 8,
+        right: 8,
+        zIndex: 99999,
+        background: 'rgba(0,0,0,0.92)',
+        color: '#0f0',
+        fontSize: 10,
+        fontFamily: 'monospace',
+        padding: 10,
+        borderRadius: 8,
+        whiteSpace: 'pre-wrap',
+        border: '1px solid #0f0',
+        maxHeight: '40vh',
+        overflow: 'auto',
+      }}>
+        {debug}
+      </div>
+      {/* END DEBUG */}
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
       <style>{`
