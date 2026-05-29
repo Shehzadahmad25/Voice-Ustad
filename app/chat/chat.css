@@ -1420,6 +1420,14 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .err-retry:hover { background: var(--brand-mid); color: #fff; }
 
 /* ═══════════════════════════════════════
+   DESKTOP — hide sidebar brand bar; TopNav handles branding
+═══════════════════════════════════════ */
+@media (min-width: 721px) {
+  .sb-brand { display: none; }
+  .topbar { overflow: visible; }
+}
+
+/* ═══════════════════════════════════════
    TABLET — 721px to 960px
 ═══════════════════════════════════════ */
 @media (max-width: 960px) and (min-width: 721px) {
