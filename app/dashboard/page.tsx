@@ -1003,62 +1003,58 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* Chapter cards 2-col grid */}
-                    <div className="db-quiz-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                    {/* Chapter cards — auto-fit single col on mobile, 2 col on desktop */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 8 }}>
                       {visibleChapters.map(ch => (
-                        <button
+                        <div
                           key={ch}
-                          onClick={() => router.push(`/chat?chapter=${ch}&mode=quiz`)}
                           style={{
-                            background: '#111d30',
+                            background: '#0f172a',
                             border: '1px solid #1a2d47',
-                            borderRadius: '12px',
-                            padding: '14px 14px',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
+                            borderRadius: 12,
+                            padding: '12px 14px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '10px',
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = 'rgba(249,115,22,0.4)'
-                            e.currentTarget.style.background = 'rgba(249,115,22,0.05)'
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = '#1a2d47'
-                            e.currentTarget.style.background = '#111d30'
+                            gap: 10,
                           }}
                         >
                           {/* Chapter number badge */}
                           <div style={{
-                            width: '30px', height: '30px', borderRadius: '50%',
+                            width: 32, height: 32, borderRadius: '50%',
                             background: 'rgba(249,115,22,0.15)',
-                            border: '1px solid rgba(249,115,22,0.3)',
+                            border: '1.5px solid #f97316',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '12px', fontWeight: '800', color: '#f97316',
+                            fontSize: 13, fontWeight: 700, color: '#f97316',
                             flexShrink: 0,
-                          }}>
-                            {ch}
-                          </div>
-                          {/* Info */}
+                          }}>{ch}</div>
+                          {/* Chapter info */}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
-                              fontSize: '13px', fontWeight: '700', color: '#f1f5f9',
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                              marginBottom: '1px',
-                            }}>
-                              {CHAPTER_NAMES[ch]}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                              fontSize: 13, fontWeight: 600, color: '#f1f5f9',
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            }}>{CHAPTER_NAMES[ch]}</div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
                               {TOPIC_COUNTS[ch] ?? '—'} topics
                             </div>
                           </div>
-                          {/* Arrow */}
-                          <span style={{ fontSize: '11px', color: '#f97316', fontWeight: '700', flexShrink: 0 }}>
-                            Quiz →
-                          </span>
-                        </button>
+                          {/* Quiz button */}
+                          <button
+                            onClick={() => router.push(`/chat?chapter=${ch}&mode=quiz`)}
+                            style={{
+                              background: 'rgba(249,115,22,0.12)',
+                              border: '1px solid #f97316',
+                              color: '#f97316',
+                              borderRadius: 8,
+                              padding: '6px 12px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                              whiteSpace: 'nowrap',
+                              fontFamily: 'inherit',
+                            }}
+                          >Quiz →</button>
+                        </div>
                       ))}
                     </div>
 

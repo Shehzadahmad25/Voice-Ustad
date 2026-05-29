@@ -27,10 +27,35 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
   const initial = firstName[0]?.toUpperCase() || 'S'
 
   const [displayName, setDisplayName] = useState<string>(profile?.full_name || firstName || '')
+  const [installPrompt, setInstallPrompt] = useState<any>(null)
+  const [isInstalled, setIsInstalled] = useState(false)
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
+
+  useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true)
+      return
+    }
+    const handler = (e: any) => {
+      e.preventDefault()
+      setInstallPrompt(e)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  async function handleInstall() {
+    if (!installPrompt) {
+      alert('To install:\nAndroid: tap ⋮ menu → Add to Home Screen\niPhone: tap Share → Add to Home Screen')
+      return
+    }
+    installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === 'accepted') setIsInstalled(true)
+  }
 
   useEffect(() => {
     if (!user?.id) return
@@ -91,8 +116,33 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
         ))}
       </div>
 
+      {!isInstalled && (
+        <button
+          onClick={handleInstall}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'rgba(249,115,22,0.12)',
+            border: '1px solid #f97316',
+            color: '#f97316',
+            borderRadius: 8,
+            padding: '6px 12px',
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            fontFamily: 'inherit',
+            marginLeft: 'auto',
+            marginRight: 12,
+            flexShrink: 0,
+          }}
+        >
+          <span>⬇</span>
+          <span className="hide-mobile">Install App</span>
+        </button>
+      )}
+
       <div style={{
-        display:'flex', alignItems:'center', gap:'10px', marginLeft:'auto',
+        display:'flex', alignItems:'center', gap:'10px', marginLeft: isInstalled ? 'auto' : undefined,
         paddingLeft:'16px', borderLeft:'1px solid rgba(255,255,255,0.08)',
       }}>
         <div style={{
