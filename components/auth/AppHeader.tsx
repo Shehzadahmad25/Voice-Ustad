@@ -37,7 +37,10 @@ export function AppHeader({ compact = false }: AppHeaderProps) {
   }
 
   const displayName =
-    profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Student'
+    profile?.full_name?.trim() ||
+    (user?.user_metadata?.full_name as string | undefined)?.trim() ||
+    (user?.user_metadata?.name as string | undefined)?.trim() ||
+    'Student'
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/6 bg-slate-950/75 text-white backdrop-blur-xl">
@@ -85,11 +88,7 @@ export function AppHeader({ compact = false }: AppHeaderProps) {
           </div>
         </div>
 
-        {compact ? (
-          <div className="text-sm text-slate-400">
-            {profile?.email || user?.email || 'No email available'}
-          </div>
-        ) : null}
+        {null}
 
         {error ? (
           <div className="rounded-2xl border border-rose-200/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">

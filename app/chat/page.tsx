@@ -570,22 +570,28 @@ function restoreHistory(){
 function buildChips(_i: number){ /* chips removed */ }
 
 function openSb(){
-  console.log('[sidebar] opening - body style before:', document.body.style.cssText);
   const sb=document.getElementById('sb') as HTMLElement;
   const ov=document.getElementById('ov') as HTMLElement;
   if (sb) sb.classList.add('on');
   if (ov) ov.classList.add('on');
+  const scrollY = window.scrollY;
+  (window as any)._savedScrollY = scrollY;
+  document.body.style.overflow = 'hidden';
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = '100%';
   // Move focus into sidebar for keyboard users
   setTimeout(()=>sb?.querySelector('[tabindex="0"]')?.focus(), 50);
-  console.log('[sidebar] opening - body style after:', document.body.style.cssText);
 }
 function closeSb(){
-  console.log('[sidebar] closing - body style before:', document.body.style.cssText);
   const sb = document.getElementById('sb');
   const ov = document.getElementById('ov');
   if (sb) sb.classList.remove('on');
   if (ov) ov.classList.remove('on');
-  console.log('[sidebar] closing - body style after:', document.body.style.cssText);
+  const scrollY = (window as any)._savedScrollY ?? 0;
+  document.body.style.overflow = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, scrollY);
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2694,23 +2700,12 @@ export default function ChatPage() {
     };
     window.addEventListener('orientationchange', onOrientationChange);
 
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
     return () => {
       window.removeEventListener('orientationchange', onOrientationChange);
-      // Nuclear cleanup — restore ALL scroll properties
-      const props = [
-        'overflow', 'overflowY', 'overflowX',
-        'position', 'top', 'left', 'width', 'height',
-      ];
-      props.forEach(prop => {
-        (document.body.style as any)[prop] = '';
-        (document.documentElement.style as any)[prop] = '';
-      });
-      // Force scroll re-enable
+      const scrollY = (window as any)._savedScrollY ?? 0;
       document.body.setAttribute('style', '');
       document.documentElement.setAttribute('style', '');
+      window.scrollTo(0, scrollY);
       console.log('[chat] unmount cleanup done');
     };
   }, []);
