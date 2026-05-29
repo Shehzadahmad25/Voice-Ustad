@@ -186,6 +186,7 @@ export default function DashboardPage() {
   // UI state
   const [activeTab, setActiveTab] = useState<TabKey>('plan')
   const [showAllChapters, setShowAllChapters] = useState(false)
+  const [quizClass, setQuizClass] = useState<11 | 12>(11)
   const [tooltipDay, setTooltipDay] = useState<{ idx: number; x: number; y: number } | null>(null)
   const heatRef = useRef<HTMLDivElement>(null)
 
@@ -944,92 +945,119 @@ export default function DashboardPage() {
               )}
 
               {/* ── Quick Chapter Quiz ─────────────────────────────────────── */}
-              <div style={{ marginTop: '8px', marginBottom: '24px' }}>
-                {/* Section header */}
-                <div style={{ marginBottom: '12px' }}>
-                  <h3 style={{
-                    fontSize: '15px', fontWeight: '800', color: '#f1f5f9',
-                    margin: '0 0 2px', fontFamily: 'var(--font-sora, inherit)',
-                  }}>
-                    🧪 Practice by chapter
-                  </h3>
-                  <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                    Take a focused quiz on any chapter
-                  </p>
-                </div>
+              {(() => {
+                const quizChapters = quizClass === 11 ? CLASS_11_CHAPTERS : CLASS_12_CHAPTERS;
+                const visibleChapters = showAllChapters ? quizChapters : quizChapters.slice(0, 4);
+                return (
+                  <div style={{ marginTop: '8px', marginBottom: '24px' }}>
+                    {/* Section header + class toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div>
+                        <h3 style={{
+                          fontSize: '15px', fontWeight: '800', color: '#f1f5f9',
+                          margin: '0 0 2px', fontFamily: 'var(--font-sora, inherit)',
+                        }}>
+                          🧪 Practice by chapter
+                        </h3>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                          Take a focused quiz on any chapter
+                        </p>
+                      </div>
+                      {/* Class 11 / Class 12 toggle */}
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {([11, 12] as const).map(cls => (
+                          <button
+                            key={cls}
+                            onClick={() => { setQuizClass(cls); setShowAllChapters(false); }}
+                            style={{
+                              padding: '5px 11px', borderRadius: '8px', fontSize: '12px',
+                              fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit',
+                              border: quizClass === cls ? '1px solid rgba(249,115,22,0.5)' : '1px solid #1a2d47',
+                              background: quizClass === cls ? 'rgba(249,115,22,0.15)' : '#111d30',
+                              color: quizClass === cls ? '#f97316' : '#64748b',
+                              transition: 'all .12s',
+                            }}
+                          >
+                            Class {cls}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                {/* Chapter cards 2-col grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                  {(showAllChapters ? CLASS_11_CHAPTERS : CLASS_11_CHAPTERS.slice(0, 4)).map(ch => (
+                    {/* Chapter cards 2-col grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                      {visibleChapters.map(ch => (
+                        <button
+                          key={ch}
+                          onClick={() => router.push(`/chat?chapter=${ch}&mode=quiz`)}
+                          style={{
+                            background: '#111d30',
+                            border: '1px solid #1a2d47',
+                            borderRadius: '12px',
+                            padding: '14px 14px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = 'rgba(249,115,22,0.4)'
+                            e.currentTarget.style.background = 'rgba(249,115,22,0.05)'
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = '#1a2d47'
+                            e.currentTarget.style.background = '#111d30'
+                          }}
+                        >
+                          {/* Chapter number badge */}
+                          <div style={{
+                            width: '30px', height: '30px', borderRadius: '50%',
+                            background: 'rgba(249,115,22,0.15)',
+                            border: '1px solid rgba(249,115,22,0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '12px', fontWeight: '800', color: '#f97316',
+                            flexShrink: 0,
+                          }}>
+                            {ch}
+                          </div>
+                          {/* Info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              fontSize: '13px', fontWeight: '700', color: '#f1f5f9',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              marginBottom: '1px',
+                            }}>
+                              {CHAPTER_NAMES[ch]}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                              {TOPIC_COUNTS[ch] ?? '—'} topics
+                            </div>
+                          </div>
+                          {/* Arrow */}
+                          <span style={{ fontSize: '11px', color: '#f97316', fontWeight: '700', flexShrink: 0 }}>
+                            Quiz →
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* See all / show less */}
                     <button
-                      key={ch}
-                      onClick={() => router.push(`/chat?chapter=${ch}&mode=quiz`)}
+                      onClick={() => setShowAllChapters(prev => !prev)}
                       style={{
-                        background: '#111d30',
-                        border: '1px solid #1a2d47',
-                        borderRadius: '12px',
-                        padding: '14px 14px',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = 'rgba(249,115,22,0.4)'
-                        e.currentTarget.style.background = 'rgba(249,115,22,0.05)'
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = '#1a2d47'
-                        e.currentTarget.style.background = '#111d30'
+                        marginTop: '10px',
+                        background: 'none', border: 'none',
+                        color: '#f97316', fontSize: '13px', fontWeight: '700',
+                        cursor: 'pointer', fontFamily: 'inherit', padding: '4px 0',
                       }}
                     >
-                      {/* Chapter number badge */}
-                      <div style={{
-                        width: '30px', height: '30px', borderRadius: '50%',
-                        background: 'rgba(249,115,22,0.15)',
-                        border: '1px solid rgba(249,115,22,0.3)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '12px', fontWeight: '800', color: '#f97316',
-                        flexShrink: 0,
-                      }}>
-                        {ch}
-                      </div>
-                      {/* Info */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontSize: '13px', fontWeight: '700', color: '#f1f5f9',
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          marginBottom: '1px',
-                        }}>
-                          {CHAPTER_NAMES[ch]}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>
-                          {TOPIC_COUNTS[ch]} topics
-                        </div>
-                      </div>
-                      {/* Arrow */}
-                      <span style={{ fontSize: '11px', color: '#f97316', fontWeight: '700', flexShrink: 0 }}>
-                        Quiz →
-                      </span>
+                      {showAllChapters ? '▲ Show less' : `See all 12 chapters ↓`}
                     </button>
-                  ))}
-                </div>
-
-                {/* See all / show less */}
-                <button
-                  onClick={() => setShowAllChapters(prev => !prev)}
-                  style={{
-                    marginTop: '10px',
-                    background: 'none', border: 'none',
-                    color: '#f97316', fontSize: '13px', fontWeight: '700',
-                    cursor: 'pointer', fontFamily: 'inherit', padding: '4px 0',
-                  }}
-                >
-                  {showAllChapters ? '▲ Show less' : 'See all chapters →'}
-                </button>
-              </div>
+                  </div>
+                );
+              })()}
 
               {/* Stats row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
