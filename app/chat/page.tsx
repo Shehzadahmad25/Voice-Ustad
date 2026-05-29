@@ -2721,7 +2721,7 @@ export default function ChatPage() {
 
       {/* ── Trial banner (TASK 3) ─────────────────────────────────────────── */}
       {subStatus?.isTrial && (
-        <div style={{
+        <div className="trial-banner" style={{
           background: 'linear-gradient(90deg, rgba(249,115,22,0.15), rgba(245,158,11,0.1))',
           borderBottom: '1px solid rgba(249,115,22,0.3)',
           padding: '8px 16px',

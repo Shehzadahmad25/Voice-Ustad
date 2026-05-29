@@ -114,9 +114,18 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 ═══════════════════════════════════════ */
 .app {
   display: flex;
+  flex-direction: row;          /* explicit: sidebar left, main right */
+  flex-wrap: wrap;              /* trial banner takes full top row when present */
   margin-top: 62px;             /* offset for fixed TopNav */
   height: calc(100dvh - 62px); /* fill viewport below TopNav */
   overflow: hidden;
+}
+
+/* Trial banner spans full width as its own row */
+.trial-banner {
+  width: 100%;
+  flex-shrink: 0;
+  order: -1;
 }
 
 /* ═══════════════════════════════════════
@@ -1426,6 +1435,19 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 @media (min-width: 721px) {
   .sb-brand { display: none; }
   .topbar { overflow: visible; }
+
+  /* Sidebar always left, main always right */
+  .sidebar {
+    order: 0;
+    position: relative;
+    transform: none;
+    flex-shrink: 0;
+  }
+  .main {
+    order: 1;
+    min-width: 0;
+  }
+  .overlay { display: none !important; }
 }
 
 /* ═══════════════════════════════════════
