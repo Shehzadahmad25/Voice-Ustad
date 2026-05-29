@@ -193,58 +193,9 @@ export default function DashboardPage() {
   const heatRef = useRef<HTMLDivElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(true)
 
-  // DEBUG REMOVE LATER
-  const [debug, setDebug] = useState('')
+  // Scroll to top on mount
   useEffect(() => {
-    const update = () => {
-      // Walk DOM chain from dashboard content up to html
-      const root = document.querySelector('.db-page-content') as HTMLElement | null
-      let el: HTMLElement | null = root
-      const chain: object[] = []
-      let depth = 0
-      while (el && depth < 8) {
-        const s = getComputedStyle(el)
-        chain.push({
-          tag: el.tagName + (el.className ? '.' + String(el.className).slice(0, 20) : ''),
-          overflow: s.overflow,
-          overflowY: s.overflowY,
-          height: s.height,
-          position: s.position,
-        })
-        el = el.parentElement
-        depth++
-      }
-
-      // Find elements with overflow:hidden that have clipped content
-      const locked = Array.from(document.querySelectorAll('*'))
-        .filter(el => {
-          const s = getComputedStyle(el as Element)
-          return (s.overflowY === 'hidden' || s.overflow === 'hidden')
-            && (el as HTMLElement).scrollHeight > (el as HTMLElement).clientHeight + 5
-        })
-        .map(el => el.tagName + '.' + String((el as HTMLElement).className).slice(0, 25))
-        .slice(0, 10)
-
-      setDebug(JSON.stringify({ chain, locked }, null, 1))
-    }
-    update()
-    const i = setInterval(update, 500)
-    return () => clearInterval(i)
-  }, [])
-  // END DEBUG
-
-  // Reset scroll on mount — aggressive timing to beat chat's unmount cleanup race
-  useEffect(() => {
-    const reset = () => {
-      document.body.style.cssText = ''
-      document.documentElement.style.cssText = ''
-      document.body.style.overflowY = 'auto'
-      document.documentElement.style.overflowY = 'auto'
-    }
-    reset()
-    requestAnimationFrame(reset)
-    setTimeout(reset, 0)
-    setTimeout(reset, 200)
+    window.scrollTo(0, 0)
   }, [])
 
   useEffect(() => {
@@ -525,29 +476,7 @@ export default function DashboardPage() {
   })
 
   return (
-    <div className="pwa-safe-bottom" style={{ minHeight: '100vh', background: '#060d19', overflowX: 'hidden', overflowY: 'auto', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
-
-      {/* DEBUG REMOVE LATER */}
-      <div style={{
-        position: 'fixed',
-        top: 70,
-        left: 8,
-        right: 8,
-        zIndex: 99999,
-        background: 'rgba(0,0,0,0.92)',
-        color: '#0f0',
-        fontSize: 10,
-        fontFamily: 'monospace',
-        padding: 10,
-        borderRadius: 8,
-        whiteSpace: 'pre-wrap',
-        border: '1px solid #0f0',
-        maxHeight: '40vh',
-        overflow: 'auto',
-      }}>
-        {debug}
-      </div>
-      {/* END DEBUG */}
+    <div className="pwa-safe-bottom" style={{ minHeight: '100vh', background: '#060d19' }}>
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
       <style>{`
