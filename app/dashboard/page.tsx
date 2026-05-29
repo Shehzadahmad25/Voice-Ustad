@@ -189,19 +189,28 @@ export default function DashboardPage() {
   const [quizClass, setQuizClass] = useState<11 | 12>(11)
   const [tooltipDay, setTooltipDay] = useState<{ idx: number; x: number; y: number } | null>(null)
   const heatRef = useRef<HTMLDivElement>(null)
+  const [showScrollHint, setShowScrollHint] = useState(true)
 
-  // Reset scroll on mount
+  // Reset scroll on mount — must be first effect
   useEffect(() => {
-    // Reset any scroll locks left by previous page (chat sets overflow:hidden on body+html)
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    document.body.style.height = '';
-    document.documentElement.style.overflow = '';
-    document.documentElement.style.height = '';
-    document.documentElement.style.position = '';
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    document.body.style.overflow = ''
+    document.body.style.overflowY = 'auto'
+    document.body.style.position = ''
+    document.body.style.top = ''
+    document.body.style.width = ''
+    document.body.style.height = ''
+    document.documentElement.style.overflow = ''
+    document.documentElement.style.overflowY = 'auto'
+    document.documentElement.style.height = ''
+    window.scrollTo(0, 0)
+  }, [])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 50) setShowScrollHint(false)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   // ── Data load — called on mount and whenever the tab becomes visible again ──
@@ -474,7 +483,7 @@ export default function DashboardPage() {
   })
 
   return (
-    <div className="pwa-safe-bottom" style={{ minHeight: '100vh', background: '#07101f', fontFamily: 'inherit', overflowX: 'hidden' }}>
+    <div className="pwa-safe-bottom" style={{ minHeight: '100vh', background: '#060d19', overflowX: 'hidden', overflowY: 'auto', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
       <style>{`
@@ -499,7 +508,7 @@ export default function DashboardPage() {
           .db-tab-long  { display: none; }
           .db-tab-short { display: inline; }
           .db-quiz-grid { gap: 8px; }
-          .db-nav-pill-xp { display: none !important; }
+          .db-nav-pill-xp { font-size: 11px !important; padding: 4px 8px !important; }
         }
         .db-chapter-chips {
           display: flex;
@@ -1409,6 +1418,26 @@ export default function DashboardPage() {
         </div>
 
       </div>
+
+      {showScrollHint && (
+        <div style={{
+          position: 'fixed',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(249,115,22,0.15)',
+          border: '1px solid rgba(249,115,22,0.3)',
+          borderRadius: 99,
+          padding: '8px 16px',
+          fontSize: 12,
+          color: '#f97316',
+          zIndex: 100,
+          pointerEvents: 'none',
+          animation: 'bounce 1.5s infinite',
+        }}>
+          ↓ Scroll for more
+        </div>
+      )}
     </div>
   )
 }
