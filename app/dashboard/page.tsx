@@ -1003,8 +1003,8 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* Chapter cards — auto-fit single col on mobile, 2 col on desktop */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 8 }}>
+                    {/* Chapter cards — 1 col mobile, 2 col desktop via CSS class */}
+                    <div className="chapter-quiz-grid">
                       {visibleChapters.map(ch => (
                         <div
                           key={ch}
@@ -1353,7 +1353,7 @@ export default function DashboardPage() {
               <div
                 ref={heatRef}
                 className="db-heat-grid"
-                style={{ display: 'inline-grid', gridTemplateRows: 'repeat(7, 14px)', gridAutoFlow: 'column', gap: '3px' }}
+                style={{ display: 'inline-grid', gridTemplateRows: 'repeat(7, 14px)', gridAutoFlow: 'column', gap: '3px', userSelect: 'none', pointerEvents: 'none', overflow: 'hidden' }}
               >
                 {heatmapDays.map((day, idx) => (
                   <div

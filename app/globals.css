@@ -140,6 +140,18 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ── Chapter quiz grid — 1 col mobile, 2 col desktop ───────────────────── */
+.chapter-quiz-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@media (min-width: 640px) {
+  .chapter-quiz-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ── Mobile utility classes ─────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .hide-mobile  { display: none !important; }
