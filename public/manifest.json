@@ -2,7 +2,7 @@
   "name": "VoiceUstad",
   "short_name": "VoiceUstad",
   "description": "AI-powered voice tutoring for KPK Board students",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#07101f",
   "theme_color": "#f97316",

@@ -150,6 +150,10 @@ body {
   .pwa-safe-bottom { padding-bottom: 80px !important; }
 }
 
+@media (max-width: 768px) {
+  .pwa-safe-bottom { padding-bottom: 80px !important; }
+}
+
 h1, h2, h3, h4, h5, button {
   font-family: var(--font-sora), 'Sora', sans-serif;
 }

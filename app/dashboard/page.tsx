@@ -474,7 +474,7 @@ export default function DashboardPage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#07101f', fontFamily: 'inherit', overflowX: 'hidden' }}>
+    <div className="pwa-safe-bottom" style={{ minHeight: '100vh', background: '#07101f', fontFamily: 'inherit', overflowX: 'hidden' }}>
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
       <style>{`
