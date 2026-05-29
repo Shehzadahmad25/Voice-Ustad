@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
 import { getSubscriptionStatus, SubscriptionStatus } from '@/lib/subscription'
+import { useScrollFix } from '@/lib/useScrollFix'
 import TopNav from '@/components/TopNav'
 
 export default function ProfilePage() {
   const router = useRouter()
   const supabase = getSupabaseClient()
+  useScrollFix()
 
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -93,7 +95,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#060d19', color: '#f1f5f9', fontFamily: 'inherit' }}>
+    <div style={{ minHeight: '100vh', background: '#07101f', color: '#f1f5f9', fontFamily: 'inherit', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', position: 'relative' }}>
       <TopNav user={user} profile={profile} />
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '82px 16px 60px' }}>

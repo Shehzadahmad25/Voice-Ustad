@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getSubscriptionStatus } from '@/lib/subscription'
+import { useScrollFix } from '@/lib/useScrollFix'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -352,6 +353,7 @@ const S = {
 
 export default function QuizPage() {
   const router = useRouter()
+  useScrollFix()
 
   const [userId, setUserId] = useState<string | null>(null)
   const [quizState, setQuizState] = useState<'home' | 'loading' | 'active' | 'results'>('home')

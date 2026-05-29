@@ -570,18 +570,22 @@ function restoreHistory(){
 function buildChips(_i: number){ /* chips removed */ }
 
 function openSb(){
+  console.log('[sidebar] opening - body style before:', document.body.style.cssText);
   const sb=document.getElementById('sb') as HTMLElement;
   const ov=document.getElementById('ov') as HTMLElement;
   if (sb) sb.classList.add('on');
   if (ov) ov.classList.add('on');
   // Move focus into sidebar for keyboard users
   setTimeout(()=>sb?.querySelector('[tabindex="0"]')?.focus(), 50);
+  console.log('[sidebar] opening - body style after:', document.body.style.cssText);
 }
 function closeSb(){
+  console.log('[sidebar] closing - body style before:', document.body.style.cssText);
   const sb = document.getElementById('sb');
   const ov = document.getElementById('ov');
   if (sb) sb.classList.remove('on');
   if (ov) ov.classList.remove('on');
+  console.log('[sidebar] closing - body style after:', document.body.style.cssText);
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

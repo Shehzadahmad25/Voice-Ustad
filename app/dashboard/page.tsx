@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
 import { getFirstName } from '@/lib/utils'
 import { getSubscriptionStatus } from '@/lib/subscription'
+import { useScrollFix } from '@/lib/useScrollFix'
 
 // ── Chapter metadata ─────────────────────────────────────────────────────────
 const CHAPTER_NAMES: Record<number, string> = {
@@ -162,6 +163,7 @@ function Sk({ w = '100%', h = '18px', r = '8px' }: { w?: string; h?: string; r?:
 export default function DashboardPage() {
   const router = useRouter()
   const supabase = getSupabaseClient()
+  useScrollFix()
 
   // Auth / profile
   const [user, setUser] = useState<any>(null)

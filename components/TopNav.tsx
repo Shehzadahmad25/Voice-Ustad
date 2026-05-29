@@ -103,7 +103,7 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
             fontSize:'13px', fontWeight:'700', color:'#000',
           }}>{initial}</div>
         </Link>
-        <span className="topnav-email" style={{ fontSize:'12px', color:'#94a3b8' }}>{displayName || user?.email}</span>
+        <span className="topnav-email" style={{ fontSize:'12px', color:'#94a3b8' }}>{displayName}</span>
         <button onClick={handleLogout} style={{
           padding:'5px 12px', borderRadius:'7px', fontSize:'12px', fontWeight:'500',
           color:'#94a3b8', border:'1px solid rgba(255,255,255,0.1)',
