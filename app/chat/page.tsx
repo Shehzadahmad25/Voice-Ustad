@@ -574,12 +574,7 @@ function openSb(){
   const ov=document.getElementById('ov') as HTMLElement;
   if (sb) sb.classList.add('on');
   if (ov) ov.classList.add('on');
-  const scrollY = window.scrollY;
-  (window as any)._savedScrollY = scrollY;
-  document.body.style.overflow = 'hidden';
-  document.body.style.top = `-${scrollY}px`;
-  document.body.style.width = '100%';
-  // Move focus into sidebar for keyboard users
+  // No body style changes — the fixed overlay already blocks background interaction
   setTimeout(()=>sb?.querySelector('[tabindex="0"]')?.focus(), 50);
 }
 function closeSb(){
@@ -587,9 +582,6 @@ function closeSb(){
   const ov = document.getElementById('ov');
   if (sb) sb.classList.remove('on');
   if (ov) ov.classList.remove('on');
-  const scrollY = (window as any)._savedScrollY ?? 0;
-  document.body.setAttribute('style', '');
-  window.scrollTo(0, scrollY);
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2700,10 +2692,6 @@ export default function ChatPage() {
 
     return () => {
       window.removeEventListener('orientationchange', onOrientationChange);
-      const scrollY = (window as any)._savedScrollY ?? 0;
-      document.body.setAttribute('style', '');
-      document.documentElement.setAttribute('style', '');
-      window.scrollTo(0, scrollY);
       console.log('[chat] unmount cleanup done');
     };
   }, []);

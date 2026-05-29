@@ -193,18 +193,18 @@ export default function DashboardPage() {
   const heatRef = useRef<HTMLDivElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(true)
 
-  // Reset scroll on mount — must be first effect
+  // Reset scroll on mount — aggressive timing to beat chat's unmount cleanup race
   useEffect(() => {
-    document.body.style.overflow = ''
-    document.body.style.overflowY = 'auto'
-    document.body.style.position = ''
-    document.body.style.top = ''
-    document.body.style.width = ''
-    document.body.style.height = ''
-    document.documentElement.style.overflow = ''
-    document.documentElement.style.overflowY = 'auto'
-    document.documentElement.style.height = ''
-    window.scrollTo(0, 0)
+    const reset = () => {
+      document.body.style.cssText = ''
+      document.documentElement.style.cssText = ''
+      document.body.style.overflowY = 'auto'
+      document.documentElement.style.overflowY = 'auto'
+    }
+    reset()
+    requestAnimationFrame(reset)
+    setTimeout(reset, 0)
+    setTimeout(reset, 200)
   }, [])
 
   useEffect(() => {
