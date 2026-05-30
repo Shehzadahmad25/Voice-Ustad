@@ -2147,14 +2147,14 @@ footer {
   }
 }
 
-/* ── Dashboard scrolls via body, not inner container ───────────────────── */
-/* Must be last so it wins over all earlier .pwa-safe-bottom rules          */
+/* ── Dashboard scroll container is #dashboard-scroll, not .pwa-safe-bottom */
+/* .pwa-safe-bottom is padding-only — no overflow or height constraints     */
 .pwa-safe-bottom {
   overflow: visible !important;
   overflow-y: visible !important;
   position: static !important;
   height: auto !important;
-  min-height: 100vh;
+  min-height: 100% !important;
   padding-bottom: 80px;
 }
 

@@ -193,17 +193,25 @@ export default function DashboardPage() {
   const heatRef = useRef<HTMLDivElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(true)
 
-  // Scroll to top on mount
+  // Scroll to top on mount + force reset of scroll container
   useEffect(() => {
-    window.scrollTo(0, 0)
+    const el = document.getElementById('dashboard-scroll')
+    if (el) {
+      el.style.overflowY = 'scroll'
+      el.scrollTop = 0
+    }
+    document.body.style.cssText = ''
+    document.documentElement.style.cssText = ''
   }, [])
 
   useEffect(() => {
+    const el = document.getElementById('dashboard-scroll')
+    if (!el) return
     const handleScroll = () => {
-      if (window.scrollY > 50) setShowScrollHint(false)
+      if (el.scrollTop > 50) setShowScrollHint(false)
     }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    el.addEventListener('scroll', handleScroll)
+    return () => el.removeEventListener('scroll', handleScroll)
   }, [])
 
   // ── Data load — called on mount and whenever the tab becomes visible again ──
@@ -476,7 +484,18 @@ export default function DashboardPage() {
   })
 
   return (
-    <div className="pwa-safe-bottom" style={{ minHeight: '100vh', background: '#060d19' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#060d19' }}>
+      <div
+        id="dashboard-scroll"
+        style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          overflowY: 'scroll',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+        }}
+      >
+      <div className="pwa-safe-bottom">
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
       <style>{`
@@ -1431,6 +1450,8 @@ export default function DashboardPage() {
           ↓ Scroll for more
         </div>
       )}
+      </div>{/* end pwa-safe-bottom */}
+      </div>{/* end dashboard-scroll */}
     </div>
   )
 }
