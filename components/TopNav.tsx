@@ -52,7 +52,6 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
   const navLinks = [
     { label: 'Dashboard', href: '/dashboard' },
     { label: 'Chat', href: '/chat' },
-    { label: 'Sunday Test', href: '/quiz' },
     { label: 'Settings', href: '/settings' },
   ]
 
