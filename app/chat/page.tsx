@@ -35,7 +35,7 @@ let _selectedClass = 11;
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 let started=false, busy=false, ri=0, micOn=false;
 let activeCh='';
-let activeChIdx=0;
+let activeChIdx=-1; // -1 = no chapter selected → search all chapters
 const ENABLED_CHAPTERS: Set<number> = new Set(); // Populated from Supabase
 const timers={};
 const audioPlayers: any = {};
@@ -1146,7 +1146,7 @@ async function send(){
   const reqId = ++_currentRequestId;
   console.log('[send] start reqId:', reqId);
 
-  if(!isChapterAvailable(activeChIdx)){
+  if(activeChIdx >= 0 && !isChapterAvailable(activeChIdx)){
     if(!started){
       const m=document.getElementById('msgs') as HTMLElement;
       if (m) m.innerHTML='<div class="msgs-inner" id="msgsInner"></div>';
