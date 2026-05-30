@@ -7,6 +7,7 @@ import { getSupabaseClient } from '@/lib/supabase'
 import { getFirstName } from '@/lib/utils'
 import { getSubscriptionStatus } from '@/lib/subscription'
 import { useScrollFix } from '@/lib/useScrollFix'
+import SundayBanner from '@/components/SundayBanner'
 
 // ── Chapter metadata ─────────────────────────────────────────────────────────
 const CHAPTER_NAMES: Record<number, string> = {
@@ -51,7 +52,7 @@ const CLASS_12_CHAPTERS = [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
 const TOTAL_TOPICS = 486 // 290 (class 11) + 196 (class 12)
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type TabKey = 'plan' | 'weak' | 'history'
+type TabKey = 'plan' | 'weak' | 'history' | 'leaderboard'
 
 interface WeakTopic {
   topic_slug: string
@@ -186,6 +187,7 @@ export default function DashboardPage() {
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([])
   const [quizHistory, setQuizHistory] = useState<QuizAttempt[]>([])
   const [heatmapDays, setHeatmapDays] = useState<HeatmapDay[]>([])
+  const [leaderboard, setLeaderboard] = useState<{ user_id: string; score: number; total: number; accuracy: number; name: string }[]>([])
 
   // UI state
   const [activeTab, setActiveTab] = useState<TabKey>('plan')
@@ -359,6 +361,38 @@ export default function DashboardPage() {
         }
         setHeatmapDays(Array.from(dayCounts.entries()).map(([date, count]) => ({ date, count })))
       }
+
+      // ── Leaderboard — top 10 Sunday Tests this week ────────────────────────
+      try {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        const { data: lbData } = await supabase
+          .from('quiz_attempts')
+          .select('user_id, score, total, accuracy, completed_at')
+          .eq('mode', 'sunday')
+          .gte('completed_at', weekAgo)
+          .order('accuracy', { ascending: false })
+          .limit(10)
+        if (lbData?.length) {
+          const userIds = lbData.map((r: any) => r.user_id)
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', userIds)
+          const nameMap: Record<string, string> = {}
+          profilesData?.forEach((p: any, i: number) => {
+            nameMap[p.id] = p.full_name || `Student ${i + 1}`
+          })
+          setLeaderboard(lbData.map((r: any, i: number) => ({
+            user_id: r.user_id,
+            score: r.score,
+            total: r.total,
+            accuracy: Math.round(r.accuracy ?? 0),
+            name: nameMap[r.user_id] || 'Student',
+          })))
+        } else {
+          setLeaderboard([])
+        }
+      } catch { /* non-fatal */ }
     } catch (e) {
       console.error('Dashboard load error:', e)
     } finally {
@@ -610,6 +644,8 @@ export default function DashboardPage() {
       {/* ── Page content ────────────────────────────────────────────────────── */}
       <div className="db-page-content" style={{ maxWidth: '900px', margin: '0 auto' }}>
 
+        <SundayBanner />
+
         {/* ── Greeting Banner ─────────────────────────────────────────────── */}
         <div style={{
           ...cardBase,
@@ -743,15 +779,16 @@ export default function DashboardPage() {
             marginBottom: '20px',
             overflowX: 'auto',
           }}>
-            {(['plan', 'weak', 'history'] as TabKey[]).map(tab => (
+            {(['plan', 'weak', 'history', 'leaderboard'] as TabKey[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 style={tabBtnStyle(activeTab === tab)}
               >
-                {tab === 'plan'    ? <><span className="db-tab-long">📅 Study Plan</span><span className="db-tab-short">📅 Plan</span></> :
-                 tab === 'weak'    ? <><span className="db-tab-long">⚠️ Weak Topics</span><span className="db-tab-short">⚠️ Weak</span></> :
-                                    <><span className="db-tab-long">📝 Test History</span><span className="db-tab-short">📝 History</span></>}
+                {tab === 'plan'        ? <><span className="db-tab-long">📅 Study Plan</span><span className="db-tab-short">📅 Plan</span></> :
+                 tab === 'weak'        ? <><span className="db-tab-long">⚠️ Weak Topics</span><span className="db-tab-short">⚠️ Weak</span></> :
+                 tab === 'history'     ? <><span className="db-tab-long">📝 Test History</span><span className="db-tab-short">📝 History</span></> :
+                                        <><span className="db-tab-long">🏆 Leaderboard</span><span className="db-tab-short">🏆</span></>}
               </button>
             ))}
           </div>
@@ -1334,6 +1371,67 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* ── Leaderboard Tab ──────────────────────────────────────────────── */}
+        {activeTab === 'leaderboard' && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, color: '#f1f5f9', margin: '0 0 4px', fontFamily: 'var(--font-sora, inherit)' }}>
+                🏆 Weekly Sunday Test
+              </h2>
+              <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>This week&apos;s top scorers</p>
+            </div>
+            {loading ? (
+              <Sk h="200px" r="10px" />
+            ) : leaderboard.length === 0 ? (
+              <div style={{ ...cardBase, textAlign: 'center', padding: '32px 20px' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>🏆</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 8 }}>No Sunday Tests taken this week</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 20 }}>
+                  Next Sunday Test: {(() => { const d = new Date(); const days = (7 - d.getDay()) % 7 || 7; return days === 1 ? 'tomorrow' : `in ${days} days`; })()}
+                </div>
+                <button
+                  onClick={() => router.push('/chat')}
+                  style={{ background: '#f97316', border: 'none', color: '#fff', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Take Practice Quiz →
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {leaderboard.map((entry, i) => {
+                  const rank = i + 1
+                  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`
+                  const isMe = entry.user_id === userId
+                  const accColor = entry.accuracy >= 75 ? '#22c55e' : entry.accuracy >= 50 ? '#f97316' : '#ef4444'
+                  return (
+                    <div key={entry.user_id + i} style={{
+                      ...cardBase,
+                      padding: '12px 14px',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      border: isMe ? '1px solid rgba(249,115,22,0.5)' : cardBase.border,
+                      background: isMe ? 'rgba(249,115,22,0.08)' : cardBase.background,
+                    }}>
+                      <span style={{ fontSize: 18, width: 28, flexShrink: 0, textAlign: 'center' }}>{medal}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: isMe ? '#f97316' : '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {entry.name}{isMe ? ' (you)' : ''}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{entry.score}/{entry.total} correct</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: accColor }}>{entry.accuracy}%</div>
+                        <div style={{ marginTop: 4, width: 60, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ width: `${entry.accuracy}%`, height: '100%', background: accColor, borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Activity Heatmap ─────────────────────────────────────────────── */}
         <div style={{ ...cardBase, position: 'relative' }}>

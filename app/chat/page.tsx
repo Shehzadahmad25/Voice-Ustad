@@ -11,6 +11,7 @@ import { getSubscriptionStatus } from '@/lib/subscription';
 import { getSupabaseClient } from '@/lib/supabase';
 import TopNav from '@/components/TopNav';
 import QuizModal from '@/components/QuizModal';
+import SundayBanner from '@/components/SundayBanner';
 // CHAPTER DATA WILL BE LOADED FROM SUPABASE
 const CHS: Array<{p:number; cls:number; n:string; t:string; chips:string[]; followups:string[]; on?:boolean}> = [];
 
@@ -3077,6 +3078,7 @@ export default function ChatPage() {
       <div className="overlay" id="ov" onClick={() => closeSb()}></div>
 
       <main className="main">
+        <div style={{ padding: '8px 16px 0' }}><SundayBanner /></div>
         <div className="topbar">
           <button className="mob-btn" id="mobBtn" aria-label="Open sidebar" onClick={() => openSb()}>
             <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">

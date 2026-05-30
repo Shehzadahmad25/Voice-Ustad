@@ -27,6 +27,8 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
   const initial = firstName[0]?.toUpperCase() || 'S'
 
   const [displayName, setDisplayName] = useState<string>(profile?.full_name || firstName || '')
+  const [dayOfWeek, setDayOfWeek] = useState(-1)
+  useEffect(() => { setDayOfWeek(new Date().getDay()) }, [])
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -105,6 +107,22 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
           >{link.label}</button>
         ))}
       </div>
+
+      {(dayOfWeek === 0 || dayOfWeek === 6) && (
+        <button
+          onClick={() => { window.location.href = '/quiz' }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: dayOfWeek === 0 ? 'rgba(99,102,241,0.15)' : 'rgba(249,115,22,0.12)',
+            border: `1px solid ${dayOfWeek === 0 ? '#6366f1' : '#f97316'}`,
+            color: dayOfWeek === 0 ? '#818cf8' : '#f97316',
+            borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
+          }}
+        >
+          {dayOfWeek === 0 ? '🟣 Test Live' : '⏰ Test Tomorrow'}
+        </button>
+      )}
 
       <div style={{
         display:'flex', alignItems:'center', gap:'10px', marginLeft: 'auto',

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getSubscriptionStatus } from '@/lib/subscription'
 import { useScrollFix } from '@/lib/useScrollFix'
+import SundayBanner from '@/components/SundayBanner'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -683,6 +684,7 @@ export default function QuizPage() {
           ══════════════════════════════════════════════════════════════ */}
           {quizState === 'home' && (
             <>
+              <SundayBanner />
               {/* Hero card */}
               <div style={{
                 background: sundayUnlocked
