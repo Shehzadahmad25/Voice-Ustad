@@ -183,19 +183,17 @@ function extractSearchTerms(question: string): string[] {
  * "mole concept" would match Stoichiometry — completely wrong behaviour.
  */
 async function fetchTopicByTerms(
-  chapterNumber: number,
+  chapterNumber: number,  // 0 = search all chapters
   terms: string[],
 ): Promise<TopicRow | null> {
   const db = getClient();
+  const filterByChapter = chapterNumber > 0;
 
   // Strategy 1: exact term match (highest priority)
   for (const term of terms) {
-    const { data } = await db
-      .from('content_chunks')
-      .select(SELECT_COLS)
-      .eq('chapter', chapterNumber)
-      .ilike('term', term)
-      .limit(1);
+    let q = db.from('content_chunks').select(SELECT_COLS).ilike('term', term).limit(1);
+    if (filterByChapter) q = q.eq('chapter', chapterNumber);
+    const { data } = await q;
 
     if (data?.[0]) {
       console.log(`[retrieveBookContent] EXACT MATCH via term — term="${term}" matched topic="${(data[0] as unknown as TopicRow).term}"`);
@@ -205,13 +203,9 @@ async function fetchTopicByTerms(
 
   // Strategy 2: partial term match — prefer longer (more specific) terms
   for (const term of terms) {
-    const { data } = await db
-      .from('content_chunks')
-      .select(SELECT_COLS)
-      .eq('chapter', chapterNumber)
-      .ilike('term', `%${term}%`)
-      .order('term', { ascending: false })
-      .limit(1);
+    let q = db.from('content_chunks').select(SELECT_COLS).ilike('term', `%${term}%`).order('term', { ascending: false }).limit(1);
+    if (filterByChapter) q = q.eq('chapter', chapterNumber);
+    const { data } = await q;
 
     if (data?.[0]) {
       console.log(`[retrieveBookContent] PARTIAL MATCH via term — term="${term}" matched topic="${(data[0] as unknown as TopicRow).term}"`);
@@ -221,12 +215,9 @@ async function fetchTopicByTerms(
 
   // Strategy 3: keywords array exact match
   for (const term of terms) {
-    const { data } = await db
-      .from('content_chunks')
-      .select(SELECT_COLS)
-      .eq('chapter', chapterNumber)
-      .contains('keywords', [term])
-      .limit(1);
+    let q = db.from('content_chunks').select(SELECT_COLS).contains('keywords', [term]).limit(1);
+    if (filterByChapter) q = q.eq('chapter', chapterNumber);
+    const { data } = await q;
 
     if (data?.[0]) {
       console.log(`[retrieveBookContent] MATCH via keywords — term="${term}" matched topic="${(data[0] as unknown as TopicRow).term}"`);
@@ -234,9 +225,7 @@ async function fetchTopicByTerms(
     }
   }
 
-  // Strategy 4: compound-word pattern — split each term into tokens and build
-  // '%word1%word2%' ilike pattern.  Catches cases like "limiting reagent" → '%limiting%reagent%'
-  // matching DB rows named "Excess and Limiting Reagents" or "Identification of Limiting Reagent".
+  // Strategy 4: compound-word pattern
   const seenPatterns = new Set<string>();
   for (const term of terms) {
     const words = term.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3);
@@ -245,13 +234,9 @@ async function fetchTopicByTerms(
     if (seenPatterns.has(pattern)) continue;
     seenPatterns.add(pattern);
 
-    const { data } = await db
-      .from('content_chunks')
-      .select(SELECT_COLS)
-      .eq('chapter', chapterNumber)
-      .ilike('term', pattern)
-      .order('term', { ascending: false })
-      .limit(1);
+    let q = db.from('content_chunks').select(SELECT_COLS).ilike('term', pattern).order('term', { ascending: false }).limit(1);
+    if (filterByChapter) q = q.eq('chapter', chapterNumber);
+    const { data } = await q;
 
     if (data?.[0]) {
       console.log(`[retrieveBookContent] COMPOUND MATCH — pattern="${pattern}" matched topic="${(data[0] as unknown as TopicRow).term}"`);
@@ -259,7 +244,8 @@ async function fetchTopicByTerms(
     }
   }
 
-  console.log(`[retrieveBookContent] NO MATCH — terms=${JSON.stringify(terms)} chapter=${chapterNumber}`);
+  const scope = filterByChapter ? `chapter=${chapterNumber}` : 'all chapters';
+  console.log(`[retrieveBookContent] NO MATCH — terms=${JSON.stringify(terms)} ${scope}`);
   return null;
 }
 
@@ -297,13 +283,8 @@ function topicToBlocks(row: TopicRow): RetrievedBlocks {
 export async function retrieveBookContent(
   question:      string,
   questionType:  QuestionType,
-  chapterNumber: number,
+  chapterNumber: number,  // 0 = search all chapters
 ): Promise<RetrievalResult> {
-  if (!chapterNumber || chapterNumber <= 0) {
-    console.log(`[retrieveBookContent] SKIP — no chapter number`);
-    return { ...EMPTY_RESULT };
-  }
-
   // Strip question words to get the raw topic phrase (preserves multi-word names)
   const cleanQuery = question
     .toLowerCase()
@@ -325,7 +306,8 @@ export async function retrieveBookContent(
     return { ...EMPTY_RESULT };
   }
 
-  console.log(`[retrieveBookContent] extracted query term: "${cleanQuery}" — full terms=${JSON.stringify(terms)} type=${questionType} chapter=${chapterNumber}`);
+  const chapterScope = chapterNumber > 0 ? `chapter=${chapterNumber}` : 'all chapters';
+  console.log(`[retrieveBookContent] extracted query term: "${cleanQuery}" — full terms=${JSON.stringify(terms)} type=${questionType} ${chapterScope}`);
 
   const row = await fetchTopicByTerms(chapterNumber, terms);
   if (!row) return { ...EMPTY_RESULT };

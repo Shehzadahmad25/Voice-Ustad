@@ -96,27 +96,30 @@ const URDU_TTS_ENABLED = process.env.URDU_TTS_ENABLED === 'true'; // default fal
  * Returned when no matching topic exists in the database.
  * No AI generation — this is the hard stop for out-of-scope queries.
  */
-const NOT_FOUND_ANSWER: StructuredAnswer = {
-  definition:  'This topic is not available in the database. Please ask about a topic covered in your textbook.',
-  explanation: '',
-  example:     '',
-  formula:     '',
-  flabel:      '',
-  dur:         0,
-  urduTtsText: '',
-};
-
-const NOT_FOUND_RESULT: TutorAgentResult = {
-  answer:          NOT_FOUND_ANSWER,
-  urduSummary:     null,
-  audioBase64:     null,
-  audioError:      null,
-  audioUrl:        null,
-  cacheId:         null,
-  cacheHit:        false,
-  cacheSimilarity: 0,
-  responseSource:  'not_found',
-};
+function buildNotFoundResult(chapterNumber: number): TutorAgentResult {
+  const definition = chapterNumber > 0
+    ? `This topic is not covered in Chapter ${chapterNumber}. Try selecting a different chapter or rephrase your question.`
+    : `I couldn't find information about this topic in the KPK Chemistry syllabus. Please try rephrasing your question or select a specific chapter.`;
+  return {
+    answer: {
+      definition,
+      explanation: '',
+      example:     '',
+      formula:     '',
+      flabel:      '',
+      dur:         0,
+      urduTtsText: '',
+    },
+    urduSummary:     null,
+    audioBase64:     null,
+    audioError:      null,
+    audioUrl:        null,
+    cacheId:         null,
+    cacheHit:        false,
+    cacheSimilarity: 0,
+    responseSource:  'not_found',
+  };
+}
 
 // ── Main export ────────────────────────────────────────────────────────────────
 
@@ -124,7 +127,7 @@ const NOT_FOUND_RESULT: TutorAgentResult = {
  * Runs the Tutor Agent pipeline for a single chat-mode request.
  * Never throws — catches all errors internally and surfaces them in the result.
  *
- * STRICT DATABASE MODE: returns NOT_FOUND_RESULT for any question whose
+ * STRICT DATABASE MODE: returns not-found result for any question whose
  * topic cannot be matched in the `topics` table by title or keyword.
  * No AI model is ever called to generate an answer.
  */
@@ -230,7 +233,7 @@ export async function runTutorAgent(input: TutorAgentInput): Promise<TutorAgentR
         hadAudio:      false,
       }).catch(() => {});
     }
-    return { ...NOT_FOUND_RESULT };
+    return buildNotFoundResult(chapterNumber);
   }
 
   // ── Step 5: Build structured answer from DB blocks ──────────────────────────

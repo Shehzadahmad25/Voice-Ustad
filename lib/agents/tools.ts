@@ -223,9 +223,9 @@ export async function retrieveContent(
   question:      string,
   chapterNumber: number,
 ): Promise<RetrievalResult | null> {
-  if (!chapterNumber || chapterNumber <= 0) return null;
   try {
     const qType  = classifyQuestionType(question);
+    // chapterNumber=0 means "search all chapters"
     const result = await retrieveBookContent(question, qType, chapterNumber);
     return result.found ? result : null;
   } catch {
