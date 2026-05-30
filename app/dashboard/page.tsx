@@ -10,18 +10,20 @@ import { useScrollFix } from '@/lib/useScrollFix'
 
 // ── Chapter metadata ─────────────────────────────────────────────────────────
 const CHAPTER_NAMES: Record<number, string> = {
+  // Class 11 — KPK Board (verified from DB)
   1: 'Stoichiometry',
   2: 'Atomic Structure',
   3: 'Chemical Bonding',
-  4: 'States of Matter',
-  5: 'Thermochemistry',
-  6: 'Chemical Equilibrium',
-  7: 'Acids, Bases and Salts',
-  8: 'Electrochemistry',
+  4: 'States of Matter I: Gases',
+  5: 'States of Matter II: Liquids',
+  6: 'States of Matter III: Solids',
+  7: 'Chemical Equilibrium',
+  8: 'Acids, Bases & Salts',
   9: 'Reaction Kinetics',
-  10: 'Organic Chemistry',
-  11: 'Hydrocarbons',
-  12: 'Alkyl Halides',
+  10: 'Solutions and Colloids',
+  11: 'Thermochemistry',
+  12: 'Electrochemistry',
+  // Class 12
   13: 'Alcohols and Phenols',
   14: 'Aldehydes and Ketones',
   15: 'Carboxylic Acids',
