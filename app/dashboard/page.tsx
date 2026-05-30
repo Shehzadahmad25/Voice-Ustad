@@ -192,6 +192,23 @@ export default function DashboardPage() {
   const [tooltipDay, setTooltipDay] = useState<{ idx: number; x: number; y: number } | null>(null)
   const heatRef = useRef<HTMLDivElement>(null)
   const [showScrollHint, setShowScrollHint] = useState(true)
+  const [scrollDebug, setScrollDebug] = useState('loading...')
+
+  useEffect(() => {
+    const update = () => {
+      const el = document.getElementById('dashboard-scroll')
+      setScrollDebug(
+        `el:${!!el} | ` +
+        `overflow:${el ? getComputedStyle(el).overflowY : 'N/A'} | ` +
+        `scrollH:${el?.scrollHeight} | ` +
+        `clientH:${el?.clientHeight} | ` +
+        `canScroll:${el ? el.scrollHeight > el.clientHeight : false}`
+      )
+    }
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Scroll to top on mount + force reset of scroll container
   useEffect(() => {
@@ -495,6 +512,22 @@ export default function DashboardPage() {
           overscrollBehavior: 'contain',
         }}
       >
+        {/* DEBUG BAR — REMOVE LATER */}
+        <div style={{
+          position: 'fixed',
+          top: 60,
+          left: 0,
+          right: 0,
+          background: 'red',
+          color: 'white',
+          fontSize: 11,
+          padding: '4px 8px',
+          zIndex: 99999,
+          fontFamily: 'monospace',
+        }}>
+          {scrollDebug}
+        </div>
+        {/* END DEBUG BAR */}
       <div className="pwa-safe-bottom">
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
