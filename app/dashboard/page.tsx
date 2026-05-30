@@ -23,19 +23,19 @@ const CHAPTER_NAMES: Record<number, string> = {
   10: 'Solutions and Colloids',
   11: 'Thermochemistry',
   12: 'Electrochemistry',
-  // Class 12
-  13: 'Alcohols and Phenols',
-  14: 'Aldehydes and Ketones',
-  15: 'Carboxylic Acids',
-  16: 'Macromolecules',
-  17: 'Common Chemical Industries',
-  18: 'Environmental Chemistry',
-  19: 'Analytical Chemistry',
-  20: 'Transition Elements',
-  21: 'Coordination Chemistry',
-  22: 'Biochemistry',
-  23: 'Nuclear Chemistry',
-  24: 'Chemistry of s-block Elements',
+  // Class 12 — KPK Board (verified from DB)
+  13: 's and p-Block Elements',
+  14: 'd and f-Block Elements',
+  15: 'Organic Compounds',
+  16: 'Hydrocarbons',
+  17: 'Alkyl Halides and Amines',
+  18: 'Alcohols, Phenols and Ethers',
+  19: 'Aldehydes and Ketones',
+  20: 'Carboxylic Acids',
+  21: 'Biochemistry',
+  22: 'Industrial Chemistry',
+  23: 'Environmental Chemistry',
+  24: 'Analytical Chemistry',
 }
 
 const TOPIC_COUNTS: Record<number, number> = {
