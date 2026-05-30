@@ -82,12 +82,23 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
 
       <div className="topnav-links" style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', display:'flex', gap:'4px' }}>
         {navLinks.map(link => (
-          <button key={link.href} onClick={() => router.push(link.href)} style={{
-            padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500',
-            border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-            background: pathname === link.href ? 'rgba(255,255,255,0.08)' : 'transparent',
-            color: pathname === link.href ? 'white' : '#64748b',
-          }}>{link.label}</button>
+          <button
+            key={link.href}
+            onClick={() => {
+              // Hard reload when leaving chat — guarantees clean React state
+              if (pathname === '/chat' && link.href !== '/chat') {
+                window.location.href = link.href
+              } else {
+                router.push(link.href)
+              }
+            }}
+            style={{
+              padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500',
+              border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+              background: pathname === link.href ? 'rgba(255,255,255,0.08)' : 'transparent',
+              color: pathname === link.href ? 'white' : '#64748b',
+            }}
+          >{link.label}</button>
         ))}
       </div>
 

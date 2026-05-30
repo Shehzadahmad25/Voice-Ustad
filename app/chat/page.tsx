@@ -2690,8 +2690,33 @@ export default function ChatPage() {
     };
     window.addEventListener('orientationchange', onOrientationChange);
 
+    const handleBeforeUnload = () => {
+      document.body.removeAttribute('style');
+      document.documentElement.removeAttribute('style');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    const handlePopState = () => {
+      document.body.removeAttribute('style');
+      document.documentElement.removeAttribute('style');
+      setTimeout(() => {
+        if (window.location.pathname === '/dashboard') {
+          window.location.reload();
+        }
+      }, 100);
+    };
+    window.addEventListener('popstate', handlePopState);
+
     return () => {
       window.removeEventListener('orientationchange', onOrientationChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+      // If navigating to dashboard via client-side routing, force reload there
+      setTimeout(() => {
+        if (window.location.pathname === '/dashboard') {
+          window.location.reload();
+        }
+      }, 50);
       console.log('[chat] unmount cleanup done');
     };
   }, []);
