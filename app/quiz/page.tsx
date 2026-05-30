@@ -946,7 +946,7 @@ export default function QuizPage() {
                             {topicSlug && (
                               <button
                                 type="button"
-                                onClick={() => router.push(`/chat?topic=${topicSlug}&chapter=${chapterSlug}`)}
+                                onClick={() => { window.location.href = `/chat?topic=${topicSlug}&chapter=${chapterSlug}` }}
                                 style={{
                                   padding: '2px 8px', borderRadius: '4px',
                                   background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.3)',
@@ -1015,7 +1015,7 @@ export default function QuizPage() {
                         const first = missedQs[0] as any
                         const chSlug = first?.q?.chapter_slug ?? ''
                         const tSlug = first?.q?.topic_slug ?? ''
-                        router.push(`/chat?chapter=${chSlug}&mode=quiz&topic=${tSlug}`)
+                        window.location.href = `/chat?chapter=${chSlug}&mode=quiz&topic=${tSlug}`
                       }}
                       style={{
                         width: '100%', padding: '9px', borderRadius: '8px',

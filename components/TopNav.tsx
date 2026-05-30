@@ -86,8 +86,8 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
           <button
             key={link.href}
             onClick={() => {
-              // Hard reload when leaving chat — guarantees clean React state
-              if (pathname === '/chat' && link.href !== '/chat') {
+              // Hard reload when leaving chat or quiz — guarantees clean React state
+              if ((pathname === '/chat' || pathname === '/quiz') && link.href !== pathname) {
                 window.location.href = link.href
               } else {
                 router.push(link.href)
