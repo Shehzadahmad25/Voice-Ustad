@@ -3052,25 +3052,6 @@ export default function ChatPage() {
       <div className="overlay" id="ov" onClick={() => closeSb()}></div>
 
       <main className="main">
-        {subStatus?.isTrial && (
-          <div className="trial-banner" style={{
-            background: 'linear-gradient(90deg, rgba(249,115,22,0.15), rgba(245,158,11,0.1))',
-            borderBottom: '1px solid rgba(249,115,22,0.3)',
-            padding: '7px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: 13,
-            flexShrink: 0,
-          }}>
-            <span style={{ color: '#fed7aa' }}>
-              Free trial — <strong>{Math.max(0, subStatus.daysLeft)}</strong> day{subStatus.daysLeft !== 1 ? 's' : ''} remaining
-            </span>
-            <a href="/pricing" style={{ color: '#f97316', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-              Upgrade Rs. 499/mo
-            </a>
-          </div>
-        )}
         <div className="topbar">
           <button className="mob-btn" id="mobBtn" aria-label="Open sidebar" onClick={() => openSb()}>
             <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
