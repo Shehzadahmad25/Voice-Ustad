@@ -191,44 +191,10 @@ export default function DashboardPage() {
   const [quizClass, setQuizClass] = useState<11 | 12>(11)
   const [tooltipDay, setTooltipDay] = useState<{ idx: number; x: number; y: number } | null>(null)
   const heatRef = useRef<HTMLDivElement>(null)
-  const [showScrollHint, setShowScrollHint] = useState(true)
-  const [scrollDebug, setScrollDebug] = useState('loading...')
-
   useEffect(() => {
-    const update = () => {
-      const el = document.getElementById('dashboard-scroll')
-      setScrollDebug(
-        `el:${!!el} | ` +
-        `overflow:${el ? getComputedStyle(el).overflowY : 'N/A'} | ` +
-        `scrollH:${el?.scrollHeight} | ` +
-        `clientH:${el?.clientHeight} | ` +
-        `canScroll:${el ? el.scrollHeight > el.clientHeight : false}`
-      )
-    }
-    update()
-    const interval = setInterval(update, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  // Scroll to top on mount + force reset of scroll container
-  useEffect(() => {
+    window.scrollTo(0, 0)
     const el = document.getElementById('dashboard-scroll')
-    if (el) {
-      el.style.overflowY = 'scroll'
-      el.scrollTop = 0
-    }
-    document.body.style.cssText = ''
-    document.documentElement.style.cssText = ''
-  }, [])
-
-  useEffect(() => {
-    const el = document.getElementById('dashboard-scroll')
-    if (!el) return
-    const handleScroll = () => {
-      if (el.scrollTop > 50) setShowScrollHint(false)
-    }
-    el.addEventListener('scroll', handleScroll)
-    return () => el.removeEventListener('scroll', handleScroll)
+    if (el) el.scrollTop = 0
   }, [])
 
   // ── Data load — called on mount and whenever the tab becomes visible again ──
@@ -501,34 +467,17 @@ export default function DashboardPage() {
   })
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#060d19' }}>
-      <div
-        id="dashboard-scroll"
-        style={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0, bottom: 0,
-          overflowY: 'scroll',
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehavior: 'contain',
-        }}
-      >
-        {/* DEBUG BAR — REMOVE LATER */}
-        <div style={{
-          position: 'fixed',
-          top: 60,
-          left: 0,
-          right: 0,
-          background: 'red',
-          color: 'white',
-          fontSize: 11,
-          padding: '4px 8px',
-          zIndex: 99999,
-          fontFamily: 'monospace',
-        }}>
-          {scrollDebug}
-        </div>
-        {/* END DEBUG BAR */}
-      <div className="pwa-safe-bottom">
+    <div
+      id="dashboard-scroll"
+      style={{
+        minHeight: '100vh',
+        background: '#060d19',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain',
+        paddingBottom: 80,
+      }}
+    >
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
       <style>{`
@@ -1464,27 +1413,6 @@ export default function DashboardPage() {
 
       </div>
 
-      {showScrollHint && (
-        <div style={{
-          position: 'fixed',
-          bottom: 20,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(249,115,22,0.15)',
-          border: '1px solid rgba(249,115,22,0.3)',
-          borderRadius: 99,
-          padding: '8px 16px',
-          fontSize: 12,
-          color: '#f97316',
-          zIndex: 100,
-          pointerEvents: 'none',
-          animation: 'bounce 1.5s infinite',
-        }}>
-          ↓ Scroll for more
-        </div>
-      )}
-      </div>{/* end pwa-safe-bottom */}
-      </div>{/* end dashboard-scroll */}
     </div>
   )
 }
