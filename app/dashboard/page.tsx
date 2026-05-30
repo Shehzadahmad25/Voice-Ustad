@@ -749,7 +749,7 @@ export default function DashboardPage() {
               >
                 {tab === 'plan'    ? <><span className="db-tab-long">📅 Study Plan</span><span className="db-tab-short">📅 Plan</span></> :
                  tab === 'weak'    ? <><span className="db-tab-long">⚠️ Weak Topics</span><span className="db-tab-short">⚠️ Weak</span></> :
-                                    <><span className="db-tab-long">📝 Quiz History</span><span className="db-tab-short">📝 History</span></>}
+                                    <><span className="db-tab-long">📝 Test History</span><span className="db-tab-short">📝 History</span></>}
               </button>
             ))}
           </div>
