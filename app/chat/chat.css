@@ -119,6 +119,7 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   height: calc(100vh - 62px);
   overflow: hidden;
   width: 100%;
+  contain: strict; /* isolate chat layout — prevents style leakage to other pages */
 }
 @supports (height: 100dvh) {
   .app { height: calc(100dvh - 62px); }

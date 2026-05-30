@@ -2178,3 +2178,21 @@ footer {
 @supports not (height: 100dvh) {
   .app { height: calc(100vh - 62px) !important; }
 }
+
+/* ── Native browser scroll — ensure body/html never get locked ─────────── */
+html, body {
+  height: auto !important;
+  overflow: auto !important;
+  overflow-y: auto !important;
+  position: static !important;
+}
+
+/* Class-based scroll locks used by third-party libs — override all */
+body.modal-open,
+body.sidebar-open,
+body.menu-open,
+body.no-scroll {
+  overflow: auto !important;
+  position: static !important;
+  height: auto !important;
+}

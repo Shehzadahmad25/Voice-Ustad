@@ -192,9 +192,13 @@ export default function DashboardPage() {
   const [tooltipDay, setTooltipDay] = useState<{ idx: number; x: number; y: number } | null>(null)
   const heatRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
+    document.body.removeAttribute('style')
+    document.documentElement.removeAttribute('style')
+    document.body.style.overflowY = 'auto'
+    document.body.style.height = 'auto'
+    document.documentElement.style.overflowY = 'auto'
+    document.documentElement.style.height = 'auto'
     window.scrollTo(0, 0)
-    const el = document.getElementById('dashboard-scroll')
-    if (el) el.scrollTop = 0
   }, [])
 
   // ── Data load — called on mount and whenever the tab becomes visible again ──
@@ -467,17 +471,7 @@ export default function DashboardPage() {
   })
 
   return (
-    <div
-      id="dashboard-scroll"
-      style={{
-        minHeight: '100vh',
-        background: '#060d19',
-        overflowY: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        overscrollBehavior: 'contain',
-        paddingBottom: 80,
-      }}
-    >
+    <div style={{ minHeight: '100vh', background: '#060d19', paddingBottom: 80 }}>
 
       {/* ── Responsive CSS ─────────────────────────────────────────────────── */}
       <style>{`
