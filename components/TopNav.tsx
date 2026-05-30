@@ -27,8 +27,6 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
   const initial = firstName[0]?.toUpperCase() || 'S'
 
   const [displayName, setDisplayName] = useState<string>(profile?.full_name || firstName || '')
-  const [dayOfWeek, setDayOfWeek] = useState(-1)
-  useEffect(() => { setDayOfWeek(new Date().getDay()) }, [])
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -41,7 +39,7 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
       .select('full_name')
       .eq('id', user.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: { data: { full_name: string } | null }) => {
         if (data?.full_name) setDisplayName(data.full_name)
       })
   }, [user?.id])
@@ -99,30 +97,15 @@ export default function TopNav({ user, profile }: { user?: any; profile?: any })
               }
             }}
             style={{
-              padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500',
+              padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: '500',
               border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
               background: pathname === link.href ? 'rgba(255,255,255,0.08)' : 'transparent',
               color: pathname === link.href ? 'white' : '#64748b',
             }}
           >{link.label}</button>
         ))}
       </div>
-
-      {(dayOfWeek === 0 || dayOfWeek === 6) && (
-        <button
-          onClick={() => { window.location.href = '/quiz' }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: dayOfWeek === 0 ? 'rgba(99,102,241,0.15)' : 'rgba(249,115,22,0.12)',
-            border: `1px solid ${dayOfWeek === 0 ? '#6366f1' : '#f97316'}`,
-            color: dayOfWeek === 0 ? '#818cf8' : '#f97316',
-            borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 700,
-            cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
-          }}
-        >
-          {dayOfWeek === 0 ? '🟣 Test Live' : '⏰ Test Tomorrow'}
-        </button>
-      )}
 
       <div style={{
         display:'flex', alignItems:'center', gap:'10px', marginLeft: 'auto',
