@@ -946,7 +946,12 @@ export default function QuizPage() {
                             {topicSlug && (
                               <button
                                 type="button"
-                                onClick={() => { window.location.href = `/chat?topic=${topicSlug}&chapter=${chapterSlug}` }}
+                                onClick={() => {
+                                  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                                    navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' })
+                                  }
+                                  window.location.href = `/chat?topic=${topicSlug}&chapter=${chapterSlug}&t=${Date.now()}`
+                                }}
                                 style={{
                                   padding: '2px 8px', borderRadius: '4px',
                                   background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.3)',
@@ -1012,10 +1017,13 @@ export default function QuizPage() {
                     <button
                       type="button"
                       onClick={() => {
+                        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                          navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' })
+                        }
                         const first = missedQs[0] as any
                         const chSlug = first?.q?.chapter_slug ?? ''
                         const tSlug = first?.q?.topic_slug ?? ''
-                        window.location.href = `/chat?chapter=${chSlug}&mode=quiz&topic=${tSlug}`
+                        window.location.href = `/chat?chapter=${chSlug}&mode=quiz&topic=${tSlug}&t=${Date.now()}`
                       }}
                       style={{
                         width: '100%', padding: '9px', borderRadius: '8px',
