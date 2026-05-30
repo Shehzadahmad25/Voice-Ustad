@@ -114,18 +114,11 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 ═══════════════════════════════════════ */
 .app {
   display: flex;
-  flex-direction: row;          /* explicit: sidebar left, main right */
-  flex-wrap: wrap;              /* trial banner takes full top row when present */
-  margin-top: 62px;             /* offset for fixed TopNav */
-  height: calc(100dvh - 62px); /* fill viewport below TopNav */
+  flex-direction: row;
+  margin-top: 62px;
+  height: calc(100dvh - 62px);
   overflow: hidden;
-}
-
-/* Trial banner spans full width as its own row */
-.trial-banner {
   width: 100%;
-  flex-shrink: 0;
-  order: -1;
 }
 
 /* ═══════════════════════════════════════
@@ -1430,24 +1423,52 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 .err-retry:hover { background: var(--brand-mid); color: #fff; }
 
 /* ═══════════════════════════════════════
-   DESKTOP — hide sidebar brand bar; TopNav handles branding
+   DESKTOP/TABLET — sidebar left, main right
 ═══════════════════════════════════════ */
 @media (min-width: 721px) {
   .sb-brand { display: none; }
   .topbar { overflow: visible; }
 
-  /* Sidebar always left, main always right */
   .sidebar {
-    order: 0;
-    position: relative;
-    transform: none;
-    flex-shrink: 0;
+    position: relative !important;
+    transform: none !important;
+    width: 290px !important;
+    min-width: 290px !important;
+    flex-shrink: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 10 !important;
+    order: 0 !important;
   }
   .main {
-    order: 1;
-    min-width: 0;
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    order: 1 !important;
   }
   .overlay { display: none !important; }
+
+  /* Input bar always at bottom */
+  .input-area, .input-row {
+    flex-shrink: 0 !important;
+    width: 100% !important;
+  }
+  /* Messages area scrolls */
+  .msgs-wrap {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  /* Trial banner inside .main, full width */
+  .trial-banner {
+    flex-shrink: 0 !important;
+    width: 100% !important;
+  }
 }
 
 /* ═══════════════════════════════════════
@@ -1469,19 +1490,26 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
 ═══════════════════════════════════════ */
 @media (max-width: 720px) {
   .sidebar {
-    position: fixed;
-    top: 62px;
-    left: 0;
-    height: calc(100dvh - 62px);
-    width: min(290px, 82vw);
-    transform: translateX(-100%);
-    z-index: 200;
-    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    position: fixed !important;
+    top: 62px !important;
+    left: 0 !important;
+    height: calc(100dvh - 62px) !important;
+    width: min(290px, 82vw) !important;
+    transform: translateX(-100%) !important;
+    z-index: 200 !important;
+    transition: transform .28s cubic-bezier(.4,0,.2,1) !important;
     box-shadow: var(--sh-lg);
     overflow-y: scroll !important;
     -webkit-overflow-scrolling: touch !important;
   }
-  .sidebar.on { transform: translateX(0); }
+  .sidebar.on { transform: translateX(0) !important; }
+  .main {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
   /* overlay covers full screen; sidebar z-index 200 is above overlay z-index 90,
      so taps on the sidebar hit the sidebar, taps outside close it */
   .overlay {
