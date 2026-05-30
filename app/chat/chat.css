@@ -116,9 +116,12 @@ button, .wl-card, .sb-ch, .chip, .followup-btn { touch-action: manipulation; }
   display: flex;
   flex-direction: row;
   margin-top: 62px;
-  height: calc(100dvh - 62px);
+  height: calc(100vh - 62px);
   overflow: hidden;
   width: 100%;
+}
+@supports (height: 100dvh) {
+  .app { height: calc(100dvh - 62px); }
 }
 
 /* ═══════════════════════════════════════

@@ -153,7 +153,8 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '11px 14px',
+    padding: '13px 14px',
+    minHeight: '48px',
     marginBottom: '8px',
     borderRadius: '10px',
     border: `1px solid ${
@@ -895,7 +896,7 @@ export default function QuizPage() {
                 </div>
 
                 {/* ── Stat row ─────────────────────────────────────────────── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
+                <div className="quiz-stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
                   <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '12px', padding: '14px 8px', textAlign: 'center' }}>
                     <div style={{ ...S.statVal, color: '#22c55e' }}>{result.score}</div>
                     <div style={S.statLbl}>✅ Correct</div>

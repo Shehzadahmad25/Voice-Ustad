@@ -119,6 +119,21 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  max-width: 100%;
+}
+
+img, video, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+p, span, li, td, th, label, caption {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+button, a, [role="button"], input[type="submit"], input[type="button"] {
+  min-height: 36px;
 }
 
 html {
@@ -163,6 +178,10 @@ body {
   .mobile-full  { width: 100% !important; }
   .mobile-stack { flex-direction: column !important; }
   .mobile-small { font-size: 12px !important; }
+  /* Compact navbar padding on small screens */
+  .topnav { padding: 0 12px !important; }
+  /* Hide centered nav links on mobile — too cramped */
+  .topnav-links { display: none !important; }
   /* Extra bottom padding so PWA install banner doesn't cover content */
   .pwa-safe-bottom { padding-bottom: 80px !important; }
   .db-nav-pill-xp {
@@ -2137,4 +2156,25 @@ footer {
   height: auto !important;
   min-height: 100vh;
   padding-bottom: 80px;
+}
+
+/* ── Global mobile safety net ───────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* No horizontal overflow on any element */
+  body, #__next, [data-nextjs-scroll-focus-boundary] {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  /* Nav links hidden on very small screens (TopNav handles via .topnav-links) */
+  .topnav-links { display: none !important; }
+
+  /* Quiz stats grid: 2 cols on phone, was 3 */
+  .quiz-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ── dvh fallback for chat on browsers without dvh support ─────────────── */
+@supports not (height: 100dvh) {
+  .app { height: calc(100vh - 62px) !important; }
 }
