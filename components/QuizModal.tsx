@@ -182,16 +182,21 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
     setShowResults(false);
     setQuizResults(null);
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
     try {
       const res = await fetch('/api/generate-quiz', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chapter_id: chapterId, chapter_title: chapterTitle, topics }),
       });
+      clearTimeout(timeoutId)
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Failed to generate quiz');
       setQuestions((data.questions as any[]).map(shuffleOptions) as Question[]);
     } catch (e: unknown) {
+      clearTimeout(timeoutId)
       setGenError(e instanceof Error ? e.message : 'Failed to generate quiz');
     } finally {
       setLoading(false);

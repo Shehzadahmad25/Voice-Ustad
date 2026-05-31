@@ -455,19 +455,24 @@ export default function QuizPage() {
       let pool: any[] = dbQ ?? []
       console.log('DB questions:', pool.length)
 
-      // Top up with AI if needed
+      // Top up with AI if needed — 15 s timeout, fall back to DB questions on failure
       if (pool.length < SUNDAY_COUNT) {
+        const aiController = new AbortController()
+        const aiTimer = setTimeout(() => aiController.abort(), 15000)
         try {
           const res = await fetch('/api/generate-quiz', {
             method: 'POST',
+            signal: aiController.signal,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ count: SUNDAY_COUNT - pool.length, board: 'KPK' }),
           })
+          clearTimeout(aiTimer)
           const aiData = await res.json()
           console.log('AI questions:', aiData.questions?.length)
           pool = [...pool, ...(aiData.questions ?? [])]
         } catch (e) {
-          console.error('AI generation error:', e)
+          clearTimeout(aiTimer)
+          console.log('AI generation skipped (timeout or error) — using DB questions only')
         }
       }
 

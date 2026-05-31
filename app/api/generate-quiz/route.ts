@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 30
 
 interface TopicItem {
   topic_title?: string
@@ -78,7 +78,7 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
           .from('content_chunks')
           .select('topic_slug, term, book_definition')
           .eq('chapter_id', String(resolvedChapterId))
-          .limit(60)
+          .limit(10)
 
         if (chunks && chunks.length > 0) {
           resolvedTopics = chunks.map((c: any) => ({
@@ -104,51 +104,25 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
       .map(t => t.term || t.topic_title || '')
       .filter(Boolean)
 
-    const count = topicNames.length <= 5 ? 30 : topicNames.length <= 10 ? 40 : 50
-    const topicList = topicNames.join(', ')
+    const count = Math.min(topicNames.length * 2, 20)
     const seed = Math.random().toString(36).substring(7)
 
     console.log('[generate-quiz legacy] chapter:', resolvedTitle, '| topics:', topicNames.length, '| count:', count)
 
-    const prompt = `You are a chemistry teacher creating a multiple choice quiz for FSc (Grade 11) students in Pakistan studying KPK board.
+    const prompt = `Generate ${count} FSc Chemistry MCQs for Grade 11 KPK board Pakistan.
+Chapter: ${resolvedTitle || 'FSc Chemistry'} | Topics: ${topicNames.slice(0, 15).join(', ')}
+Seed: ${seed}
+Return ONLY a JSON array, no markdown:
+[{"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correct_answer":"B","topic_name":"..."}]
+Rules: cover all topics, plausible distractors, vary correct_answer across A B C D equally.`
 
-Chapter: ${resolvedTitle || 'FSc Chemistry'}
-Variation seed: ${seed} — use this to generate fresh, unique questions different from previous runs.
-
-You must cover ALL of these topics: ${topicList}
-Distribute ${count} questions evenly across all topics.
-Each topic must appear in at least 2-3 questions. No topic may be skipped.
-
-Question style — vary across these types for each topic:
-- Definition: "What is X?" or "Which statement best defines X?"
-- Formula/equation: "What is the formula for X?" or "Which equation represents X?"
-- Calculation/application: numerical or applied problem using the concept
-- Example/identification: "Which of the following is an example of X?"
-
-Rules:
-1. Generate exactly ${count} questions total
-2. Only test concepts from the topic list above
-3. Each question has exactly 4 options: A, B, C, D
-4. Exactly one correct answer per question
-5. Questions must be clear, unambiguous, and appropriate for Grade 11 KPK board
-6. Distractors (wrong options) must be plausible, not obviously wrong
-7. Vary the correct answer position across A, B, C, and D roughly equally. Do not always place the correct answer at option A.
-
-Return ONLY a valid JSON array with no markdown, no explanation, no code fences. Format:
-[
-  {
-    "question": "Question text?",
-    "options": { "A": "option a", "B": "option b", "C": "option c", "D": "option d" },
-    "correct_answer": "A",
-    "topic_name": "Topic Name"
-  }
-]`
-
-    // FIX 2 — OpenAI call wrapped in its own try/catch
+    const legacyController = new AbortController()
+    const legacyTimer = setTimeout(() => legacyController.abort(), 25000)
     let openaiRes: Response
     try {
       openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
+        signal: legacyController.signal,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -156,10 +130,13 @@ Return ONLY a valid JSON array with no markdown, no explanation, no code fences.
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           temperature: 0.7,
+          max_tokens: 1500,
           messages: [{ role: 'user', content: prompt }],
         }),
       })
+      clearTimeout(legacyTimer)
     } catch (fetchErr: any) {
+      clearTimeout(legacyTimer)
       console.error('[generate-quiz legacy] OpenAI fetch failed:', fetchErr?.message)
       return NextResponse.json({ questions: [], error: 'AI generation failed: ' + (fetchErr?.message ?? 'network error') })
     }
@@ -199,65 +176,39 @@ Return ONLY a valid JSON array with no markdown, no explanation, no code fences.
 async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
   try {
     const { chapterSlugs = [], count = 10 } = body
+    const safeCount = Math.min(count, 10)
 
-    let contextLines: string[] = []
+    let truncatedContext = ''
     try {
       const sb = getServiceClient()
       const { data: chunks } = await sb
         .from('content_chunks')
-        .select('topic_slug, term, book_definition, guide_explanation')
-        .limit(20)
+        .select('topic_slug, book_definition')
+        .limit(5)
 
       if (chunks && chunks.length > 0) {
-        contextLines = chunks.map((c: any) => {
-          const parts = [c.term, c.book_definition, c.guide_explanation]
-            .filter(Boolean)
-            .join('. ')
-          return `[${c.topic_slug ?? 'general'}]: ${parts}`
-        })
+        const raw = chunks
+          .map((c: any) => `[${c.topic_slug ?? 'general'}]: ${(c.book_definition || '').slice(0, 200)}`)
+          .join('\n')
+        truncatedContext = raw.slice(0, 1000)
       }
     } catch (chunkErr: any) {
       console.warn('[generate-quiz page] content_chunks fetch failed:', chunkErr?.message)
     }
 
-    const contextBlock =
-      contextLines.length > 0
-        ? `\nUse this syllabus context to ground your questions:\n${contextLines.join('\n')}\n`
-        : ''
-
-    const chapterNote =
-      chapterSlugs.length > 0
-        ? `Focus on these chapters/topics: ${chapterSlugs.join(', ')}.`
-        : 'Cover general FSc Chemistry topics.'
-
     const seed = Math.random().toString(36).substring(7)
 
-    const prompt = `You are a chemistry teacher creating a multiple choice quiz for FSc students in Pakistan (KPK board).
-${contextBlock}
-${chapterNote}
-Variation seed: ${seed}
+    const prompt = `Generate ${safeCount} FSc Chemistry MCQs for KPK board Pakistan.${truncatedContext ? `\nContent:\n${truncatedContext}` : ''}
+Return ONLY valid JSON: {"questions":[{"question":"...","options":["opt1","opt2","opt3","opt4"],"correct_index":0,"explanation":"brief","topic_slug":"slug"}]}
+Rules: 4 options each, 1 correct answer, vary correct_index 0-3 equally. Seed: ${seed}`
 
-Generate exactly ${count} multiple choice questions. Each question must have exactly 4 options (A, B, C, D) with exactly one correct answer. Include a brief explanation for the correct answer. Vary the correct answer position across A, B, C, and D roughly equally. Do not always place the correct answer at option A.
-
-Return ONLY valid JSON (no markdown, no code fences) matching this schema:
-{
-  "questions": [
-    {
-      "id": "q1",
-      "topic_slug": "topic-name",
-      "question": "Question text?",
-      "options": { "A": "...", "B": "...", "C": "...", "D": "..." },
-      "correct_answer": "A",
-      "explanation": "Brief explanation of the correct answer."
-    }
-  ]
-}`
-
-    // FIX 2 — OpenAI call wrapped in its own try/catch
+    const pageController = new AbortController()
+    const pageTimer = setTimeout(() => pageController.abort(), 25000)
     let openaiRes: Response
     try {
       openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
+        signal: pageController.signal,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -265,11 +216,14 @@ Return ONLY valid JSON (no markdown, no code fences) matching this schema:
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           temperature: 0.7,
+          max_tokens: 800,
           response_format: { type: 'json_object' },
           messages: [{ role: 'user', content: prompt }],
         }),
       })
+      clearTimeout(pageTimer)
     } catch (fetchErr: any) {
+      clearTimeout(pageTimer)
       console.error('[generate-quiz page] OpenAI fetch failed:', fetchErr?.message)
       return NextResponse.json({ questions: [], error: 'AI generation failed: ' + (fetchErr?.message ?? 'network error') })
     }
