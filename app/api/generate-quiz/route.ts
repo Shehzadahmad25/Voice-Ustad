@@ -142,52 +142,64 @@ Return ONLY a JSON array, no markdown:
 [{"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correct_answer":"B","topic_name":"..."}]
 Rules: cover all topics, plausible distractors, vary correct_answer across A B C D equally.`
 
-    const legacyController = new AbortController()
-    const legacyTimer = setTimeout(() => legacyController.abort(), 55000)
-    let openaiRes: Response
-    try {
-      openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        signal: legacyController.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          temperature: 0.7,
-          max_tokens: 2500,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-      clearTimeout(legacyTimer)
-    } catch (fetchErr: any) {
-      clearTimeout(legacyTimer)
-      console.error('[generate-quiz legacy] OpenAI fetch failed:', fetchErr?.message)
-      return NextResponse.json({ questions: [], error: 'AI generation failed: ' + (fetchErr?.message ?? 'network error') })
+    let questions: unknown[] | null = null
+    let lastLegacyError = ''
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log('[generate-quiz legacy] attempt', attempt, 'of 3')
+
+      const legacyController = new AbortController()
+      const legacyTimer = setTimeout(() => legacyController.abort(), 55000)
+      let openaiRes: Response
+      try {
+        openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          signal: legacyController.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            temperature: 0.7,
+            max_tokens: 2500,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        })
+        clearTimeout(legacyTimer)
+      } catch (fetchErr: any) {
+        clearTimeout(legacyTimer)
+        console.error('[generate-quiz legacy] OpenAI fetch failed (attempt', attempt, '):', fetchErr?.message)
+        lastLegacyError = 'AI generation failed: ' + (fetchErr?.message ?? 'network error')
+        continue
+      }
+
+      if (!openaiRes.ok) {
+        const errText = await openaiRes.text()
+        console.error('[generate-quiz legacy] OpenAI HTTP error:', openaiRes.status, errText.slice(0, 200))
+        lastLegacyError = `OpenAI API error: ${openaiRes.status}`
+        break
+      }
+
+      const openaiData = await openaiRes.json()
+      const rawText: string = openaiData.choices?.[0]?.message?.content ?? ''
+      console.log('[generate-quiz legacy] raw response:', rawText.substring(0, 200))
+
+      try {
+        const jsonMatch = rawText.match(/\[[\s\S]*\]/)
+        if (!jsonMatch) throw new Error('No JSON array in response')
+        const parsed = JSON.parse(jsonMatch[0])
+        if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty questions array')
+        questions = parsed
+        break
+      } catch (parseError: any) {
+        console.error('[generate-quiz legacy] JSON parse error (attempt', attempt, '):', parseError?.message, '| raw:', rawText.slice(0, 500))
+        lastLegacyError = 'Failed to parse AI response'
+      }
     }
 
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text()
-      console.error('[generate-quiz legacy] OpenAI HTTP error:', openaiRes.status, errText.slice(0, 200))
-      return NextResponse.json({ questions: [], error: `OpenAI API error: ${openaiRes.status}` })
-    }
-
-    const openaiData = await openaiRes.json()
-    const rawText: string = openaiData.choices?.[0]?.message?.content ?? ''
-    console.log('[generate-quiz legacy] raw response:', rawText.substring(0, 200))
-
-    // FIX 3 — Parse response safely
-    let questions: unknown[]
-    try {
-      const jsonMatch = rawText.match(/\[[\s\S]*\]/)
-      if (!jsonMatch) throw new Error('No JSON array in response')
-      questions = JSON.parse(jsonMatch[0])
-      if (!Array.isArray(questions) || questions.length === 0)
-        throw new Error('Empty questions array')
-    } catch (parseError: any) {
-      console.error('[generate-quiz legacy] JSON parse error:', parseError?.message, '| raw:', rawText.slice(0, 500))
-      return NextResponse.json({ questions: [], error: 'Failed to parse AI response' })
+    if (!questions) {
+      return NextResponse.json({ questions: [], error: lastLegacyError || 'Failed after 3 attempts' })
     }
 
     return NextResponse.json({ ok: true, questions, count })
@@ -253,51 +265,64 @@ async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
 Return ONLY valid JSON: {"questions":[{"question":"...","options":["opt1","opt2","opt3","opt4"],"correct_index":0,"explanation":"brief","topic_slug":"slug"}]}
 Rules: 4 options each, 1 correct answer, vary correct_index 0-3 equally. Seed: ${seed}`
 
-    const pageController = new AbortController()
-    const pageTimer = setTimeout(() => pageController.abort(), 55000)
-    let openaiRes: Response
-    try {
-      openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        signal: pageController.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          temperature: 0.7,
-          max_tokens: 3000,
-          response_format: { type: 'json_object' },
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-      clearTimeout(pageTimer)
-    } catch (fetchErr: any) {
-      clearTimeout(pageTimer)
-      console.error('[generate-quiz page] OpenAI fetch failed:', fetchErr?.message)
-      return NextResponse.json({ questions: [], error: 'AI generation failed: ' + (fetchErr?.message ?? 'network error') })
+    let questions: unknown[] | null = null
+    let lastPageError = ''
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log('[generate-quiz page] attempt', attempt, 'of 3')
+
+      const pageController = new AbortController()
+      const pageTimer = setTimeout(() => pageController.abort(), 55000)
+      let openaiRes: Response
+      try {
+        openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          signal: pageController.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            temperature: 0.7,
+            max_tokens: 3000,
+            response_format: { type: 'json_object' },
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        })
+        clearTimeout(pageTimer)
+      } catch (fetchErr: any) {
+        clearTimeout(pageTimer)
+        console.error('[generate-quiz page] OpenAI fetch failed (attempt', attempt, '):', fetchErr?.message)
+        lastPageError = 'AI generation failed: ' + (fetchErr?.message ?? 'network error')
+        continue
+      }
+
+      if (!openaiRes.ok) {
+        const errText = await openaiRes.text()
+        console.error('[generate-quiz page] OpenAI HTTP error:', openaiRes.status, errText.slice(0, 200))
+        lastPageError = `OpenAI API error: ${openaiRes.status}`
+        break
+      }
+
+      const openaiData = await openaiRes.json()
+      const rawText: string = openaiData.choices?.[0]?.message?.content ?? '{}'
+      console.log('[generate-quiz page] raw response:', rawText.substring(0, 200))
+
+      try {
+        const parsed = JSON.parse(rawText)
+        const qs: unknown[] = parsed.questions ?? []
+        if (!Array.isArray(qs)) throw new Error('questions is not array')
+        questions = qs
+        break
+      } catch (parseError: any) {
+        console.error('[generate-quiz page] JSON parse error (attempt', attempt, '):', parseError?.message, '| raw:', rawText.slice(0, 500))
+        lastPageError = 'Failed to parse AI response'
+      }
     }
 
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text()
-      console.error('[generate-quiz page] OpenAI HTTP error:', openaiRes.status, errText.slice(0, 200))
-      return NextResponse.json({ questions: [], error: `OpenAI API error: ${openaiRes.status}` })
-    }
-
-    const openaiData = await openaiRes.json()
-    const rawText: string = openaiData.choices?.[0]?.message?.content ?? '{}'
-    console.log('[generate-quiz page] raw response:', rawText.substring(0, 200))
-
-    // FIX 3 — Parse response safely
-    let questions: unknown[] = []
-    try {
-      const parsed = JSON.parse(rawText)
-      questions = parsed.questions ?? []
-      if (!Array.isArray(questions)) throw new Error('questions is not array')
-    } catch (parseError: any) {
-      console.error('[generate-quiz page] JSON parse error:', parseError?.message, '| raw:', rawText.slice(0, 500))
-      return NextResponse.json({ questions: [], error: 'Failed to parse AI response' })
+    if (!questions) {
+      return NextResponse.json({ questions: [], error: lastPageError || 'Failed after 3 attempts' })
     }
 
     return NextResponse.json({ ok: true, questions })
