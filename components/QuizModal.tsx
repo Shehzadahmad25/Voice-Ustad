@@ -183,7 +183,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
     setQuizResults(null);
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000)
+    const timeoutId = setTimeout(() => controller.abort(), 25000)
     try {
       const res = await fetch('/api/generate-quiz', {
         method: 'POST',
@@ -197,7 +197,10 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
       setQuestions((data.questions as any[]).map(shuffleOptions) as Question[]);
     } catch (e: unknown) {
       clearTimeout(timeoutId)
-      setGenError(e instanceof Error ? e.message : 'Failed to generate quiz');
+      const isAbort = e instanceof Error && e.name === 'AbortError'
+      setGenError(isAbort
+        ? 'Quiz generation taking longer than expected, please try again'
+        : (e instanceof Error ? e.message : 'Failed to generate quiz'));
     } finally {
       setLoading(false);
     }
@@ -355,7 +358,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
               Generating Your Quiz
             </div>
             <div style={{ color: '#64748b', fontSize: '13px', marginBottom: '24px' }}>
-              Generating questions for{' '}
+              Generating 30 questions for{' '}
               <span style={{ color: '#19c37d', fontWeight: 600 }}>{topics.length} topics</span>
               {' '}in <span style={{ color: '#f1f5f9' }}>{chapterTitle}</span>
             </div>
@@ -382,7 +385,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
             </div>
             <style>{`@keyframes quizPulse{0%,80%,100%{opacity:.2;transform:scale(.75)}40%{opacity:1;transform:scale(1)}}`}</style>
             <div style={{ color: '#475569', fontSize: '12px', borderTop: '1px solid #1a2d47', paddingTop: '16px' }}>
-              This usually takes 30–60 seconds
+              Generating quiz questions... this may take 20–30 seconds
             </div>
           </div>
         </div>

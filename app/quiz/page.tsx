@@ -455,24 +455,34 @@ export default function QuizPage() {
       let pool: any[] = dbQ ?? []
       console.log('DB questions:', pool.length)
 
-      // Top up with AI if needed — 15 s timeout, fall back to DB questions on failure
-      if (pool.length < SUNDAY_COUNT) {
-        const aiController = new AbortController()
-        const aiTimer = setTimeout(() => aiController.abort(), 15000)
+      // Top up with AI — two calls of ≤20 each, 25s timeout per call, DB-only fallback
+      const aiCall = async (n: number): Promise<any[]> => {
+        const ctrl = new AbortController()
+        const t = setTimeout(() => ctrl.abort(), 25000)
         try {
           const res = await fetch('/api/generate-quiz', {
             method: 'POST',
-            signal: aiController.signal,
+            signal: ctrl.signal,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ count: SUNDAY_COUNT - pool.length, board: 'KPK' }),
+            body: JSON.stringify({ count: n, board: 'KPK' }),
           })
-          clearTimeout(aiTimer)
-          const aiData = await res.json()
-          console.log('AI questions:', aiData.questions?.length)
-          pool = [...pool, ...(aiData.questions ?? [])]
-        } catch (e) {
-          clearTimeout(aiTimer)
-          console.log('AI generation skipped (timeout or error) — using DB questions only')
+          clearTimeout(t)
+          const d = await res.json()
+          console.log('AI questions returned:', d.questions?.length)
+          return d.questions ?? []
+        } catch {
+          clearTimeout(t)
+          console.log('AI call skipped (timeout or error) — using DB questions only')
+          return []
+        }
+      }
+
+      if (pool.length < SUNDAY_COUNT) {
+        const batch1 = await aiCall(Math.min(SUNDAY_COUNT - pool.length, 20))
+        pool = [...pool, ...batch1]
+        if (pool.length < SUNDAY_COUNT) {
+          const batch2 = await aiCall(SUNDAY_COUNT - pool.length)
+          pool = [...pool, ...batch2]
         }
       }
 

@@ -104,7 +104,7 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
       .map(t => t.term || t.topic_title || '')
       .filter(Boolean)
 
-    const count = Math.min(topicNames.length * 2, 20)
+    const count = Math.min(topicNames.length * 2, 30)
     const seed = Math.random().toString(36).substring(7)
 
     console.log('[generate-quiz legacy] chapter:', resolvedTitle, '| topics:', topicNames.length, '| count:', count)
@@ -130,7 +130,7 @@ Rules: cover all topics, plausible distractors, vary correct_answer across A B C
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           temperature: 0.7,
-          max_tokens: 1500,
+          max_tokens: 2500,
           messages: [{ role: 'user', content: prompt }],
         }),
       })
@@ -176,7 +176,7 @@ Rules: cover all topics, plausible distractors, vary correct_answer across A B C
 async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
   try {
     const { chapterSlugs = [], count = 10 } = body
-    const safeCount = Math.min(count, 10)
+    const safeCount = Math.min(count, 30)
 
     let truncatedContext = ''
     try {
@@ -184,13 +184,13 @@ async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
       const { data: chunks } = await sb
         .from('content_chunks')
         .select('topic_slug, book_definition')
-        .limit(5)
+        .limit(8)
 
       if (chunks && chunks.length > 0) {
         const raw = chunks
           .map((c: any) => `[${c.topic_slug ?? 'general'}]: ${(c.book_definition || '').slice(0, 200)}`)
           .join('\n')
-        truncatedContext = raw.slice(0, 1000)
+        truncatedContext = raw.slice(0, 2000)
       }
     } catch (chunkErr: any) {
       console.warn('[generate-quiz page] content_chunks fetch failed:', chunkErr?.message)
@@ -216,7 +216,7 @@ Rules: 4 options each, 1 correct answer, vary correct_index 0-3 equally. Seed: $
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           temperature: 0.7,
-          max_tokens: 800,
+          max_tokens: 2000,
           response_format: { type: 'json_object' },
           messages: [{ role: 'user', content: prompt }],
         }),
