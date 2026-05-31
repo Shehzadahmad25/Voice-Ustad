@@ -27,6 +27,10 @@ interface QuizBody {
   board?: string
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  return arr.sort(() => Math.random() - 0.5)
+}
+
 export async function POST(req: NextRequest) {
   // FIX 4 — API key guard at the very top
   if (!process.env.OPENAI_API_KEY) {
@@ -105,6 +109,28 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
       .filter(Boolean)
 
     const count = Math.min(topicNames.length * 2, 30)
+
+    // ── DB-first: try quiz_questions table before calling OpenAI ─────────────
+    if (body.chapterNumber) {
+      try {
+        const sb = getServiceClient()
+        const { data: dbRows } = await sb
+          .from('quiz_questions')
+          .select('*')
+          .eq('board', 'KPK')
+          .eq('chapter_slug', body.chapterNumber)
+          .limit(60)
+
+        if (dbRows && dbRows.length >= 10) {
+          console.log('[generate-quiz legacy] serving from DB:', dbRows.length, 'questions')
+          return NextResponse.json({ ok: true, questions: shuffle(dbRows).slice(0, count), count })
+        }
+        console.log('[generate-quiz legacy] DB returned', dbRows?.length ?? 0, 'questions — falling back to OpenAI')
+      } catch (dbErr: any) {
+        console.warn('[generate-quiz legacy] DB query failed:', dbErr?.message)
+      }
+    }
+
     const seed = Math.random().toString(36).substring(7)
 
     console.log('[generate-quiz legacy] chapter:', resolvedTitle, '| topics:', topicNames.length, '| count:', count)
@@ -194,6 +220,27 @@ async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
       }
     } catch (chunkErr: any) {
       console.warn('[generate-quiz page] content_chunks fetch failed:', chunkErr?.message)
+    }
+
+    // ── DB-first: try quiz_questions table before calling OpenAI ─────────────
+    if (chapterSlugs.length > 0) {
+      try {
+        const sb = getServiceClient()
+        const { data: dbRows } = await sb
+          .from('quiz_questions')
+          .select('*')
+          .eq('board', 'KPK')
+          .in('chapter_slug', chapterSlugs)
+          .limit(60)
+
+        if (dbRows && dbRows.length >= 10) {
+          console.log('[generate-quiz page] serving from DB:', dbRows.length, 'questions')
+          return NextResponse.json({ ok: true, questions: shuffle(dbRows).slice(0, safeCount) })
+        }
+        console.log('[generate-quiz page] DB returned', dbRows?.length ?? 0, 'questions — falling back to OpenAI')
+      } catch (dbErr: any) {
+        console.warn('[generate-quiz page] DB query failed:', dbErr?.message)
+      }
     }
 
     const seed = Math.random().toString(36).substring(7)
