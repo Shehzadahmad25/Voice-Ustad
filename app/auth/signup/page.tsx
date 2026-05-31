@@ -91,6 +91,16 @@ export default function SignUpPage() {
     } finally { setLoading(false) }
   }
 
+  const handleGoogleSignUp = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) console.error('Google signup error:', error.message)
+  }
+
   return (
     <AuthLayout>
       <StepIndicator current={1} />
@@ -100,7 +110,7 @@ export default function SignUpPage() {
         First 7 days completely free · No card needed
       </p>
 
-      <button onClick={handleGoogle} style={{
+      <button onClick={handleGoogleSignUp} style={{
         width:'100%', padding:'12px', borderRadius:'11px',
         background:'#1a2035', border:'1px solid rgba(255,255,255,0.14)',
         fontSize:'13.5px', fontWeight:'600', color:'#f1f5f9',
