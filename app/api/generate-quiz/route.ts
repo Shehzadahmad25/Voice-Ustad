@@ -132,6 +132,7 @@ Rules:
 4. Exactly one correct answer per question
 5. Questions must be clear, unambiguous, and appropriate for Grade 11 KPK board
 6. Distractors (wrong options) must be plausible, not obviously wrong
+7. Vary the correct answer position across A, B, C, and D roughly equally. Do not always place the correct answer at option A.
 
 Return ONLY a valid JSON array with no markdown, no explanation, no code fences. Format:
 [
@@ -236,7 +237,7 @@ ${contextBlock}
 ${chapterNote}
 Variation seed: ${seed}
 
-Generate exactly ${count} multiple choice questions. Each question must have exactly 4 options (A, B, C, D) with exactly one correct answer. Include a brief explanation for the correct answer.
+Generate exactly ${count} multiple choice questions. Each question must have exactly 4 options (A, B, C, D) with exactly one correct answer. Include a brief explanation for the correct answer. Vary the correct answer position across A, B, C, and D roughly equally. Do not always place the correct answer at option A.
 
 Return ONLY valid JSON (no markdown, no code fences) matching this schema:
 {

@@ -10,7 +10,7 @@ import SundayBanner from '@/components/SundayBanner'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const SUNDAY_COUNT = 45
-const SUNDAY_SECS = 3600 // 60 min
+const SUNDAY_SECS = 2700 // 45 min
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +46,18 @@ function gradeColor(g: string): string {
   if (g === 'B') return '#eab308'
   if (g === 'C') return '#f97316'
   return '#ef4444'
+}
+
+function shuffleOptions(q: any): any {
+  const opts = getOptions(q)
+  const correctIdx = getCorrectIndex(q)
+  const correctText = opts[correctIdx]
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[opts[i], opts[j]] = [opts[j], opts[i]]
+  }
+  const newCorrectIndex = opts.indexOf(correctText)
+  return { ...q, options: opts, correct_index: newCorrectIndex, correct: newCorrectIndex }
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -129,6 +141,8 @@ const S = {
     borderRadius: '16px',
     padding: '24px 22px',
     marginBottom: '16px',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
   } as React.CSSProperties,
 
   topicLabel: {
@@ -149,7 +163,7 @@ const S = {
     marginBottom: '20px',
   } as React.CSSProperties,
 
-  optionBtn: (state: 'idle' | 'correct' | 'wrong' | 'dim'): React.CSSProperties => ({
+  optionBtn: (state: 'idle' | 'correct' | 'wrong' | 'dim' | 'selected'): React.CSSProperties => ({
     width: '100%',
     display: 'flex',
     alignItems: 'center',
@@ -158,19 +172,23 @@ const S = {
     minHeight: '48px',
     marginBottom: '8px',
     borderRadius: '10px',
-    border: `1px solid ${
-      state === 'correct' ? '#22c55e'
-      : state === 'wrong' ? '#ef4444'
-      : 'rgba(255,255,255,0.08)'
-    }`,
+    border: state === 'selected'
+      ? '1.5px solid #f97316'
+      : `1px solid ${
+          state === 'correct' ? '#22c55e'
+          : state === 'wrong' ? '#ef4444'
+          : 'rgba(255,255,255,0.08)'
+        }`,
     background:
       state === 'correct' ? 'rgba(34,197,94,0.12)'
       : state === 'wrong' ? 'rgba(239,68,68,0.10)'
+      : state === 'selected' ? 'rgba(249,115,22,0.15)'
       : state === 'dim' ? 'rgba(255,255,255,0.02)'
       : 'rgba(255,255,255,0.04)',
     color:
       state === 'correct' ? '#4ade80'
       : state === 'wrong' ? '#f87171'
+      : state === 'selected' ? '#f97316'
       : state === 'dim' ? '#475569'
       : '#cbd5e1',
     fontSize: '14px',
@@ -180,15 +198,16 @@ const S = {
     fontFamily: 'inherit',
   }),
 
-  letterBadge: (state: 'idle' | 'correct' | 'wrong' | 'dim'): React.CSSProperties => ({
+  letterBadge: (state: 'idle' | 'correct' | 'wrong' | 'dim' | 'selected'): React.CSSProperties => ({
     width: '26px',
     height: '26px',
     borderRadius: '6px',
     background:
       state === 'correct' ? '#22c55e'
       : state === 'wrong' ? '#ef4444'
+      : state === 'selected' ? '#f97316'
       : 'rgba(255,255,255,0.1)',
-    color: state === 'correct' || state === 'wrong' ? '#fff' : '#94a3b8',
+    color: (state === 'correct' || state === 'wrong' || state === 'selected') ? '#fff' : '#94a3b8',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -363,8 +382,6 @@ export default function QuizPage() {
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<any[]>([])
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
-  const [showExplain, setShowExplain] = useState(false)
-  const [showXP, setShowXP] = useState(false)
   const [timeLeft, setTimeLeft] = useState(SUNDAY_SECS)
   const [result, setResult] = useState<any>(null)
   const [loadError, setLoadError] = useState('')
@@ -464,11 +481,10 @@ export default function QuizPage() {
         return
       }
 
-      setQuestions(pool)
+      setQuestions(pool.map(q => shuffleOptions(q)))
       setCurrentQ(0)
       setAnswers([])
       setSelectedAnswer(null)
-      setShowExplain(false)
       setTimeLeft(SUNDAY_SECS)
       setQuizState('active')
     } catch (e) {
@@ -484,16 +500,10 @@ export default function QuizPage() {
     if (!supabase) return
 
     setSelectedAnswer(idx)
-    setShowExplain(true)
 
     const q = questions[currentQ]
     const correctIdx = getCorrectIndex(q)
     const isCorrect = idx === correctIdx
-
-    if (isCorrect) {
-      setShowXP(true)
-      setTimeout(() => setShowXP(false), 1200)
-    }
 
     // Record topic attempt — ensure p_chapter_slug is a chapter number ('1'–'24'), never a UUID
     if (userId && q.topic_slug) {
@@ -541,7 +551,6 @@ export default function QuizPage() {
     }
     setCurrentQ(c => c + 1)
     setSelectedAnswer(null)
-    setShowExplain(false)
   }
 
   // ── finishQuiz ────────────────────────────────────────────────────────────
@@ -602,7 +611,6 @@ export default function QuizPage() {
     setCurrentQ(0)
     setAnswers([])
     setSelectedAnswer(null)
-    setShowExplain(false)
     setResult(null)
     setLoadError('')
     setTimeLeft(SUNDAY_SECS)
@@ -638,7 +646,17 @@ export default function QuizPage() {
         }
       `}</style>
 
-      <div style={S.page}>
+      <div
+        style={S.page}
+        onContextMenu={(e) => { if (quizState === 'active') e.preventDefault() }}
+        onCopy={(e) => { if (quizState === 'active') e.preventDefault() }}
+        onCut={(e) => { if (quizState === 'active') e.preventDefault() }}
+        onKeyDown={(e) => {
+          if (quizState === 'active' && e.ctrlKey && ['c', 'a', 'x', 'C', 'A', 'X'].includes(e.key)) {
+            e.preventDefault()
+          }
+        }}
+      >
 
         {/* ── Top bar ──────────────────────────────────────────────────────── */}
         <div style={S.topBar}>
@@ -662,8 +680,6 @@ export default function QuizPage() {
             </span>
           )}
         </div>
-
-        {showXP && <div style={S.xpFloat}>+20 XP ⚡</div>}
 
         <div style={S.inner}>
 
@@ -707,7 +723,7 @@ export default function QuizPage() {
                   Sunday Test
                 </h2>
                 <p style={{ color: '#94a3b8', fontSize: '14px', margin: '0 0 6px' }}>
-                  {SUNDAY_COUNT} questions &nbsp;·&nbsp; 60 minutes &nbsp;·&nbsp; All Chapters
+                  {SUNDAY_COUNT} questions &nbsp;·&nbsp; 45 minutes &nbsp;·&nbsp; All Chapters
                 </p>
                 <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 24px' }}>
                   KPK Board · FSc Chemistry · 2× XP bonus
@@ -766,7 +782,7 @@ export default function QuizPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 {[
                   { icon: '🎯', title: 'Full syllabus', desc: 'Questions from all 24 chapters' },
-                  { icon: '⏱', title: '60 minutes', desc: 'Timed test with live countdown' },
+                  { icon: '⏱', title: '45 minutes', desc: 'Timed test with live countdown' },
                   { icon: '⚡', title: '2× XP bonus', desc: 'Double XP for Sunday tests' },
                   { icon: '📊', title: 'Detailed results', desc: 'Review every missed question' },
                 ].map((item, i) => (
@@ -799,7 +815,7 @@ export default function QuizPage() {
                 <div style={S.progressFill(progressPct)} />
               </div>
 
-              <div style={S.quizCard}>
+              <div className="quiz-protected" style={S.quizCard}>
                 {/* Topic label */}
                 {questions[currentQ]?.topic_slug && (
                   <div style={S.topicLabel}>
@@ -819,12 +835,9 @@ export default function QuizPage() {
                   const letter = 'ABCD'[idx]
                   const opts = getOptions(questions[currentQ])
                   const optionText = opts[idx] ?? ''
-                  const correctIdx = getCorrectIndex(questions[currentQ])
-
-                  let state: 'idle' | 'correct' | 'wrong' | 'dim' = 'idle'
+                  let state: 'idle' | 'correct' | 'wrong' | 'dim' | 'selected' = 'idle'
                   if (selectedAnswer !== null) {
-                    if (idx === correctIdx) state = 'correct'
-                    else if (idx === selectedAnswer) state = 'wrong'
+                    if (idx === selectedAnswer) state = 'selected'
                     else state = 'dim'
                   }
 
@@ -842,13 +855,6 @@ export default function QuizPage() {
                   )
                 })}
 
-                {/* Explanation */}
-                {showExplain && questions[currentQ]?.explanation && (
-                  <div style={S.explanationBox}>
-                    <strong>Explanation: </strong>
-                    {questions[currentQ].explanation}
-                  </div>
-                )}
               </div>
 
               {selectedAnswer !== null && (

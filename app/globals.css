@@ -2196,3 +2196,10 @@ body.no-scroll {
   position: static !important;
   height: auto !important;
 }
+
+.quiz-protected {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}

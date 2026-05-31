@@ -140,6 +140,23 @@ const loadingMessages = [
   'Finalizing your personalized quiz...',
 ];
 
+function shuffleOptions(question: any): any {
+  const keys = ['A', 'B', 'C', 'D'] as const
+  const opts = keys.map(k => question.options[k] as string)
+  const correctText = question.options[question.correct_answer as keyof typeof question.options] as string
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[opts[i], opts[j]] = [opts[j], opts[i]]
+  }
+  const newIdx = opts.indexOf(correctText)
+  const newKey = keys[newIdx]
+  return {
+    ...question,
+    options: { A: opts[0], B: opts[1], C: opts[2], D: opts[3] },
+    correct_answer: newKey,
+  }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topics, userId, onClose }: Props) {
@@ -173,7 +190,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Failed to generate quiz');
-      setQuestions(data.questions as Question[]);
+      setQuestions((data.questions as any[]).map(shuffleOptions) as Question[]);
     } catch (e: unknown) {
       setGenError(e instanceof Error ? e.message : 'Failed to generate quiz');
     } finally {
@@ -593,7 +610,11 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
 
   return (
     <div style={overlayStyle}>
-      <div style={cardStyle}>
+      <div
+        style={cardStyle}
+        onContextMenu={(e) => e.preventDefault()}
+        onCopy={(e) => e.preventDefault()}
+      >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div style={{ color: '#64748b', fontSize: '12px', fontWeight: 500 }}>{chapterTitle}</div>
@@ -628,12 +649,12 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
         )}
 
         {/* Question */}
-        <div style={{ color: '#f1f5f9', fontSize: '16px', fontWeight: 600, lineHeight: 1.55, marginBottom: '20px' }}>
+        <div className="quiz-protected" style={{ color: '#f1f5f9', fontSize: '16px', fontWeight: 600, lineHeight: 1.55, marginBottom: '20px', userSelect: 'none', WebkitUserSelect: 'none' }}>
           {currentIndex + 1}. {q.question}
         </div>
 
         {/* Options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+        <div className="quiz-protected" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px', userSelect: 'none', WebkitUserSelect: 'none' }}>
           {(['A', 'B', 'C', 'D'] as const).map((opt) => {
             const isSelected = selectedAnswer === opt;
             return (
