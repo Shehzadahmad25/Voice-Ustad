@@ -15,3 +15,4 @@ export async function generateAIQuestions({
   const data = await res.json()
   return data.questions ?? []
 }
+

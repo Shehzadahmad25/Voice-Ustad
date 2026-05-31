@@ -183,7 +183,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
     setQuizResults(null);
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 25000)
+    const timeoutId = setTimeout(() => controller.abort(), 58000)
     try {
       const res = await fetch('/api/generate-quiz', {
         method: 'POST',
@@ -733,3 +733,4 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
     </div>
   );
 }
+

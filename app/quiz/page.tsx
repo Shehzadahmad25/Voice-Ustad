@@ -458,7 +458,7 @@ export default function QuizPage() {
       // Top up with AI — two calls of ≤20 each, 25s timeout per call, DB-only fallback
       const aiCall = async (n: number): Promise<any[]> => {
         const ctrl = new AbortController()
-        const t = setTimeout(() => ctrl.abort(), 25000)
+        const t = setTimeout(() => ctrl.abort(), 58000)
         try {
           const res = await fetch('/api/generate-quiz', {
             method: 'POST',
@@ -1084,3 +1084,5 @@ export default function QuizPage() {
     </>
   )
 }
+
+
