@@ -378,6 +378,8 @@ export default function DashboardPage() {
             .from('profiles')
             .select('id, full_name, email')
             .in('id', userIds)
+          console.log('[leaderboard] userIds:', userIds)
+          console.log('[leaderboard] profilesData:', profilesData)
           const nameMap: Record<string, string> = {}
           profilesData?.forEach((p: any, i: number) => {
             nameMap[p.id] = p.full_name || p.email?.split('@')[0] || `Student ${i + 1}`
@@ -387,7 +389,7 @@ export default function DashboardPage() {
             score: r.score,
             total: r.total,
             accuracy: Math.round(r.accuracy ?? 0),
-            name: nameMap[r.user_id] || 'Student',
+            name: nameMap[r.user_id] || r.user_id?.slice(0, 8) || 'Student',
           })))
         } else {
           setLeaderboard([])
