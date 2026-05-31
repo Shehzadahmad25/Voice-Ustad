@@ -164,6 +164,10 @@ export default function SettingsPage() {
       }).eq('id', user.id)
       if (error) throw error
       showToast('✅ Academic profile saved!')
+      const isOnboarding = new URLSearchParams(window.location.search).get('onboarding') === '1'
+      if (isOnboarding && board && studentClass) {
+        router.push('/dashboard')
+      }
     } catch (e) { console.error('Save academic error:', e); showToast('Failed to save', 'error') }
   }
 

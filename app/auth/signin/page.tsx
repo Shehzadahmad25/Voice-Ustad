@@ -41,7 +41,7 @@ export default function SignInPage() {
       await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://www.voiceustad.pk/auth/callback',
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
     } catch (err: any) {

@@ -13,6 +13,25 @@ export default function AuthCallback() {
       return
     }
 
+    async function postLoginRedirect() {
+      try {
+        const { data: { user } } = await supabase!.auth.getUser()
+        if (!user) { router.push('/auth/signin?error=auth_failed'); return }
+        const { data: profile } = await supabase!
+          .from('profiles')
+          .select('class, board')
+          .eq('id', user.id)
+          .single()
+        if (!profile?.class || !profile?.board) {
+          router.push('/settings?onboarding=1')
+        } else {
+          router.push('/dashboard')
+        }
+      } catch {
+        router.push('/dashboard')
+      }
+    }
+
     async function handleCallback() {
       const { data, error } = await supabase!.auth.getSession()
 
@@ -23,8 +42,8 @@ export default function AuthCallback() {
       }
 
       if (data.session) {
-        console.log('Session found, redirecting to dashboard')
-        router.push('/dashboard')
+        console.log('Session found, checking onboarding...')
+        await postLoginRedirect()
         return
       }
 
@@ -40,7 +59,7 @@ export default function AuthCallback() {
           router.push('/auth/signin?error=auth_failed')
           return
         }
-        router.push('/dashboard')
+        await postLoginRedirect()
         return
       }
 
@@ -49,8 +68,8 @@ export default function AuthCallback() {
       const accessToken = hashParams.get('access_token')
 
       if (accessToken) {
-        console.log('Token in hash, session should be set')
-        router.push('/dashboard')
+        console.log('Token in hash, checking onboarding...')
+        await postLoginRedirect()
         return
       }
 

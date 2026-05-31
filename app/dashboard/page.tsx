@@ -610,12 +610,16 @@ export default function DashboardPage() {
           <span className="db-nav-pill-xp" style={{ ...pillStyle, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
             ⚡ {xp} XP
           </span>
-          <div style={{
-            width: '34px', height: '34px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #f97316, #a855f7)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: '800', fontSize: '14px', color: 'white', flexShrink: 0,
-          }}>
+          <div
+            onClick={() => router.push('/profile')}
+            style={{
+              width: '34px', height: '34px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #f97316, #a855f7)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: '800', fontSize: '14px', color: 'white', flexShrink: 0,
+              cursor: 'pointer',
+            }}
+          >
             {avatarLetter()}
           </div>
           <button onClick={() => router.push('/chat')} style={{
