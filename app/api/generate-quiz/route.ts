@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
-export const maxDuration = 30
+export const maxDuration = 60
 
 interface TopicItem {
   topic_title?: string
@@ -117,7 +117,7 @@ Return ONLY a JSON array, no markdown:
 Rules: cover all topics, plausible distractors, vary correct_answer across A B C D equally.`
 
     const legacyController = new AbortController()
-    const legacyTimer = setTimeout(() => legacyController.abort(), 25000)
+    const legacyTimer = setTimeout(() => legacyController.abort(), 55000)
     let openaiRes: Response
     try {
       openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -203,7 +203,7 @@ Return ONLY valid JSON: {"questions":[{"question":"...","options":["opt1","opt2"
 Rules: 4 options each, 1 correct answer, vary correct_index 0-3 equally. Seed: ${seed}`
 
     const pageController = new AbortController()
-    const pageTimer = setTimeout(() => pageController.abort(), 25000)
+    const pageTimer = setTimeout(() => pageController.abort(), 55000)
     let openaiRes: Response
     try {
       openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
