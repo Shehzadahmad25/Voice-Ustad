@@ -1184,9 +1184,11 @@ async function send(){
   if (_currentUserId) {
     const today = new Date().toDateString();
     if (localStorage.getItem('vu_last_streak') !== today) {
-      localStorage.setItem('vu_last_streak', today); // set first so a failed RPC doesn't retry
       ;(getSupabaseClient() ?? _sbClient)?.rpc('update_streak', { p_user_id: _currentUserId })
-        .then(() => console.log('[send] streak updated'))
+        .then(() => {
+          localStorage.setItem('vu_last_streak', today)
+          console.log('[send] streak updated')
+        })
         .catch((e: any) => console.error('[send] streak update error:', e));
     }
   }

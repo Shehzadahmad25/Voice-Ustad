@@ -373,7 +373,13 @@ export default function DashboardPage() {
           .order('accuracy', { ascending: false })
           .limit(10)
         if (lbData?.length) {
-          const userIds = lbData.map((r: any) => r.user_id)
+          const seen = new Set()
+          const dedupedLb = (lbData ?? []).filter((r: any) => {
+            if (seen.has(r.user_id)) return false
+            seen.add(r.user_id)
+            return true
+          })
+          const userIds = dedupedLb.map((r: any) => r.user_id)
           const { data: profilesData } = await supabase
             .rpc('get_profiles_for_leaderboard', { user_ids: userIds })
           console.log('[leaderboard] userIds:', userIds)
@@ -382,7 +388,7 @@ export default function DashboardPage() {
           profilesData?.forEach((p: any, i: number) => {
             nameMap[p.id] = p.full_name || p.email?.split('@')[0] || `Student ${i + 1}`
           })
-          setLeaderboard(lbData.map((r: any, i: number) => ({
+          setLeaderboard(dedupedLb.map((r: any, i: number) => ({
             user_id: r.user_id,
             score: r.score,
             total: r.total,
