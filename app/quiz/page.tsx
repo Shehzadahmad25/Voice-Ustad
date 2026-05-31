@@ -385,6 +385,7 @@ export default function QuizPage() {
   const [timeLeft, setTimeLeft] = useState(SUNDAY_SECS)
   const [result, setResult] = useState<any>(null)
   const [loadError, setLoadError] = useState('')
+  const [alreadyTook, setAlreadyTook] = useState(false)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -411,6 +412,19 @@ export default function QuizPage() {
       }
       // ────────────────────────────────────────────────────────────────────
       setUserId(uid)
+
+      // Check if already took Sunday Test this week
+      const startOfWeek = new Date()
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
+      startOfWeek.setHours(0, 0, 0, 0)
+      const { data: existing } = await supabase!
+        .from('quiz_attempts')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('mode', 'sunday')
+        .gte('completed_at', startOfWeek.toISOString())
+        .limit(1)
+      if (existing && existing.length > 0) setAlreadyTook(true)
     })
   }, [])
 
@@ -438,6 +452,7 @@ export default function QuizPage() {
     if (!supabase) return
     if (!userId) { console.error('No userId'); return }
     if (!sundayUnlocked) return
+    if (alreadyTook) return
 
     setLoadError('')
     setQuizState('loading')
@@ -751,29 +766,51 @@ export default function QuizPage() {
                         {loadError}
                       </p>
                     )}
-                    <button
-                      type="button"
-                      disabled={!userId}
-                      onClick={startQuiz}
-                      style={{
-                        padding: '14px 40px',
-                        borderRadius: '12px',
-                        border: 'none',
-                        background: userId
-                          ? 'linear-gradient(135deg, #a855f7, #7c3aed)'
-                          : 'rgba(168,85,247,0.3)',
-                        color: userId ? '#fff' : 'rgba(255,255,255,0.4)',
-                        fontFamily: 'var(--font-sora, Sora, sans-serif)',
-                        fontSize: '15px',
-                        fontWeight: 700,
-                        cursor: userId ? 'pointer' : 'not-allowed',
-                        transition: 'all .15s',
-                        width: '100%',
-                        maxWidth: '280px',
-                      }}
-                    >
-                      {userId ? 'Begin Sunday Test' : 'Loading...'}
-                    </button>
+                    {alreadyTook ? (
+                      <button
+                        type="button"
+                        disabled
+                        style={{
+                          padding: '14px 40px',
+                          borderRadius: '12px',
+                          border: 'none',
+                          background: '#334155',
+                          color: 'rgba(255,255,255,0.5)',
+                          fontFamily: 'var(--font-sora, Sora, sans-serif)',
+                          fontSize: '15px',
+                          fontWeight: 700,
+                          cursor: 'not-allowed',
+                          width: '100%',
+                          maxWidth: '280px',
+                        }}
+                      >
+                        ✅ Already taken this week
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!userId}
+                        onClick={startQuiz}
+                        style={{
+                          padding: '14px 40px',
+                          borderRadius: '12px',
+                          border: 'none',
+                          background: userId
+                            ? 'linear-gradient(135deg, #a855f7, #7c3aed)'
+                            : 'rgba(168,85,247,0.3)',
+                          color: userId ? '#fff' : 'rgba(255,255,255,0.4)',
+                          fontFamily: 'var(--font-sora, Sora, sans-serif)',
+                          fontSize: '15px',
+                          fontWeight: 700,
+                          cursor: userId ? 'pointer' : 'not-allowed',
+                          transition: 'all .15s',
+                          width: '100%',
+                          maxWidth: '280px',
+                        }}
+                      >
+                        {userId ? 'Begin Sunday Test' : 'Loading...'}
+                      </button>
+                    )}
                   </>
                 ) : (
                   <div style={{
@@ -1062,14 +1099,9 @@ export default function QuizPage() {
 
                 {/* ── Action buttons ───────────────────────────────────────── */}
                 <div style={S.actionRow}>
-                  {sundayUnlocked && (
-                    <button type="button" style={S.outlineBtn} onClick={() => startQuiz()}>
-                      Retake Test
-                    </button>
-                  )}
                   <button
                     type="button"
-                    style={{ ...S.filledBtn, gridColumn: sundayUnlocked ? 'auto' : '1 / -1' }}
+                    style={{ ...S.filledBtn, gridColumn: '1 / -1' }}
                     onClick={() => router.push('/dashboard')}
                   >
                     Dashboard
