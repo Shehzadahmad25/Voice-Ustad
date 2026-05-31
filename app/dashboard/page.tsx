@@ -375,9 +375,7 @@ export default function DashboardPage() {
         if (lbData?.length) {
           const userIds = lbData.map((r: any) => r.user_id)
           const { data: profilesData } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .in('id', userIds)
+            .rpc('get_profiles_for_leaderboard', { user_ids: userIds })
           console.log('[leaderboard] userIds:', userIds)
           console.log('[leaderboard] profilesData:', profilesData)
           const nameMap: Record<string, string> = {}
