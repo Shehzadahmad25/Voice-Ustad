@@ -82,7 +82,7 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
           .from('content_chunks')
           .select('topic_slug, term, book_definition')
           .eq('chapter_id', String(resolvedChapterId))
-          .limit(10)
+          .limit(30)
 
         if (chunks && chunks.length > 0) {
           resolvedTopics = chunks.map((c: any) => ({
@@ -207,16 +207,20 @@ async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
     let truncatedContext = ''
     try {
       const sb = getServiceClient()
-      const { data: chunks } = await sb
+      const chunkQuery = sb
         .from('content_chunks')
-        .select('topic_slug, book_definition')
-        .limit(8)
+        .select('topic_slug, book_definition, term')
+        .limit(40)
+
+      const { data: chunks } = chapterSlugs.length > 0
+        ? await chunkQuery.eq('board', 'KPK').in('chapter', chapterSlugs.map(Number))
+        : await chunkQuery
 
       if (chunks && chunks.length > 0) {
         const raw = chunks
-          .map((c: any) => `[${c.topic_slug ?? 'general'}]: ${(c.book_definition || '').slice(0, 200)}`)
+          .map((c: any) => `[${c.topic_slug ?? c.term ?? 'general'}]: ${(c.book_definition || '').slice(0, 200)}`)
           .join('\n')
-        truncatedContext = raw.slice(0, 2000)
+        truncatedContext = raw.slice(0, 4000)
       }
     } catch (chunkErr: any) {
       console.warn('[generate-quiz page] content_chunks fetch failed:', chunkErr?.message)
@@ -263,7 +267,7 @@ Rules: 4 options each, 1 correct answer, vary correct_index 0-3 equally. Seed: $
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: 3000,
           response_format: { type: 'json_object' },
           messages: [{ role: 'user', content: prompt }],
         }),
