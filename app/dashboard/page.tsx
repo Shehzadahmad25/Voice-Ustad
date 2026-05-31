@@ -376,11 +376,11 @@ export default function DashboardPage() {
           const userIds = lbData.map((r: any) => r.user_id)
           const { data: profilesData } = await supabase
             .from('profiles')
-            .select('id, full_name')
+            .select('id, full_name, email')
             .in('id', userIds)
           const nameMap: Record<string, string> = {}
           profilesData?.forEach((p: any, i: number) => {
-            nameMap[p.id] = p.full_name || `Student ${i + 1}`
+            nameMap[p.id] = p.full_name || p.email?.split('@')[0] || `Student ${i + 1}`
           })
           setLeaderboard(lbData.map((r: any, i: number) => ({
             user_id: r.user_id,
