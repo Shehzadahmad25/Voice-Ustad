@@ -407,10 +407,14 @@ export async function generateUrduSummary(fields: UrduSummaryFields): Promise<st
 // ── Tool: generateDevUrduTts ──────────────────────────────────────────────────
 
 /**
- * Generates Urdu TTS script from textbook content.
- * Uses Opus for topic-view (high accuracy), Sonnet for chat (speed).
- * Never throws — returns '' on any failure or non-Urdu response.
+ * Generates Urdu TTS script from textbook content via Anthropic (claude-sonnet-5).
+ * Returns '' when inputs are empty, the API key is missing, or the model
+ * returns non-Urdu content even after a retry.
+ * THROWS on Anthropic API errors (4xx/5xx/network) with the status in the
+ * message so callers can surface a diagnosable error instead of a silent ''.
  */
+
+const URDU_SCRIPT_MODEL = 'claude-sonnet-5';
 
 const DEV_URDU_SYSTEM_PROMPT = `You are an enthusiastic Pakistani FSc Chemistry teacher. Explain the topic in 3-4 short sentences mixing Urdu and English naturally — the way real Pakistani teachers speak in class.
 
@@ -445,7 +449,7 @@ export async function generateDevUrduTts(
     return '';
   }
 
-  console.log('[urdu-script] using Anthropic claude-sonnet-4-20250514');
+  console.log('[urdu-script] using Anthropic', URDU_SCRIPT_MODEL);
 
   const def = definition.trim();
   const exp = explanation.trim();
@@ -483,14 +487,19 @@ export async function generateDevUrduTts(
   async function callAnthropic(content: string): Promise<string> {
     const response = await anthropic.messages.create(
       {
-        model:      'claude-sonnet-4-20250514',
-        max_tokens: 250,
+        model:      URDU_SCRIPT_MODEL,
+        // Sonnet 5 tokenizer produces ~30% more tokens than Sonnet 4 for the
+        // same text — 250 tuned for Sonnet 4 risks truncating the script.
+        max_tokens: 400,
+        // Sonnet 5 runs adaptive thinking when `thinking` is omitted; disable it
+        // so output tokens go to the script, not a leading thinking block.
+        thinking:   { type: 'disabled' },
         system:     DEV_URDU_SYSTEM_PROMPT,
         messages:   [{ role: 'user', content }],
       },
       { timeout: OPENAI_SCRIPT_TIMEOUT_MS },
     );
-    const block = response.content[0];
+    const block = response.content.find((b) => b.type === 'text');
     return String(block?.type === 'text' ? block.text : '').trim();
   }
 
@@ -513,7 +522,17 @@ export async function generateDevUrduTts(
 
     return result;
   } catch (err) {
-    console.error('[urdu-script] Anthropic call failed:', err instanceof Error ? err.message : err);
-    return '';
+    if (err instanceof Anthropic.APIError) {
+      console.error(
+        '[urdu-script] Anthropic call failed:',
+        'status:', err.status ?? 'n/a',
+        '| type:', err.name,
+        '| msg:', err.message,
+      );
+      throw new Error(`Urdu generation failed: Anthropic ${err.status ?? 'API'} error (${err.name})`);
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[urdu-script] Anthropic call failed:', msg);
+    throw new Error(`Urdu generation failed: ${msg}`);
   }
 }

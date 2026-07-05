@@ -47,12 +47,24 @@ export async function POST(request: NextRequest) {
     const topic = topicTitle || topicCode;
     console.log('[generate-urdu] topic:', topic, '| chapterNumber:', chapterNumber);
 
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('[generate-urdu] ANTHROPIC_API_KEY is not set');
+      return NextResponse.json(
+        { ok: false, error: 'Server misconfigured: ANTHROPIC_API_KEY is not set' },
+        { status: 500 },
+      );
+    }
+
+    // Throws with the Anthropic status on API errors — surfaced via the outer catch.
     const raw = await generateDevUrduTts(topic, definition, explanation, example || undefined, formula || undefined);
 
     const hasUrduChars = (raw.match(/[؀-ۿ]/g) || []).length >= 5;
     if (!raw || !hasUrduChars) {
-      console.log('[generate-urdu] no Urdu content in response | preview:', raw?.slice(0, 80));
-      return NextResponse.json({ ok: false, error: 'No Urdu content generated' }, { status: 500 });
+      console.log('[generate-urdu] model returned non-Urdu content | preview:', raw?.slice(0, 80));
+      return NextResponse.json(
+        { ok: false, error: 'Model returned non-Urdu content (retry may help)' },
+        { status: 500 },
+      );
     }
 
     const urduTtsText = postProcessUrduTts(sanitizeUrduTtsText(raw) || raw);
