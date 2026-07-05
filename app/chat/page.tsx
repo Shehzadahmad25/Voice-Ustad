@@ -740,27 +740,7 @@ function appendTopicView(r: any): string {
   questionForId[id] = String(r?.topic || r?.chapter || '').trim();
   cacheIdForId[id]  = null;
 
-  if (r?.audioBase64) {
-    audioUrls[id] = `data:audio/mpeg;base64,${r.audioBase64}`;
-    audioCacheKeys[id] = putCachedAudio(urduSummary, String(r.audioBase64));
-    ttsReady[id] = true;
-    setVoiceSource(id, 'openai');
-  } else if (r?.audioUrl) {
-    const sep = String(r.audioUrl).includes('?') ? '&' : '?';
-    audioUrls[id] = `${r.audioUrl}${sep}v=${Date.now()}`;
-    ttsReady[id] = true;
-    setVoiceSource(id, 'openai');
-  } else {
-    const cached = getCachedAudio(urduSummary);
-    if (cached) {
-      audioUrls[id] = `data:audio/mpeg;base64,${cached.audioBase64}`;
-      audioCacheKeys[id] = cached.key;
-      ttsReady[id] = true;
-      setVoiceSource(id, 'openai');
-    } else {
-      setVoiceSource(id, 'unknown');
-    }
-  }
+  initCardAudio(id, r, urduSummary);
 
   // Page label
   const pageLabel = (() => {
@@ -774,8 +754,6 @@ function appendTopicView(r: any): string {
   const ttsWordCount = urduSummary ? urduSummary.split(/\s+/).filter(Boolean).length : 0;
   const engWordCount = [r.definition, r.example, r.example_answer].filter(Boolean).join(' ').split(/\s+/).filter(Boolean).length;
   const dur = Math.max(r.dur || 0, Math.round((ttsWordCount || engWordCount) / 2.5), 30);
-  const mm = Math.floor(dur / 60);
-  const ss = String(dur % 60).padStart(2, '0');
 
   // Content sections — English only. guide_explanation (urduSummary) never rendered as text.
   const formulas = Array.isArray(r.formula) ? r.formula : (r.formula ? [String(r.formula)] : []);
@@ -822,34 +800,14 @@ function appendTopicView(r: any): string {
   // Show voice card whenever the topic has renderable content — urduSummary may arrive async.
   const hasTtsContent = !!(r.definition || r.explanation || r.example);
   console.log('[viewTopic] voiceHtml will render:', hasTtsContent, '| urduSummary ready:', !!urduSummary);
-  // NOTE: ttsUrText is NOT embedded in data-tts-ur to avoid huge encoded strings
-  // breaking HTML parsing. urduSummaries[id] (in-memory) is the primary source for togglePlay.
   const voiceCardHtml = hasTtsContent
-    ? '<div class="voice-card" data-id="' + id + '">'
-      + '<div class="vc-top-row">'
-      + '<div class="vc-icon" aria-hidden="true"></div>'
-      + '<div class="vc-info">'
-      + '<div class="vc-label">Urdu audio</div>'
-      + '<div class="vc-sub" id="sub_' + id + '" data-default="Play — ' + dur + 's">'
-        + (urduSummary ? 'Play — ' + dur + 's' : 'Generating audio...')
-      + '</div>'
-      + '<div class="vc-loading"><span class="vc-dot"></span><span class="vc-dot"></span><span class="vc-dot"></span> Preparing audio...</div>'
-      + '</div>'
-      + '<span class="vc-badge src-unknown" id="badge_' + id + '">Urdu</span>'
-      + '<div class="vc-wave" id="wv_' + id + '"><span></span><span></span><span></span><span></span></div>'
-      + '<div class="vc-timer" id="tm_' + id + '">' + mm + ':' + ss + '</div>'
-      + '<button class="vc-play play-btn" id="btn_' + id + '" data-dur="' + dur + '" data-tts="" data-tts-ur=""'
-      + (urduSummary ? '' : ' disabled')
-      + ' aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay(\'' + id + '\')">'
-      + '<svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9L5 21V3z"/></svg>'
-      + '<svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>'
-      + '</button>'
-      + '<button class="vc-retry" id="retry_' + id + '" type="button" onclick="retryAudio(\'' + id + '\')">Retry</button>'
-      + '</div>'
-      + '<div class="vc-progress" id="prog_' + id + '">'
-      + '<div class="vc-progress-bar" id="progbar_' + id + '"></div>'
-      + '</div>'
-      + '</div>'
+    ? renderVoiceCard(id, {
+        dur,
+        subLabel:     urduSummary ? `Play — ${dur}s` : 'Generating audio...',
+        defaultLabel: `Play — ${dur}s`,
+        disabled:     !urduSummary,
+        retryLabel:   'Retry',
+      })
     : '';
 
   const w = document.createElement('div');
@@ -965,10 +923,7 @@ async function fetchUrduForTopicCard(id: string, r: any) {
     if (audioB64) {
       // Audio arrived directly — no extra API call needed
       console.log('[fetchUrdu] audio ready, setting directly');
-      audioUrls[id]      = `data:audio/mpeg;base64,${audioB64}`;
-      audioCacheKeys[id] = putCachedAudio(urduText, audioB64);
-      ttsReady[id]       = true;
-      setVoiceSource(id, 'openai');
+      setAudioReady(id, audioB64, urduText);
       const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
       if (retryBtn) retryBtn.style.display = 'none';
       if (btn) btn.disabled = false;
@@ -1379,7 +1334,6 @@ function appendAI(r, time, save=true){
   const wordCount = allText.split(/\s+/).length;
   const computedDur = Math.round(wordCount / 2.8); // ~2.8 Urdu words/sec
   const actualDur = Math.max(dur, computedDur);
-  const mm=Math.floor(actualDur/60), ss=String(actualDur%60).padStart(2,'0');
 
   console.log('[appendAI] raw resp:', JSON.stringify(r).slice(0, 300));
   const urduSummary = String(r?.urduSummary || r?.urduTtsText || '').trim();
@@ -1388,29 +1342,7 @@ function appendAI(r, time, save=true){
   cacheIdForId[id]  = r?.cacheId  || null;
   questionForId[id] = r?.question || lastQuestion || '';
 
-  if (r?.audioBase64) {
-    audioUrls[id] = `data:audio/mpeg;base64,${r.audioBase64}`;
-    audioCacheKeys[id] = putCachedAudio(urduSummary, String(r.audioBase64));
-    ttsReady[id] = true;
-    setVoiceSource(id, 'openai');
-  } else if (r?.audioUrl) {
-    // Cached audio served directly from Supabase Storage CDN.
-    // Append ?v= timestamp so the browser re-fetches after a cache clear + re-upload.
-    const sep = String(r.audioUrl).includes('?') ? '&' : '?';
-    audioUrls[id] = `${r.audioUrl}${sep}v=${Date.now()}`;
-    ttsReady[id] = true;
-    setVoiceSource(id, 'openai');
-  } else {
-    const cached = getCachedAudio(urduSummary);
-    if (cached) {
-      audioUrls[id] = `data:audio/mpeg;base64,${cached.audioBase64}`;
-      audioCacheKeys[id] = cached.key;
-      ttsReady[id] = true;
-      setVoiceSource(id, 'openai');
-    } else {
-      setVoiceSource(id, 'unknown');
-    }
-  }
+  initCardAudio(id, r, urduSummary);
   if (r?.audioError) {
     audioErrors[id] = String(r.audioError);
   }
@@ -1473,38 +1405,15 @@ function appendAI(r, time, save=true){
   _wcd.__copyData = _wcd.__copyData || {};
   _wcd.__copyData[id] = copyText;
 
-  const voiceCardHtml = (urduSummary || r?.audioBase64 || r?.audioUrl) ? `
-    <div class="voice-card" role="region" aria-label="Urdu voice explanation">
-      <div class="vc-top-row">
-        <div class="vc-icon" aria-hidden="true">🔊</div>
-        <div class="vc-info">
-          <div class="vc-label">Urdu audio</div>
-          <div class="vc-sub" lang="ur" dir="ltr" data-default="Play - ${actualDur}s">Play - ${actualDur}s</div>
-          <div class="vc-loading" id="vcload_${id}" aria-live="polite">
-            <span class="vc-dot"></span>
-            <span class="vc-dot"></span>
-            <span class="vc-dot"></span>
-            Preparing audio...
-          </div>
-        </div>
-        <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu</span>
-        <div class="vc-wave" id="wv_${id}" aria-hidden="true">
-          <span></span><span></span><span></span>
-          <span></span><span></span><span></span><span></span>
-        </div>
-        <div class="vc-timer" id="tm_${id}" aria-live="polite">${mm}:${ss}</div>
-        <button class="vc-play" id="btn_${id}" data-dur="${actualDur}" data-tts="${ttsText}" data-tts-ur="${ttsUrText}" aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay('${id}')">
-          <svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 9L5 21V3z"/></svg>
-          <svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-        </button>
-        <button class="vc-retry" id="retry_${id}" type="button" aria-label="Retry Urdu voice" onclick="retryAudio('${id}')">
-          Retry audio
-        </button>
-      </div>
-      <div class="vc-progress" id="prog_${id}" role="progressbar" aria-valuemin="0" aria-valuemax="${actualDur}" aria-valuenow="0">
-        <div class="vc-progress-bar" id="progbar_${id}"></div>
-      </div>
-    </div>` : '';
+  const voiceCardHtml = (urduSummary || r?.audioBase64 || r?.audioUrl)
+    ? renderVoiceCard(id, {
+        dur:        actualDur,
+        subLabel:   `Play - ${actualDur}s`,
+        ttsText,
+        ttsUrText,
+        retryLabel: 'Retry audio',
+      })
+    : '';
 
   const w=document.createElement('div');
   w.innerHTML=`
@@ -1626,13 +1535,102 @@ function setVoiceSource(id: string, source: 'openai' | 'browser' | 'unknown'){
   badge.classList.add('src-unknown');
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   SHARED AUDIO-PLAYER HELPERS
+   Extracted from appendTopicView / appendAI / fetchUrduForTopicCard /
+   retryAudio / togglePlay — deduplication only, same runtime behavior.
+═══════════════════════════════════════════════════════════════ */
+
+/* Marks a card's audio as ready. Accepts raw base64 MP3 (cached to localStorage)
+   or an http(s) URL (used directly, with a cache-busting ?v= param so the
+   browser re-fetches after a server-side cache clear + re-upload). */
+function setAudioReady(id, base64OrUrl, text){
+  const val = String(base64OrUrl || '');
+  if (!val) return;
+  if (/^https?:\/\//i.test(val)) {
+    const sep = val.includes('?') ? '&' : '?';
+    audioUrls[id] = `${val}${sep}v=${Date.now()}`;
+  } else {
+    audioUrls[id] = `data:audio/mpeg;base64,${val}`;
+    audioCacheKeys[id] = putCachedAudio(String(text || ''), val);
+  }
+  ttsReady[id] = true;
+  setVoiceSource(id, 'openai');
+}
+
+/* Resolves a freshly rendered card's audio from the API response
+   (audioBase64 | audioUrl) or the browser localStorage cache. */
+function initCardAudio(id, r, text){
+  if (r?.audioBase64) { setAudioReady(id, String(r.audioBase64), text); return; }
+  if (r?.audioUrl)    { setAudioReady(id, String(r.audioUrl), text); return; }
+  const cached = getCachedAudio(String(text || ''));
+  if (cached) { setAudioReady(id, cached.audioBase64, text); return; }
+  setVoiceSource(id, 'unknown');
+}
+
+/* Browser speechSynthesis fallback for when OpenAI audio is unavailable.
+   Prefers an installed ur-* voice, else the default voice with an ur-PK lang
+   hint. onEnd fires when speech finishes (used to reset the play button).
+   Returns false when speech synthesis is unavailable or text is empty. */
+function speakWithBrowserTts(text, onEnd){
+  const t = String(text || '').trim();
+  if (!t || !window.speechSynthesis) return false;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(t);
+  utter.lang = 'ur-PK';
+  utter.rate = 0.9;
+  const voices = window.speechSynthesis.getVoices();
+  const urVoice = voices.find((v) => (v.lang || '').toLowerCase().includes('ur'));
+  if (urVoice) utter.voice = urVoice;
+  if (onEnd) utter.onend = onEnd;
+  window.speechSynthesis.speak(utter);
+  return true;
+}
+
+/* Voice-card markup shared by topic-view and chat answers.
+   opts: { dur, subLabel, defaultLabel?, disabled?, ttsText?, ttsUrText?, retryLabel? }
+   NOTE: the Urdu script is NOT embedded in data-tts-ur for topic cards (huge
+   encoded strings break HTML parsing) — urduSummaries[id] is the primary
+   source for togglePlay/retryAudio. */
+function renderVoiceCard(id, opts){
+  const dur = Math.max(0, Math.round(Number(opts?.dur) || 0));
+  const mm = Math.floor(dur / 60), ss = String(dur % 60).padStart(2, '0');
+  const defaultLabel = String(opts?.defaultLabel ?? opts?.subLabel ?? `Play - ${dur}s`);
+  const subLabel = String(opts?.subLabel ?? defaultLabel);
+  return `
+    <div class="voice-card" data-id="${id}" role="region" aria-label="Urdu voice explanation">
+      <div class="vc-top-row">
+        <div class="vc-icon" aria-hidden="true"></div>
+        <div class="vc-info">
+          <div class="vc-label">Urdu audio</div>
+          <div class="vc-sub" id="sub_${id}" lang="ur" dir="ltr" data-default="${esc(defaultLabel)}">${esc(subLabel)}</div>
+          <div class="vc-loading" id="vcload_${id}" aria-live="polite">
+            <span class="vc-dot"></span><span class="vc-dot"></span><span class="vc-dot"></span>
+            Preparing audio...
+          </div>
+        </div>
+        <span class="vc-badge src-unknown" id="badge_${id}" aria-label="Urdu voice source">Urdu</span>
+        <div class="vc-wave" id="wv_${id}" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="vc-timer" id="tm_${id}" aria-live="polite">${mm}:${ss}</div>
+        <button class="vc-play play-btn" id="btn_${id}" data-dur="${dur}" data-tts="${opts?.ttsText || ''}" data-tts-ur="${opts?.ttsUrText || ''}"${opts?.disabled ? ' disabled' : ''} aria-label="Play Urdu audio" aria-pressed="false" onclick="togglePlay('${id}')">
+          <svg class="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 9L5 21V3z"/></svg>
+          <svg class="ico-stop" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+        </button>
+        <button class="vc-retry" id="retry_${id}" type="button" aria-label="Retry Urdu voice" onclick="retryAudio('${id}')">${esc(opts?.retryLabel || 'Retry audio')}</button>
+      </div>
+      <div class="vc-progress" id="prog_${id}" role="progressbar" aria-valuemin="0" aria-valuemax="${dur}" aria-valuenow="0">
+        <div class="vc-progress-bar" id="progbar_${id}"></div>
+      </div>
+    </div>`;
+}
+
 async function prefetchUrduAudio(id){
-  const cached = getCachedAudio(String(urduSummaries[id] || ''));
-  if (!audioUrls[id] && cached) {
-    audioUrls[id] = `data:audio/mpeg;base64,${cached.audioBase64}`;
-    audioCacheKeys[id] = cached.key;
-    ttsReady[id] = true;
-    setVoiceSource(id, 'openai');
+  if (!audioUrls[id]) {
+    const cached = getCachedAudio(String(urduSummaries[id] || ''));
+    if (cached) setAudioReady(id, cached.audioBase64, String(urduSummaries[id] || ''));
   }
   if (!audioUrls[id] && urduSummaries[id]) {
     console.log('[prefetch] id:', id, '| urduSummaries length:', urduSummaries[id]?.length, '| starting audio fetch');
@@ -1764,22 +1762,11 @@ async function togglePlay(id){
     if (!audioUrls[id]) {
       const ok = await retryAudio(id, true);
       if (!ok || !audioUrls[id]) {
-        const summary = String(urduSummaries[id] || '').trim();
-        if (summary && window.speechSynthesis) {
-          // OpenAI failed (e.g. quota/timeout) — fall back to browser TTS
-          const spokenByUrdu = speakUrdu(summary);
-          if (!spokenByUrdu) {
-            window.speechSynthesis.cancel();
-            const utter = new SpeechSynthesisUtterance(summary);
-            utter.lang = 'ur-PK';
-            utter.rate = 0.9;
-            // Stop play UI when browser TTS finishes so button resets correctly
-            utter.onend = () => stopPlay(id);
-            window.speechSynthesis.speak(utter);
-          }
+        // OpenAI failed (e.g. quota/timeout) — fall back to browser TTS.
+        // Don't return on success — fall through so the timer tick runs.
+        if (speakWithBrowserTts(urduSummaries[id], () => stopPlay(id))) {
           setVoiceSource(id, 'browser');
           startPlaying();
-          // Don't return — fall through so the timer tick runs for progress bar
         } else {
           const errMsg = audioErrors[id] || 'Voice unavailable — Retry';
           throw new Error(errMsg);
@@ -1801,12 +1788,7 @@ async function togglePlay(id){
     console.error('[togglePlay catch]', (e as any)?.message);
     // Fallback to browser speech — use in-memory urduSummaries[id] (data-tts-ur attr is empty by design)
     const fallbackText = String(urduSummaries[id] || ttsUrText || ttsText || '').trim();
-    if(window.speechSynthesis && fallbackText){
-      window.speechSynthesis.cancel();
-      const utter=new SpeechSynthesisUtterance(fallbackText);
-      utter.lang='ur-PK'; utter.rate=0.9;
-      utter.onend = () => stopPlay(id);
-      window.speechSynthesis.speak(utter);
+    if(speakWithBrowserTts(fallbackText, () => stopPlay(id))){
       setVoiceSource(id, 'browser');
       startPlaying();
     } else {
@@ -1874,19 +1856,6 @@ function stopPlay(id){
   tm.textContent=`${m}:${s}`;
 }
 
-function speakUrdu(text: string){
-  if (!text || !window.speechSynthesis) return false;
-  const utter=new SpeechSynthesisUtterance(text);
-  utter.lang='ur-PK';
-  const voices = window.speechSynthesis.getVoices();
-  const urVoice = voices.find(v => (v.lang || '').toLowerCase().includes('ur'));
-  if (!urVoice) return false;
-  utter.voice = urVoice;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utter);
-  return true;
-}
-
 async function retryAudio(id, silent=false){
   const btn=document.getElementById('btn_'+id);
   const ttsUrText = decodeURIComponent(String(btn?.getAttribute('data-tts-ur') || ''));
@@ -1938,10 +1907,7 @@ async function retryAudio(id, silent=false){
     }
     if(data?.ok === true && !data?.audioBase64) return false; // TTS disabled server-side — silent skip
     if(!data?.audioBase64) throw new Error(lastErr || 'Empty audio response');
-    audioUrls[id] = `data:audio/mpeg;base64,${data.audioBase64}`;
-    audioCacheKeys[id] = putCachedAudio(summary, String(data.audioBase64 || ''));
-    ttsReady[id] = true;
-    setVoiceSource(id, 'openai');
+    setAudioReady(id, String(data.audioBase64), summary);
     const retryBtn = document.getElementById('retry_'+id) as HTMLButtonElement | null;
     if (retryBtn) retryBtn.style.display = 'none';
     if (!silent) showToast('🔊','Urdu voice ready');
@@ -2251,10 +2217,7 @@ async function dbLoadSession(sessionId: string) {
               if (msg.urdu_audio_url) {
                 // Audio base64 saved — restore directly, no re-fetch needed
                 console.log('[session-load] restoring saved audio b64, len:', msg.urdu_audio_url.length);
-                audioUrls[cardId]  = `data:audio/mpeg;base64,${msg.urdu_audio_url}`;
-                audioCacheKeys[cardId] = putCachedAudio(urduText, msg.urdu_audio_url);
-                ttsReady[cardId]   = true;
-                setVoiceSource(cardId, 'openai');
+                setAudioReady(cardId, String(msg.urdu_audio_url), urduText);
                 // Update play button
                 const btn = document.getElementById('btn_' + cardId) as HTMLButtonElement | null;
                 if (btn) btn.disabled = false;
@@ -2265,10 +2228,7 @@ async function dbLoadSession(sessionId: string) {
                 const cached = getCachedAudio(urduText);
                 if (cached) {
                   console.log('[session-load] restored audio from localStorage cache');
-                  audioUrls[cardId]      = `data:audio/mpeg;base64,${cached.audioBase64}`;
-                  audioCacheKeys[cardId] = cached.key;
-                  ttsReady[cardId]       = true;
-                  setVoiceSource(cardId, 'openai');
+                  setAudioReady(cardId, cached.audioBase64, urduText);
                 } else {
                   console.log('[session-load] re-fetching audio for topic:', msg.topic_slug);
                   // Build minimal r object for fetchUrduForTopicCard
