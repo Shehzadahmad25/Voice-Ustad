@@ -13,11 +13,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient }          from '@/lib/supabase';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60; // storage deletion loops can be slow
 export const dynamic = 'force-dynamic';
 
 function checkKey(request: NextRequest): boolean {
   const key = process.env.DEMO_ACCESS_KEY || process.env.ADMIN_KEY;
-  if (!key) return true;
+  if (!key) {
+    // No key configured: open in local dev, LOCKED in production.
+    // Set ADMIN_KEY (or DEMO_ACCESS_KEY) in Vercel env to use this route in prod.
+    return process.env.NODE_ENV !== 'production';
+  }
   return (
     request.nextUrl.searchParams.get('key') === key ||
     request.headers.get('x-admin-key') === key

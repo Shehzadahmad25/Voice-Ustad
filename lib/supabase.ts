@@ -28,9 +28,16 @@ export function getSupabaseClient() {
 export function getServiceClient(): SupabaseClient {
   if (!serviceClient) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const key =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceKey) {
+      // Anon fallback keeps the app limping along, but RLS will silently block
+      // most server-side queries — make the misconfiguration loud in logs.
+      console.error(
+        '[supabase] SUPABASE_SERVICE_ROLE_KEY is not set — falling back to the anon key. ' +
+        'Server-side queries will be restricted by RLS and may silently return empty results.'
+      )
+    }
+    const key = serviceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     serviceClient = createClient(url, key)
   }
   return serviceClient

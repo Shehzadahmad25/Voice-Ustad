@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
+export const maxDuration = 10; // fast DB queries only
 
 export async function GET() {
   const db = getServiceClient();

@@ -12,8 +12,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
 import { sanitizeUrduTtsText, isEnglishResponse } from '@/lib/agents/tools';
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime     = 'nodejs';
+export const dynamic     = 'force-dynamic';
+export const maxDuration = 30; // DB retrieval only, but allow for cold starts + slow queries
 
 export async function POST(request: NextRequest) {
   try {
