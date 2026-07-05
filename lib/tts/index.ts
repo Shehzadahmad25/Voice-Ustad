@@ -3,19 +3,18 @@
  * ----------------
  * Provider router for TTS generation.
  *
- * Current: OpenAI TTS primary (model=tts-1-hd, voice=onyx — male Pakistani ustad tone)
- *
- * AZURE TTS — disabled, keeping for reference.
- * Re-enable by un-commenting the Azure block below and removing the OpenAI block.
+ * Current: OpenAI TTS (gpt-4o-mini-tts).
+ * Azure TTS was removed 2026-07 — recover lib/tts/azureTTS.ts from git
+ * history if it's ever needed again.
  */
 
-// AZURE TTS — disabled, keeping for reference
-// import { synthesizeUrduSpeech, AZURE_VOICE_NAME } from './azureTTS';
-import { VOICE_MAP } from './azureTTS';
-
-// Re-export VOICE_MAP so callers (route.ts) can resolve "asad"|"uzma"|"english"
-// aliases without importing directly from azureTTS.
-export { VOICE_MAP };
+// Voice aliases callers (route.ts) can pass as "voice" — kept from the Azure
+// era so existing API payloads keep working. Currently ignored by OpenAI TTS.
+export const VOICE_MAP: Record<string, string> = {
+  asad:    'ur-PK-AsadNeural',
+  uzma:    'ur-PK-UzmaNeural',
+  english: 'en-US-GuyNeural',
+};
 
 export type TtsProvider = 'azure' | 'openai';
 
@@ -67,21 +66,6 @@ export async function generateSpeech(
     console.log('[tts] DISABLED — enable with URDU_TTS_ENABLED=true');
     return null;
   }
-
-  // AZURE TTS — disabled, keeping for reference
-  // console.log('[tts] provider=azure');
-  // console.log('[tts] synthesizing urdu audio');
-  // try {
-  //   const audioBuffer = await synthesizeUrduSpeech(text, voiceName);
-  //   const usedVoice   = voiceName || AZURE_VOICE_NAME;
-  //   console.log('[tts] azure success — voice:', usedVoice);
-  //   return { audioBuffer, provider: 'azure', voice: usedVoice, model: 'azure-neural-tts' };
-  // } catch (azureErr) {
-  //   console.warn(
-  //     '[tts] azure failed, fallback=openai',
-  //     azureErr instanceof Error ? azureErr.message : String(azureErr),
-  //   );
-  // }
 
   // ── OpenAI TTS — primary ───────────────────────────────────────────────────
   const model = 'gpt-4o-mini-tts';

@@ -29,7 +29,9 @@ export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
   // ── Demo API key guard ─────────────────────────────────────────────────────
-  const protectedApiRoutes = ['/api/chat', '/api/chat2', '/api/topic-view']
+  // NOTE: /api/chat-history was previously covered by the old '/api/chat'
+  // prefix match; listed explicitly now that the dead /api/chat route is gone.
+  const protectedApiRoutes = ['/api/chat2', '/api/chat-history', '/api/topic-view']
   if (DEMO_KEY && protectedApiRoutes.some(r => path.startsWith(r))) {
     const paramKey  = req.nextUrl.searchParams.get('demo')
     const headerKey = req.headers.get('x-demo-key')
