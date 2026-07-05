@@ -31,11 +31,7 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-  "description": "This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).",
-  "main": "check-chapters.js",
-  "directories": {
-    "lib": "lib"
-  },
+  "description": "VoiceUstad — Urdu-language educational platform for KPK board FSc/MDCAT students (Next.js + Supabase + OpenAI TTS).",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Shehzadahmad25/Voice-Ustad.git"

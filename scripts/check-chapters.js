@@ -3,7 +3,7 @@
 // Usage: node check-chapters.js
 
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env.local') });
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env.local') });
 
 const { createClient } = require('@supabase/supabase-js');
 

@@ -4,7 +4,7 @@
 // Usage: node ingest-chapter2.js
 
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env.local') });
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env.local') });
 
 const { createClient } = require('@supabase/supabase-js');
 const OpenAI = require('openai');
@@ -37,7 +37,7 @@ async function main() {
   // ── 1. Load JSON ──────────────────────────────────────────
   const jsonPath = path.resolve(__dirname, 'chapter2_chunks_final.json');
   if (!fs.existsSync(jsonPath)) {
-    console.error('chapter2_chunks_final.json not found in project root.');
+    console.error('chapter2_chunks_final.json not found in scripts/.');
     process.exit(1);
   }
   const chunks = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
