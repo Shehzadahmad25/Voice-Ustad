@@ -29,8 +29,9 @@ import { sanitizeUrduTtsText, MAX_TTS_CHARS } from '@/lib/agents/tools';
 import { runTutorAgent }                      from '@/lib/agents/tutorAgent';
 import { runDebugMode }                       from '@/lib/agents/debugMode';
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic'; // never serve stale cached responses for chat/audio
+export const runtime     = 'nodejs';
+export const dynamic     = 'force-dynamic'; // never serve stale cached responses for chat/audio
+export const maxDuration = 60;             // audio mode calls gpt-4o-mini-tts which can take 15-30s
 
 /**
  * Cache kill-switch for development.

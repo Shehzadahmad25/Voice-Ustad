@@ -930,8 +930,13 @@ async function fetchUrduForTopicCard(id: string, r: any) {
     const data = await res.json();
     if (!data?.ok || !data?.urduTtsText) {
       console.log('[fetchUrdu] failed:', data?.error || 'empty response');
-      const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
+      const failedBtn = document.getElementById('btn_' + id) as HTMLButtonElement | null;
+      const failedSub = document.getElementById('sub_' + id) as HTMLElement | null;
+      const retryBtn  = document.getElementById('retry_' + id) as HTMLButtonElement | null;
       if (retryBtn) retryBtn.style.display = 'inline-flex';
+      // Reset disabled state so user can at least try Retry
+      if (failedBtn) failedBtn.disabled = false;
+      if (failedSub) failedSub.textContent = failedSub.dataset.default || 'Audio unavailable — Retry';
       return;
     }
 
@@ -993,8 +998,12 @@ async function fetchUrduForTopicCard(id: string, r: any) {
 
   } catch (err) {
     console.error('[fetchUrdu] error:', (err as any)?.message);
-    const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
+    const failedBtn2 = document.getElementById('btn_' + id) as HTMLButtonElement | null;
+    const failedSub2 = document.getElementById('sub_' + id) as HTMLElement | null;
+    const retryBtn   = document.getElementById('retry_' + id) as HTMLButtonElement | null;
     if (retryBtn) retryBtn.style.display = 'inline-flex';
+    if (failedBtn2) failedBtn2.disabled = false;
+    if (failedSub2) failedSub2.textContent = failedSub2.dataset.default || 'Audio unavailable — Retry';
   }
 }
 
@@ -1750,41 +1759,35 @@ async function togglePlay(id){
       audioPlayers[id]=null;
     }
 
-    if(!audioUrls[id]){
-      // If prefetch is in flight, await it first to avoid a duplicate TTS fetch.
-      if (prefetchInFlight[id]) await prefetchInFlight[id].catch(() => {});
-      if (!audioUrls[id]) {
-        const ok = await retryAudio(id, true);
-        if (!ok || !audioUrls[id]) {
-          const summary = String(urduSummaries[id] || '').trim();
-          if (summary && window.speechSynthesis) {
-            // OpenAI failed (e.g. 429/quota) — fall back to browser TTS unconditionally
-            if (!speakUrdu(summary)) {
-              // No ur-PK voice installed — speak with whatever default voice is available
-              window.speechSynthesis.cancel();
-              const utter = new SpeechSynthesisUtterance(summary);
-              utter.lang = 'ur-PK';
-              utter.rate = 0.9;
-              window.speechSynthesis.speak(utter);
-            }
-            setVoiceSource(id, 'browser');
-            startPlaying();
-            return;
+    // If prefetch is in flight, await it first to avoid a duplicate TTS fetch.
+    if (!audioUrls[id] && prefetchInFlight[id]) await prefetchInFlight[id].catch(() => {});
+    if (!audioUrls[id]) {
+      const ok = await retryAudio(id, true);
+      if (!ok || !audioUrls[id]) {
+        const summary = String(urduSummaries[id] || '').trim();
+        if (summary && window.speechSynthesis) {
+          // OpenAI failed (e.g. quota/timeout) — fall back to browser TTS
+          const spokenByUrdu = speakUrdu(summary);
+          if (!spokenByUrdu) {
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(summary);
+            utter.lang = 'ur-PK';
+            utter.rate = 0.9;
+            // Stop play UI when browser TTS finishes so button resets correctly
+            utter.onend = () => stopPlay(id);
+            window.speechSynthesis.speak(utter);
           }
+          setVoiceSource(id, 'browser');
+          startPlaying();
+          // Don't return — fall through so the timer tick runs for progress bar
+        } else {
           const errMsg = audioErrors[id] || 'Voice unavailable — Retry';
           throw new Error(errMsg);
         }
       }
-      // audioUrls[id] is now set (either by prefetch or our own fetch above)
-      console.log('[audio src]', audioUrls[id]?.slice(0, 60));
-      const audio = new Audio(audioUrls[id]);
-      audioPlayers[id]=audio;
-      audio.onended=()=>stopPlay(id);
-      audio.onerror=()=>stopPlay(id);
-      await audio.play().then(() => console.log('[audio] playing', id)).catch(err => { console.error('[audio error]', err); throw err; });
-      setVoiceSource(id, 'openai');
-      startPlaying();
-    } else {
+    }
+    if (audioUrls[id]) {
+      // audioUrls[id] is now set (either from prefetch, our own fetch, or was already set)
       console.log('[audio src]', audioUrls[id]?.slice(0, 60));
       const audio = new Audio(audioUrls[id]);
       audioPlayers[id]=audio;
@@ -1802,6 +1805,7 @@ async function togglePlay(id){
       window.speechSynthesis.cancel();
       const utter=new SpeechSynthesisUtterance(fallbackText);
       utter.lang='ur-PK'; utter.rate=0.9;
+      utter.onend = () => stopPlay(id);
       window.speechSynthesis.speak(utter);
       setVoiceSource(id, 'browser');
       startPlaying();
@@ -1895,10 +1899,13 @@ async function retryAudio(id, silent=false){
   }
   const card = btn?.closest('.voice-card');
   const sub = card?.querySelector('.vc-sub');
-  if (card) card.classList.add('loading');
-  if (sub) {
-    if (!sub.dataset.default) sub.dataset.default = sub.textContent || '';
-    sub.textContent = 'Preparing Urdu audio...';
+  // Only show loading UI when user explicitly triggered this (silent=false); suppress during background prefetch
+  if (!silent) {
+    if (card) card.classList.add('loading');
+    if (sub) {
+      if (!sub.dataset.default) sub.dataset.default = sub.textContent || '';
+      sub.textContent = 'Preparing Urdu audio...';
+    }
   }
   try{
     // silent=true (auto-prefetch on render): 1 attempt only — prevent 3x TTS calls per message
@@ -1944,8 +1951,10 @@ async function retryAudio(id, silent=false){
     if (!silent) showToast('🔊',(e as any)?.message || 'Urdu TTS failed');
     return false;
   } finally {
-    if (card) card.classList.remove('loading');
-    if (sub) sub.textContent = sub.dataset?.default || '';
+    if (!silent) {
+      if (card) card.classList.remove('loading');
+      if (sub) sub.textContent = sub.dataset?.default || '';
+    }
   }
 }
 
