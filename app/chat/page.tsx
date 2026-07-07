@@ -437,14 +437,17 @@ async function toggleChapterPanel(idx, chId) {
   try {
     const chapterNum = parseInt(String(CHS[idx]?.n ?? '0'), 10);
     console.log('[sidebar-panel] fetching topics for chapter:', chapterNum);
-    const [topicsRes, mcqRes, exRes, sqRes, nqRes, dqRes] = await Promise.all([
+    // Race against a timeout — a hung fetch/query must not leave "Loading topics…" forever
+    const panelTimeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Panel load timed out')), 12000));
+    const [topicsRes, mcqRes, exRes, sqRes, nqRes, dqRes] = await Promise.race([panelTimeout, Promise.all([
       fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`).then(r => r.json()).then(d => { console.log('[sidebar-panel] topics raw:', d?.topics?.length ?? 0, 'rows | error:', d?.error ?? 'none'); return { data: d?.topics ?? [], error: d?.error ?? null }; }),
       _sbClient.from('mcqs').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('examples').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('short_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('numerical_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('descriptive_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
-    ]);
+    ])]) as any[];
     const topics = topicsRes.data || [];
     const mcqCount = mcqRes.count || 0;
     const exCount = exRes.count || 0;
@@ -624,6 +627,52 @@ function askScopeTopic(topicTitle: string, topicCode?: string){
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   SHARED REQUEST-LIFECYCLE HELPERS (send / viewTopic)
+═══════════════════════════════════════════════════════════════ */
+
+/* Resets the composer UI after a request finishes, fails, or times out. */
+function resetSendUi(){
+  hideTyping();
+  busy = false;
+  setSpin(false);
+  updateSendBtn();
+}
+
+/* Arms the request timeout + abort controller shared by send()/viewTopic().
+   opts.isStale   — optional; when it returns true the fired timer does nothing
+                    (a newer request owns the UI).
+   opts.onTimeout — extra work after the UI reset (e.g. appendError()). */
+function startRequestTimeout(opts){
+  const controller = new AbortController();
+  let timedOut = false;
+  const tid = window.setTimeout(() => {
+    if (opts?.isStale?.()) return;
+    timedOut = true;
+    controller.abort();
+    resetSendUi();
+    if (opts?.onTimeout) opts.onTimeout();
+  }, SEND_TIMEOUT_MS);
+  sendTimeout = tid; // global ref so newChat() can cancel the pending timer
+  return {
+    controller,
+    isTimedOut: () => timedOut,
+    clear: () => window.clearTimeout(tid),
+  };
+}
+
+/* Builds the user-facing message + retry delay for a 429 response body. */
+function rateLimitInfo(errData){
+  const retryMs = Number(errData?.retryAfterMs || 0);
+  const retrySec = retryMs > 0 ? Math.ceil(retryMs / 1000) : 0;
+  return {
+    retryMs: retryMs > 0 ? retryMs : 0,
+    msg: retrySec
+      ? `Too many requests. Please wait ${retrySec}s and try again.`
+      : 'Too many requests. Please wait a moment and try again.',
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
    TOPIC VIEW MODE
    Called when a topic is clicked in sidebar panel or scope modal.
    Uses /api/topic-view — completely separate from question mode.
@@ -654,31 +703,28 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
 
   busy = true; setSpin(true); showTyping();
 
-  let timedOut = false;
-  const controller = new AbortController();
-  sendTimeout = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-    hideTyping(); busy = false; setSpin(false); updateSendBtn();
-    clearTimeout(sendTimeout);
-    appendError();
-  }, SEND_TIMEOUT_MS);
+  const req = startRequestTimeout({ onTimeout: () => appendError() });
 
   try {
     const apiRes = await fetch('/api/topic-view', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
+      signal: req.controller.signal,
       body: JSON.stringify({ topicTitle: title, topicCode: code || undefined, chapterNumber: chN }),
     });
 
-    if (timedOut) return;
-    clearTimeout(sendTimeout);
-    hideTyping(); busy = false; setSpin(false); updateSendBtn();
+    if (req.isTimedOut()) return;
+    req.clear();
+    resetSendUi();
 
     if (!apiRes.ok) {
       let errData: any = null;
       try { errData = await apiRes.json(); } catch {}
+      if (apiRes.status === 429) {
+        const rl = rateLimitInfo(errData);
+        appendError('Rate limit reached', rl.msg, rl.retryMs);
+        return;
+      }
       appendError('Topic error', String(errData?.error || 'Could not load topic'));
       return;
     }
@@ -723,9 +769,9 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
       fetchUrduForTopicCard(cardId, data.result);
     }
   } catch (e: any) {
-    if (timedOut) return;
-    clearTimeout(sendTimeout);
-    hideTyping(); busy = false; setSpin(false); updateSendBtn();
+    if (req.isTimedOut()) return;
+    req.clear();
+    resetSendUi();
     appendError('AI error', e?.message || 'AI provider unavailable');
   }
 }
@@ -1159,18 +1205,11 @@ async function send(){
   // ────────────────────────────────────────────────────────────────────────────
   setSpin(true); showTyping();
 
-  // ── Timeout — use a local variable so concurrent stale timers can't cross-cancel ──
-  let timedOut=false;
-  const controller = new AbortController();
-  const localTimeout = window.setTimeout(()=>{
-    if (reqId !== _currentRequestId) return;  // stale timer, ignore
-    timedOut=true;
-    controller.abort();
-    hideTyping(); busy=false; setSpin(false); updateSendBtn();
-    console.log('[send] timeout reqId:', reqId);
-    appendError();
-  }, SEND_TIMEOUT_MS);
-  sendTimeout = localTimeout;  // keep global reference so newChat() can cancel it
+  // ── Timeout — reqId staleness guard prevents concurrent timers cross-cancelling ──
+  const req = startRequestTimeout({
+    isStale:   () => reqId !== _currentRequestId,
+    onTimeout: () => { console.log('[send] timeout reqId:', reqId); appendError(); },
+  });
 
   let resp: any = null;
   let rateLimitMsg = '';
@@ -1179,7 +1218,7 @@ async function send(){
     const apiRes = await fetch('/api/chat2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
+      signal: req.controller.signal,
       body: JSON.stringify({
         message: txt,
         chapter: CHS[activeChIdx]?.t ?? '',
@@ -1192,12 +1231,9 @@ async function send(){
       let errData: any = null;
       try { errData = await apiRes.json(); } catch {}
       if (apiRes.status === 429) {
-        const retryMs = Number(errData?.retryAfterMs || 0);
-        rateLimitRetryMs = retryMs > 0 ? retryMs : 0;
-        const retrySec = retryMs > 0 ? Math.ceil(retryMs / 1000) : 0;
-        rateLimitMsg = retrySec
-          ? `Too many requests. Please wait ${retrySec}s and try again.`
-          : 'Too many requests. Please wait a moment and try again.';
+        const rl = rateLimitInfo(errData);
+        rateLimitRetryMs = rl.retryMs;
+        rateLimitMsg = rl.msg;
       }
       throw new Error(String(errData?.error || 'API request failed'));
     }
@@ -1218,27 +1254,27 @@ async function send(){
     console.log('[send] response reqId:', reqId, '| source:', data?.responseSource || 'unknown', '| cacheHit:', !!data?.cacheHit, '| urduSummary length:', resp?.urduSummary?.length ?? 0);
   } catch (e) {
     // Stale request — a newer send already owns the UI
-    if (reqId !== _currentRequestId) { clearTimeout(localTimeout); busy=false; return; }
+    if (reqId !== _currentRequestId) { req.clear(); busy=false; return; }
     if (rateLimitMsg) {
-      if(timedOut) return;
-      clearTimeout(localTimeout);
-      hideTyping(); busy=false; setSpin(false); updateSendBtn();
+      if(req.isTimedOut()) return;
+      req.clear();
+      resetSendUi();
       appendError('Rate limit reached', rateLimitMsg, rateLimitRetryMs);
       return;
     }
-    if(timedOut) return;
-    clearTimeout(localTimeout);
-    hideTyping(); busy=false; setSpin(false); updateSendBtn();
+    if(req.isTimedOut()) return;
+    req.clear();
+    resetSendUi();
     appendError('AI error', (e as any)?.message || 'AI provider unavailable');
     return;
   }
 
   // ── Drop stale response (reqId mismatch means a newer request already rendered) ──
-  if (reqId !== _currentRequestId) { clearTimeout(localTimeout); busy=false; return; }
+  if (reqId !== _currentRequestId) { req.clear(); busy=false; return; }
   // ── Cancel timeout — response arrived successfully ────────────────────────────
-  if(timedOut) return;
-  clearTimeout(localTimeout);
-  hideTyping(); busy=false; setSpin(false); updateSendBtn();
+  if(req.isTimedOut()) return;
+  req.clear();
+  resetSendUi();
   console.log('[send] appending response reqId:', reqId);
 
   // New structured format: at least one of definition/explanation/example must be set.
@@ -1897,6 +1933,12 @@ async function retryAudio(id, silent=false){
           }),
         });
         data = await res.json();
+        if (res.status === 429) {
+          // Rate limited — an immediate retry would hit the same limit, so stop here
+          lastErr = rateLimitInfo(data).msg;
+          data = null;
+          break;
+        }
         if(!res.ok || data?.ok === false){
           throw new Error(String(data?.error || 'TTS generation failed'));
         }
