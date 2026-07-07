@@ -2,13 +2,13 @@
 export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
+import { getSupabaseClient } from '@/lib/supabase'
 import AuthLayout from '@/components/auth/AuthLayout'
 import { getFirstName } from '@/lib/utils'
 
 export default function SuccessPage() {
   const router = useRouter()
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const supabase = getSupabaseClient()!
   const [profile, setProfile] = useState<any>(null)
   const [firstName, setFirstName] = useState('Student')
 

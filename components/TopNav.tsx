@@ -3,19 +3,13 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
+import { getSupabaseClient } from '@/lib/supabase'
 import { getFirstName } from '@/lib/utils'
 
-// Module-level singleton — prevents "Multiple GoTrueClient" warning
-let _topNavClient: ReturnType<typeof createBrowserClient> | null = null
+// Single app-wide client from lib/supabase — a separate instance here caused
+// the "Multiple GoTrueClient" warning and duplicate auth events.
 function getTopNavClient() {
-  if (!_topNavClient) {
-    _topNavClient = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
-  }
-  return _topNavClient
+  return getSupabaseClient()!
 }
 
 export default function TopNav({ user, profile }: { user?: any; profile?: any }) {

@@ -3,7 +3,6 @@
 'use client';
 import './chat.css';
 import { useEffect, useState, useRef } from 'react';
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
 import { getTimeAgo } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +51,10 @@ const cacheIdForId: any = {};     // DB row UUID for semantic-match cache hits
 const questionForId: any = {};    // original question, sent with mode=audio to enable storage save
 let userScrolled=false;
 let lastQuestion='';
+let _cardIdSeq = 0;
+/* Unique card id — Date.now() alone collides when a restored session appends
+   several cards in the same millisecond, cross-wiring their audio state. */
+function nextCardId(){ return 'v' + Date.now() + '_' + (++_cardIdSeq); }
 let sendTimeout: number | null = null;
 let _currentRequestId = 0;  // incremented on every send; stale responses are dropped
 const TRIAL_DAYS=7;
@@ -777,7 +780,7 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
 }
 
 function appendTopicView(r: any): string {
-  const id = 'v' + Date.now();
+  const id = nextCardId();
 
   const urduSummary = String(r?.urduTtsText || '').trim();
   console.log('[viewTopic] urduSummary being set:', urduSummary?.length ?? 0, '| preview:', urduSummary.slice(0, 60) || 'EMPTY');
@@ -1363,7 +1366,7 @@ function appendUser(t, time, save=true){
    RENDER â€" AI message
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function appendAI(r, time, save=true){
-  const id='v'+Date.now();
+  const id=nextCardId();
   const dur=r.dur;
   // Dynamic duration based on text length (item 16)
   const allText = [r.definition, r.example, r.text, ...(Array.isArray(r.points)?r.points:[])].filter(Boolean).join(' ');
@@ -2606,9 +2609,9 @@ function setupMobileEnhancements(){
 export default function ChatPage() {
   const router = useRouter();
   const { user, profile } = useAuth();
-  const supabaseRef = useRef(
-    createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  );
+  // Single shared browser client (same instance authService uses) — multiple
+  // GoTrueClient instances cross-fire auth events and caused remount cascades.
+  const supabaseRef = useRef(getSupabaseClient());
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 720;
@@ -2694,7 +2697,10 @@ export default function ChatPage() {
     fetchChapters();
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session');
-    if (sessionId) {
+    // Skip when this session is already loaded — dbLoadSession() writes
+    // ?session= into the URL via pushState, so a remount would otherwise
+    // replay the load a second time (duplicate messages/audio fetches).
+    if (sessionId && sessionId !== _currentSessionId) {
       _currentSessionId = sessionId;
       dbLoadSession(sessionId);
     }

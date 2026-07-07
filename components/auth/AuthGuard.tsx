@@ -25,7 +25,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [initialized, loading, pathname, router, user])
 
-  if (!initialized || loading) {
+  // Once a user is present, keep children MOUNTED through loading flips —
+  // unmounting on every auth refresh reset page state and replayed mount
+  // effects (e.g. duplicate session loads in /chat).
+  if (!initialized || (loading && !user)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
         <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-sm">

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { authService } from '@/lib/authService'
 import { UserProfile } from '@/lib/supabase'
@@ -35,6 +35,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
+  // Tracks the authenticated user id so auth re-emits (TOKEN_REFRESHED,
+  // SIGNED_IN on tab focus) for the SAME user don't flip loading — that
+  // unmounted every AuthGuard page and replayed mount effects.
+  const lastUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -45,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!active) return
 
         if (currentSession?.user) {
+          lastUserIdRef.current = currentSession.user.id
           setSession(currentSession)
           setUser(currentSession.user)
           await fetchProfile()
@@ -75,11 +80,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (nextSession?.user) {
+        const identityChanged = nextSession.user.id !== lastUserIdRef.current
+        lastUserIdRef.current = nextSession.user.id
         setSession(nextSession)
         setUser(nextSession.user)
-        setLoading(true)
+        // Only show the app-wide loading state when a DIFFERENT user signs in.
+        // Same-user re-emits (token refresh, tab focus) update silently —
+        // flipping loading here unmounted every AuthGuard page mid-use.
+        if (identityChanged) setLoading(true)
         await fetchProfile()
       } else {
+        lastUserIdRef.current = null
         setSession(null)
         setUser(null)
         setProfile(null)

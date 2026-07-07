@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
+import { getSupabaseClient } from '@/lib/supabase'
 import AuthLayout from '@/components/auth/AuthLayout'
 
 function StepIndicator({ current }: { current: number }) {
@@ -30,7 +30,7 @@ const labelStyle: React.CSSProperties = { fontSize:'12px', color:'#94a3b8', marg
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const supabase = getSupabaseClient()!
   const [studentClass, setStudentClass] = useState('')
   const [board, setBoard] = useState('')
   const [goal, setGoal] = useState('')
