@@ -1373,12 +1373,15 @@ function appendUser(t, time, save=true){
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function appendAI(r, time, save=true){
   const id=nextCardId();
-  const dur=r.dur;
+  // r.dur is MISSING on restored topic-view messages (topic results are saved
+  // without it) — Math.max(undefined, n) is NaN, which rendered "Play - NaNs"
+  // and, once sanitized to data-dur="0", made togglePlay stop on the first tick.
+  const dur = Number(r.dur) || 0;
   // Dynamic duration based on text length (item 16)
   const allText = [r.definition, r.example, r.text, ...(Array.isArray(r.points)?r.points:[])].filter(Boolean).join(' ');
   const wordCount = allText.split(/\s+/).length;
   const computedDur = Math.round(wordCount / 2.8); // ~2.8 Urdu words/sec
-  const actualDur = Math.max(dur, computedDur);
+  const actualDur = Math.max(dur, computedDur) || 30; // never 0/NaN — floor at 30s
 
   console.log('[appendAI] raw resp:', JSON.stringify(r).slice(0, 300));
   const urduSummary = String(r?.urduSummary || r?.urduTtsText || '').trim();
@@ -1851,12 +1854,15 @@ async function togglePlay(id){
   function tick(){
     const elapsed=(Date.now()-startAt)/1000;
     const rem=Math.max(0, dur-elapsed);
-    const pct=Math.min(100,(elapsed/dur)*100);
+    const pct=dur>0?Math.min(100,(elapsed/dur)*100):0;
     const m=Math.floor(rem/60), s=Math.floor(rem%60);
     tm.textContent=`${m}:${String(s).padStart(2,'0')}`;
     progbar.style.width=pct+'%';
     prog.setAttribute('aria-valuenow',Math.floor(elapsed));
-    if(elapsed>=dur){ stopPlay(id); return; }
+    // Only the countdown may stop playback when a real duration exists —
+    // dur 0/NaN (restored cards missing r.dur) must not kill audio on frame 1;
+    // audio.onended handles the actual end of playback.
+    if(dur>0 && elapsed>=dur){ stopPlay(id); return; }
     timers[id]=requestAnimationFrame(tick);
   }
   timers[id]=requestAnimationFrame(tick);
@@ -2266,9 +2272,14 @@ async function dbLoadSession(sessionId: string) {
               if (urduText) urduSummaries[cardId] = urduText;
 
               if (msg.urdu_audio_url) {
-                // Audio base64 saved — restore directly, no re-fetch needed
-                console.log('[session-load] restoring saved audio b64, len:', msg.urdu_audio_url.length);
-                setAudioReady(cardId, String(msg.urdu_audio_url), urduText);
+                // Saved audio (Storage URL since PR 6; legacy base64 tolerated) —
+                // restore directly, no re-fetch needed
+                const savedVal = String(msg.urdu_audio_url);
+                console.log('[session-load] restoring saved audio |',
+                  savedVal.startsWith('http') ? 'storage URL' : `legacy base64 (${savedVal.length} chars)`);
+                setAudioReady(cardId, savedVal, urduText);
+                console.log('[session-load] audio src set for card', cardId, '->',
+                  String(audioUrls[cardId] || 'NOT SET').slice(0, 110));
                 // Update play button
                 const btn = document.getElementById('btn_' + cardId) as HTMLButtonElement | null;
                 if (btn) btn.disabled = false;
@@ -2280,6 +2291,8 @@ async function dbLoadSession(sessionId: string) {
                 if (cached) {
                   console.log('[session-load] restored audio from localStorage cache');
                   setAudioReady(cardId, cached.audioBase64, urduText);
+                  console.log('[session-load] audio src set for card', cardId, '-> data:audio/mpeg;base64 (cached,',
+                    cached.audioBase64.length, 'chars)');
                 } else {
                   console.log('[session-load] re-fetching audio for topic:', msg.topic_slug);
                   // Build minimal r object for fetchUrduForTopicCard
