@@ -6,11 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { getSubscriptionStatus } from '@/lib/subscription'
 import { useScrollFix } from '@/lib/useScrollFix'
 import SundayBanner from '@/components/SundayBanner'
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const SUNDAY_COUNT = 45
-const SUNDAY_SECS = 2700 // 45 min
+// Single source of truth — SundayBanner and all labels read the same values
+import { SUNDAY_COUNT, SUNDAY_SECS, SUNDAY_MINS } from '@/lib/sundayTest'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -753,7 +750,7 @@ export default function QuizPage() {
                   Sunday Test
                 </h2>
                 <p style={{ color: '#94a3b8', fontSize: '14px', margin: '0 0 6px' }}>
-                  {SUNDAY_COUNT} questions &nbsp;·&nbsp; 45 minutes &nbsp;·&nbsp; All Chapters
+                  {SUNDAY_COUNT} questions &nbsp;·&nbsp; {SUNDAY_MINS} minutes &nbsp;·&nbsp; All Chapters
                 </p>
                 <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 24px' }}>
                   KPK Board · FSc Chemistry · 2× XP bonus
@@ -834,7 +831,7 @@ export default function QuizPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 {[
                   { icon: '🎯', title: 'Full syllabus', desc: 'Questions from all 24 chapters' },
-                  { icon: '⏱', title: '45 minutes', desc: 'Timed test with live countdown' },
+                  { icon: '⏱', title: `${SUNDAY_MINS} minutes`, desc: 'Timed test with live countdown' },
                   { icon: '⚡', title: '2× XP bonus', desc: 'Double XP for Sunday tests' },
                   { icon: '📊', title: 'Detailed results', desc: 'Review every missed question' },
                 ].map((item, i) => (

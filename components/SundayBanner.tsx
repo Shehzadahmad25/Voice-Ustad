@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { SUNDAY_TEST_SUMMARY } from '@/lib/sundayTest'
 
 export default function SundayBanner() {
   const [show, setShow] = useState(false)
@@ -45,7 +46,7 @@ export default function SundayBanner() {
           </div>
           <div style={{ fontSize: 11, color: '#64748b' }}>
             {isToday
-              ? '45 MCQs · 60 minutes · 2× XP bonus'
+              ? `${SUNDAY_TEST_SUMMARY} · 2× XP bonus`
               : 'Prepare now — full syllabus test tomorrow'}
           </div>
         </div>
