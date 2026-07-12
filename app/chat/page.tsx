@@ -595,8 +595,23 @@ function closeSb(){
    UPGRADE MODAL
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function openUpgrade(){
+  const s = _subscriptionStatus;
+  console.log('[upgrade-click] modal opened | hasAccess:', s?.hasAccess,
+    '| isTrial:', s?.isTrial, '| isSubscribed:', s?.isSubscribed, '| daysLeft:', s?.daysLeft);
   const bg=document.getElementById('upgradeBg') as HTMLElement;
   if (bg) {
+    // Reflect the account's REAL state in the modal copy (was hardcoded "7 days")
+    const daysEl = document.getElementById('trialDaysLeft');
+    const para = daysEl?.parentElement;
+    if (s && para) {
+      if (s.isSubscribed) {
+        para.textContent = 'You already have VoiceUstad Pro — your subscription is active.';
+      } else if (s.daysLeft > 0 && daysEl) {
+        daysEl.textContent = `${s.daysLeft} day${s.daysLeft === 1 ? '' : 's'}`;
+      } else {
+        para.textContent = 'Your free trial has ended. Upgrade to VoiceUstad Pro to keep learning without limits.';
+      }
+    }
     bg.classList.add('on');
     setTimeout(()=>bg.querySelector('.modal-close')?.focus(), 50);
   }
@@ -2652,6 +2667,10 @@ export default function ChatPage() {
     .filter(Boolean)
     .join(' - ') || 'Chemistry focus';
   const trialStatus = (() => {
+    // Subscribed accounts are not "on trial" — show the real plan state
+    if (subStatus?.isSubscribed) {
+      return 'Pro — active';
+    }
     if (!profile?.trial_ends_at) {
       return 'Trial pending';
     }
@@ -2798,7 +2817,14 @@ export default function ChatPage() {
             <li>Saved conversation history across sessions</li>
             <li>Priority response speed</li>
           </ul>
-          <button className="modal-cta" onClick={() => closeUpgrade()}>Start Pro — Rs 499/month</button>
+          <button
+            className="modal-cta"
+            onClick={() => {
+              console.log('[upgrade-click] Start Pro clicked -> /pricing');
+              closeUpgrade();
+              router.push('/pricing');
+            }}
+          >Start Pro — Rs 499/month</button>
           <button className="modal-skip" onClick={() => closeUpgrade()}>Maybe later</button>
         </div>
       </div>

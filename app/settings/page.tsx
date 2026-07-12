@@ -261,12 +261,17 @@ export default function SettingsPage() {
               <h3 style={{ fontSize:'17px', fontWeight:'800', color:'white', marginBottom:'4px' }}>Free Trial Active</h3>
               <p style={{ fontSize:'12.5px', color:'#94a3b8' }}>Upgrade to unlock all subjects and unlimited questions</p>
             </div>
-            <button style={{
-              background:'#22c55e', padding:'10px 22px', borderRadius:'9px',
-              fontWeight:'700', color:'#000', border:'none', cursor:'pointer',
-              fontFamily:'inherit', fontSize:'13px', flexShrink:0, whiteSpace:'nowrap',
-              transition:'all 0.15s',
-            }}>⚡ Upgrade – Rs. 499/mo</button>
+            <button
+              onClick={() => {
+                console.log('[upgrade-click] settings Upgrade clicked -> /pricing');
+                router.push('/pricing');
+              }}
+              style={{
+                background:'#22c55e', padding:'10px 22px', borderRadius:'9px',
+                fontWeight:'700', color:'#000', border:'none', cursor:'pointer',
+                fontFamily:'inherit', fontSize:'13px', flexShrink:0, whiteSpace:'nowrap',
+                transition:'all 0.15s',
+              }}>⚡ Upgrade – Rs. 499/mo</button>
           </div>
 
           {/* PERSONAL DETAILS */}
