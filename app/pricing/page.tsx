@@ -128,11 +128,11 @@ export default function PricingPage() {
               background: 'rgba(245,158,11,0.1)',
               padding: '2px 8px', borderRadius: '6px',
             }}>
-              03XX-XXXXXXX
+              0318-1911915
             </strong>
           </p>
           <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#64748b' }}>
-            Account title: [Your Name]
+            Account title: Shehzad Ahmad
           </p>
         </div>
 
@@ -149,11 +149,11 @@ export default function PricingPage() {
               background: 'rgba(245,158,11,0.1)',
               padding: '2px 8px', borderRadius: '6px',
             }}>
-              03XX-XXXXXXX
+              0345-7984446
             </strong>
           </p>
           <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#64748b' }}>
-            Account title: [Your Name]
+            Account title: Shehzad Ahmad
           </p>
         </div>
 
@@ -172,7 +172,14 @@ export default function PricingPage() {
             </li>
             <li style={{ fontSize: '13.5px', color: '#94a3b8', lineHeight: 1.6 }}>
               WhatsApp it to:{' '}
-              <strong style={{ color: '#f1f5f9' }}>03XX-XXXXXXX</strong>
+              <a
+                href="https://wa.me/923457984446"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#22c55e', fontWeight: 700, textDecoration: 'none' }}
+              >
+                0345-7984446
+              </a>
             </li>
             <li style={{ fontSize: '13.5px', color: '#94a3b8', lineHeight: 1.6 }}>
               Access activated within{' '}
