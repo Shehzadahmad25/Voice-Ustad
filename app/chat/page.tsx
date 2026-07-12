@@ -2596,26 +2596,38 @@ function fmtExample(s=''){
    MOBILE ENHANCEMENTS
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
+/* Cleanup for the document-level listeners below — MUST run on ChatPage
+   unmount. These listeners previously leaked across client-side navigation:
+   the touchmove preventDefault kept cancelling touch scrolling on /pricing
+   (and any other page) after leaving /chat, making them unscrollable on mobile. */
+let _mobileEnhancementsCleanup: (() => void) | null = null;
+
 function setupMobileEnhancements(){
   if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  // Remove any previous mount's listeners before adding fresh ones
+  if (_mobileEnhancementsCleanup) _mobileEnhancementsCleanup();
 
   /* Prevent body scroll bounce on iOS (overscroll) */
-  document.body.addEventListener('touchmove', e=>{
+  const onTouchMove = (e: TouchEvent) => {
+    // Belt & braces: never cancel scrolling when we're not on the chat page
+    if (!window.location.pathname.startsWith('/chat')) return;
     if((e.target as Element)?.closest('.msgs,.sb-list,.chips,.ai-followups,.scope-list,.scope-modal')) return;
     e.preventDefault();
-  }, { passive: false });
+  };
+  document.body.addEventListener('touchmove', onTouchMove, { passive: false });
 
   /* Swipe right (from left edge) to open sidebar
      Swipe left to close sidebar */
   let startX=0, startY=0;
   const THRESHOLD=55, MAX_Y=65;
 
-  document.addEventListener('touchstart', e=>{
+  const onTouchStart = (e: TouchEvent) => {
     startX=e.touches[0].clientX;
     startY=e.touches[0].clientY;
-  }, {passive:true});
+  };
+  document.addEventListener('touchstart', onTouchStart, {passive:true});
 
-  document.addEventListener('touchend', e=>{
+  const onTouchEnd = (e: TouchEvent) => {
     if(window.innerWidth > 720) return;
     const dx=e.changedTouches[0].clientX - startX;
     const dy=Math.abs(e.changedTouches[0].clientY - startY);
@@ -2624,7 +2636,15 @@ function setupMobileEnhancements(){
     if (!sb) return;
     if(dx > THRESHOLD && startX < 44 && !sb.classList.contains('on')) openSb();
     if(dx < -THRESHOLD && sb.classList.contains('on')) closeSb();
-  }, {passive:true});
+  };
+  document.addEventListener('touchend', onTouchEnd, {passive:true});
+
+  _mobileEnhancementsCleanup = () => {
+    document.body.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchstart', onTouchStart);
+    document.removeEventListener('touchend', onTouchEnd);
+    _mobileEnhancementsCleanup = null;
+  };
 
   /* On mobile keyboard open: scroll input into view */
   const msgEl = document.getElementById('msg');
@@ -2769,6 +2789,9 @@ export default function ChatPage() {
       window.removeEventListener('orientationchange', onOrientationChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
+      // Remove document-level touch listeners — leaking them blocked touch
+      // scrolling on every page visited after /chat (e.g. /pricing)
+      if (_mobileEnhancementsCleanup) _mobileEnhancementsCleanup();
       // If navigating to dashboard via client-side routing, force reload there
       setTimeout(() => {
         if (window.location.pathname === '/dashboard') {

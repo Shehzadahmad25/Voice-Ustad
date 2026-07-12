@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useScrollFix } from '@/lib/useScrollFix'
 
 const card: React.CSSProperties = {
   background: '#111d30',
@@ -15,6 +16,9 @@ const card: React.CSSProperties = {
 export default function PricingPage() {
   const router = useRouter()
   const [isExpired, setIsExpired] = useState(false)
+  // Clear any body scroll-lock styles leaked by a previously visited page
+  // (same guard dashboard/profile/quiz use)
+  useScrollFix()
 
   useEffect(() => {
     const reason = new URLSearchParams(window.location.search).get('reason')
