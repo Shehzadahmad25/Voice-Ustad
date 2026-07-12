@@ -52,21 +52,6 @@ export default function SignUpPage() {
   const strengthLabel = ['', 'Weak', 'Fair', 'Strong', 'Strong'][strength]
   const strengthColor = ['', '#ef4444', '#f59e0b', '#22c55e', '#22c55e'][strength]
 
-  const handleGoogle = async () => {
-    try {
-      setLoading(true)
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
-      })
-      if (error) console.error('Google login error:', error.message)
-    } catch (err) {
-      console.error('Unexpected error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -91,14 +76,28 @@ export default function SignUpPage() {
     } finally { setLoading(false) }
   }
 
+  // Same signInWithOAuth as the sign-in page — Supabase doesn't distinguish
+  // sign-up vs sign-in; the /auth/callback handler routes new users to
+  // onboarding and existing users to the dashboard.
   const handleGoogleSignUp = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (error) console.error('Google signup error:', error.message)
+    try {
+      setLoading(true)
+      setError('')
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      // On success the browser navigates away; only errors reach this point.
+      if (oauthError) {
+        setError(oauthError.message || 'Google sign-up failed. Please try again.')
+        setLoading(false)
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Google sign-up failed. Please try again.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -110,7 +109,7 @@ export default function SignUpPage() {
         First 7 days completely free · No card needed
       </p>
 
-      <button onClick={handleGoogleSignUp} style={{
+      <button onClick={handleGoogleSignUp} disabled={loading} style={{
         width:'100%', padding:'12px', borderRadius:'11px',
         background:'#1a2035', border:'1px solid rgba(255,255,255,0.14)',
         fontSize:'13.5px', fontWeight:'600', color:'#f1f5f9',

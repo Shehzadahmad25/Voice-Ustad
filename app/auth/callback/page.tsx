@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
+import { authService } from '@/lib/authService'
 
 export default function AuthCallback() {
   const router = useRouter()
@@ -16,19 +17,35 @@ export default function AuthCallback() {
 
     async function postLoginRedirect() {
       try {
+        // 1. Sync the vu-auth middleware cookie BEFORE any redirect to a
+        //    protected route — first-time users have no cookie yet, and the
+        //    middleware bounced them back to the sign-in page.
+        await authService.bootstrapSession()
+
         const { data: { user } } = await supabase!.auth.getUser()
         if (!user) { router.push('/auth/signin?error=auth_failed'); return }
+
+        // 2. Ensure a profile row exists NOW — first OAuth login has none.
+        //    (Previously left to a background race in AuthContext; one Google
+        //    user ended up signed in with no profile row at all.)
+        await authService.getOrCreateProfile()
+
+        // 3. Onboarding check on RAW column values — normalized reads apply
+        //    display defaults and would mask the nulls a new row starts with.
         const { data: profile } = await supabase!
           .from('profiles')
           .select('class, board')
           .eq('id', user.id)
           .single()
         if (!profile?.class || !profile?.board) {
-          router.push('/settings?onboarding=1')
+          console.log('[oauth-callback] new/un-onboarded user -> /auth/onboarding')
+          router.push('/auth/onboarding')
         } else {
+          console.log('[oauth-callback] onboarded user -> /dashboard')
           router.push('/dashboard')
         }
-      } catch {
+      } catch (e) {
+        console.error('[oauth-callback] postLoginRedirect error:', (e as Error)?.message)
         router.push('/dashboard')
       }
     }

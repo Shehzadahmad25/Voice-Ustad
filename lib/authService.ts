@@ -238,7 +238,11 @@ export const authService = {
     const existingProfile = await this.getProfile(user.id)
     if (existingProfile) return normalizeProfileRecord(existingProfile, user)
 
-    const profile = normalizeProfileRecord({}, user)
+    // New rows are created UN-onboarded: class/board/goal stay null until the
+    // onboarding step fills them. normalizeProfileRecord's display defaults
+    // ('11'/'KPK'/MDCAT) previously leaked into this INSERT, which made every
+    // first Google login look already-onboarded and skip the onboarding flow.
+    const profile = { ...normalizeProfileRecord({}, user), class: null, board: null, goal: null }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { email: _email, ...profileWithoutEmail } = profile
 

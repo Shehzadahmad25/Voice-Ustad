@@ -52,8 +52,11 @@ export default function OnboardingPage() {
       const savedPhone = sessionStorage.getItem('signup_phone') || ''
       const { error: profileError } = await supabase.from('profiles').upsert({
         id: user.id,
-        full_name: savedName,
-        phone: savedPhone,
+        // Only overwrite name/phone when the email-signup flow stashed them —
+        // OAuth users have no sessionStorage values and already carry their
+        // Google display name; empty strings would clobber it.
+        ...(savedName ? { full_name: savedName } : {}),
+        ...(savedPhone ? { phone: savedPhone } : {}),
         board: board || null,
         class: studentClass || null,
         goal: goal || null,
