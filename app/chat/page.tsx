@@ -949,7 +949,9 @@ async function fetchUrduForTopicCard(id: string, r: any) {
 
     const urduText  = String(data.urduTtsText).trim();
     const audioB64  = typeof data.audioBase64 === 'string' && data.audioBase64 ? data.audioBase64 : null;
-    console.log('[fetchUrdu] got Urdu, chars:', urduText.length, '| audio bytes:', audioB64?.length ?? 0);
+    // Storage URL — the only value ever persisted to chat_messages.urdu_audio_url
+    const audioUrl  = typeof data.audioUrl === 'string' && /^https?:\/\//i.test(data.audioUrl) ? data.audioUrl : null;
+    console.log('[fetchUrdu] got Urdu, chars:', urduText.length, '| audio bytes:', audioB64?.length ?? 0, '| audioUrl:', audioUrl || 'none');
 
     // Always store the Urdu text — retryAudio fallback reads from here
     urduSummaries[id] = urduText;
@@ -976,16 +978,20 @@ async function fetchUrduForTopicCard(id: string, r: any) {
       const retryBtn = document.getElementById('retry_' + id) as HTMLButtonElement | null;
       if (retryBtn) retryBtn.style.display = 'none';
       if (btn) btn.disabled = false;
-      // TASK 1 — save audio to DB message (non-fatal)
+      // Save audio to DB message (non-fatal) — Storage URL ONLY, never base64.
+      // When the server upload failed (audioUrl null) we save just the text;
+      // playback still works this session via the inline base64 above.
       const dbMsgId = _dbMsgIdForCardId[id];
       if (dbMsgId) {
+        const patch: any = { urdu_audio_text: urduText };
+        if (audioUrl) patch.urdu_audio_url = audioUrl;
         const sbAudio = getSupabaseClient() ?? _sbClient;
         sbAudio?.from('chat_messages')
-          .update({ urdu_audio_text: urduText, urdu_audio_url: audioB64 })
+          .update(patch)
           .eq('id', dbMsgId)
           .then(({ error }: any) => {
             if (error) console.error('[audio] save to DB failed:', error.message);
-            else console.log('[audio] saved audio to message:', dbMsgId, '| b64 len:', audioB64.length);
+            else console.log('[audio] saved to message:', dbMsgId, '| url:', audioUrl || '(text only)');
           })
           .catch((e: any) => console.error('[audio] save exception:', e?.message));
       }
