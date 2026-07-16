@@ -477,8 +477,8 @@ export default function Home() {
             <h5>Support</h5>
             <a href="#faq">FAQ</a>
             <a href="mailto:support@voiceustad.pk">support@voiceustad.pk</a>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
           </div>
         </div>
         <div className="fb">
