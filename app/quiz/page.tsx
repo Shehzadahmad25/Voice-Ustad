@@ -8,6 +8,7 @@ import { useScrollFix } from '@/lib/useScrollFix'
 import SundayBanner from '@/components/SundayBanner'
 // Single source of truth — SundayBanner and all labels read the same values
 import { SUNDAY_COUNT, SUNDAY_SECS, SUNDAY_MINS } from '@/lib/sundayTest'
+import { touchDailyStreak } from '@/lib/streak'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -453,6 +454,8 @@ export default function QuizPage() {
 
     setLoadError('')
     setQuizState('loading')
+    // Taking a quiz is study activity — count it toward the streak
+    touchDailyStreak(supabase, userId)
 
     try {
       // Fetch questions from all chapters, no chapter filter

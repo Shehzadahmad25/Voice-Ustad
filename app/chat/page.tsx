@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptionStatus } from '@/lib/subscription';
 import { getSupabaseClient } from '@/lib/supabase';
+import { touchDailyStreak } from '@/lib/streak';
 import TopNav from '@/components/TopNav';
 import QuizModal from '@/components/QuizModal';
 import SundayBanner from '@/components/SundayBanner';
@@ -718,6 +719,8 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
   if (_currentSessionId) {
     dbSaveMessage(_currentSessionId, 'user', '\uD83D\uDCCB Topic: ' + title).catch(console.error);
   }
+  // Viewing a topic is study activity \u2014 count it toward the streak
+  touchDailyStreak(getSupabaseClient() ?? _sbClient, _currentUserId);
 
   busy = true; setSpin(true); showTyping();
 
@@ -1214,19 +1217,8 @@ async function send(){
   inp.value=''; resize(inp); updateSendBtn();
   appendUser(txt, ts(), true);
   if (_currentSessionId) { dbSaveMessage(_currentSessionId, 'user', txt).catch(console.error); }
-  // ── Update streak on first message of the day (non-fatal) ──────────────────
-  if (_currentUserId) {
-    const today = new Date().toDateString();
-    if (localStorage.getItem('vu_last_streak') !== today) {
-      ;(getSupabaseClient() ?? _sbClient)?.rpc('update_streak', { p_user_id: _currentUserId })
-        .then(() => {
-          localStorage.setItem('vu_last_streak', today)
-          console.log('[send] streak updated')
-        })
-        .catch((e: any) => console.error('[send] streak update error:', e));
-    }
-  }
-  // ────────────────────────────────────────────────────────────────────────────
+  // Record daily study activity for the streak (non-fatal, once per UTC day)
+  touchDailyStreak(getSupabaseClient() ?? _sbClient, _currentUserId);
   setSpin(true); showTyping();
 
   // ── Timeout — reqId staleness guard prevents concurrent timers cross-cancelling ──

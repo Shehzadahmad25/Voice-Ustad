@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { touchDailyStreak } from '@/lib/streak';
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -176,6 +177,8 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
   const generateQuiz = useCallback(async () => {
     setLoading(true);
     setGenError(null);
+    // Taking a chapter quiz is study activity — count it toward the streak
+    touchDailyStreak(supabase, userId);
     setQuestions([]);
     setCurrentIndex(0);
     setAnswers({});
@@ -204,7 +207,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
     } finally {
       setLoading(false);
     }
-  }, [chapterId, chapterTitle, topics]);
+  }, [chapterId, chapterTitle, topics, userId]);
 
   useEffect(() => { generateQuiz(); }, [generateQuiz]);
 

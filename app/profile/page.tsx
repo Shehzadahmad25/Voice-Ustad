@@ -36,15 +36,30 @@ export default function ProfilePage() {
           p_user_id: u.id,
           p_board: 'KPK',
         })
+        console.log('[profile] dashboard summary:', JSON.stringify(summary))
         if (summary) {
           setStats({
-            xp: summary.total_xp ?? 0,
-            streak: summary.current_streak ?? 0,
+            // The RPC's field names are `xp` and `streak` — the old
+            // `total_xp`/`current_streak` reads never existed on the payload,
+            // so ?? 0 silently rendered 0/0 while the dashboard (reading the
+            // same values via profiles.xp/streak) showed the real numbers.
+            xp: summary.xp ?? profileRes.data?.xp ?? 0,
+            streak: summary.streak ?? profileRes.data?.streak ?? 0,
             covered: summary.topics_covered ?? 0,
             quizzes: summary.quizzes_taken ?? 0,
           })
+        } else if (profileRes.data) {
+          // RPC returned nothing — fall back to the same columns the dashboard uses
+          console.warn('[profile] summary RPC empty — falling back to profiles columns')
+          setStats(s => ({ ...s, xp: profileRes.data.xp ?? 0, streak: profileRes.data.streak ?? 0 }))
         }
-      } catch { /* RPC may not exist — stats stay at 0 */ }
+      } catch (e) {
+        // RPC unavailable — fall back to profiles columns rather than showing 0
+        console.error('[profile] summary RPC failed:', (e as Error)?.message)
+        if (profileRes.data) {
+          setStats(s => ({ ...s, xp: profileRes.data.xp ?? 0, streak: profileRes.data.streak ?? 0 }))
+        }
+      }
 
       setLoading(false)
     })
