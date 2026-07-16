@@ -52,7 +52,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           lastUserIdRef.current = currentSession.user.id
           setSession(currentSession)
           setUser(currentSession.user)
-          await fetchProfile()
+          // Unblock AuthGuard immediately — the session alone decides access.
+          // The profile hydrates in the background (pages render fallbacks
+          // until it lands). Awaiting it here kept every protected page on
+          // the 'Checking your session...' spinner for the full profile
+          // round trip (~2s measured).
+          setLoading(false)
+          fetchProfile().catch(() => {})
         } else {
           setSession(null)
           setUser(null)
@@ -84,11 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastUserIdRef.current = nextSession.user.id
         setSession(nextSession)
         setUser(nextSession.user)
-        // Only show the app-wide loading state when a DIFFERENT user signs in.
-        // Same-user re-emits (token refresh, tab focus) update silently —
-        // flipping loading here unmounted every AuthGuard page mid-use.
-        if (identityChanged) setLoading(true)
-        await fetchProfile()
+        // Only fetch the profile when a DIFFERENT user signs in. Same-user
+        // re-emits (INITIAL_SESSION right after bootstrap, TOKEN_REFRESHED,
+        // tab focus) previously duplicated the profile fetch + auth round
+        // trips on every first load; bootstrap already hydrates the profile.
+        if (identityChanged) {
+          setLoading(true)
+          await fetchProfile()
+        }
       } else {
         lastUserIdRef.current = null
         setSession(null)

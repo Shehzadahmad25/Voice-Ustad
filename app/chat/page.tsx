@@ -2113,15 +2113,20 @@ function buildSidebarHistory(data: any[]) {
   }
 }
 
+// Last user id history was loaded for — dedupes the mount effect + auth-listener
+// double fire (each previously cost a network auth call + /api/chat-history hit)
+let _historyLoadedForUid: string | null = null;
+
 async function dbLoadHistory() {
-  // Resolve userId: prefer real Supabase auth user, fall back to context user id
+  // Resolve userId from the LOCAL session — auth.getUser() is a network round
+  // trip per call and this runs on every page load (twice, before the dedupe)
   let userId: string | null = null;
   try {
     if (_sbClient) {
-      const { data: { user: realUser } } = await _sbClient.auth.getUser();
-      if (realUser?.id) {
-        userId = realUser.id;
-        console.log('[history] real auth user:', userId);
+      const { data: { session } } = await _sbClient.auth.getSession();
+      if (session?.user?.id) {
+        userId = session.user.id;
+        console.log('[history] session user:', userId);
       }
     }
   } catch { /* non-fatal */ }
@@ -2713,6 +2718,7 @@ export default function ChatPage() {
     if (!_sbClient)       _sbClient   = supabaseRef.current;
     if (!_setSessions)    _setSessions = setSessions;
     if (!_setActiveSessionId) _setActiveSessionId = setActiveSessionId;
+    _historyLoadedForUid = user.id;
     dbLoadHistory();
 
     // ── Subscription gate ────────────────────────────────────────────────────
@@ -2732,6 +2738,11 @@ export default function ChatPage() {
     if (!supabaseRef.current) return;
     const { data: authListener } = supabaseRef.current.auth.onAuthStateChange((event, session) => {
       if (session?.user?.id) {
+        // Same-user re-emits (INITIAL_SESSION, TOKEN_REFRESHED) duplicated the
+        // history load on every first visit — only load for a NEW user here;
+        // the [user?.id] mount effect handles the normal path.
+        if (session.user.id === _historyLoadedForUid) return;
+        _historyLoadedForUid = session.user.id;
         console.log('[history] auth state changed, loading history...');
         if (!_sbClient) _sbClient = supabaseRef.current;
         dbLoadHistory();

@@ -197,21 +197,13 @@ export const authService = {
     const supabase = getClient()
     if (!supabase) return null
 
-    // Check for an active session first — getUser() makes a network call and
-    // returns AuthApiError("Auth session missing!") when no session exists.
-    // Treat that as a normal "not logged in" state rather than an error.
+    // The local session already carries the user — return it directly instead
+    // of calling auth.getUser(), which is a network round trip to Supabase on
+    // EVERY call (measured 0.6-1.4s each and it sat in the render-blocking
+    // path of first load). RLS still validates the JWT on every data query,
+    // so a stale local session can read nothing it shouldn't.
     const { data: sessionData } = await supabase.auth.getSession()
-    if (!sessionData?.session) return null
-
-    const { data, error } = await supabase.auth.getUser()
-    if (error) {
-      const msg    = (error as unknown as Record<string, unknown>)?.['message']
-      const status = (error as unknown as Record<string, unknown>)?.['status']
-      console.warn('[authService] getCurrentUser — getUser() returned error (returning null):',
-        'message:', msg, '| status:', status, '| name:', error.name)
-      return null
-    }
-    return data.user
+    return sessionData?.session?.user ?? null
   },
 
   async getProfile(userId?: string): Promise<UserProfile | null> {
