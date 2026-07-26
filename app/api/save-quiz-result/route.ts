@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase';
+import { QUIZ_MIN_COUNT } from '@/lib/quizConfig';
 
 export const runtime = 'nodejs';
 export const maxDuration = 10; // fast DB queries only
@@ -23,6 +24,15 @@ export async function POST(req: NextRequest) {
 
   if (!user_id || !chapter_id || !chapter_title || !answers || !questions?.length) {
     return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
+  }
+
+  // Server-side safety net: never persist a stub quiz. A legitimately
+  // generated chapter quiz always has >= QUIZ_MIN_COUNT questions.
+  if (questions.length < QUIZ_MIN_COUNT) {
+    return NextResponse.json(
+      { ok: false, error: `Quiz too short (${questions.length} < ${QUIZ_MIN_COUNT}) — not saved` },
+      { status: 422 },
+    );
   }
 
   // Score calculation + per-topic breakdown

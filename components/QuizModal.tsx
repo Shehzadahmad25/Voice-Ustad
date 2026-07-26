@@ -169,6 +169,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [quizResults, setQuizResults] = useState<QuizResultsData | null>(null);
   const [msgIndex, setMsgIndex] = useState(0);
@@ -236,6 +237,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
   const submit = async () => {
     if (submitting) return;
     setSubmitting(true);
+    setSaveError(null);
 
     try {
       const answersArr = questions.map((_, i) => answers[i] ?? '');
@@ -270,9 +272,10 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
       const grade = gradeFromPct(pct);
       const xpEarned = score * 10;
 
-      // Save to student_quiz_results via API
+      // Save to student_quiz_results via API — a rejection here (e.g. the
+      // server-side too-short 422) must surface, not silently show results.
       try {
-        await fetch('/api/save-quiz-result', {
+        const saveRes = await fetch('/api/save-quiz-result', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -283,8 +286,15 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
             questions,
           }),
         });
+        const saveData = await saveRes.json().catch(() => ({ ok: false }));
+        if (!saveRes.ok || !saveData?.ok) {
+          setSaveError(saveData?.error || 'Could not save your quiz result. Please try again.');
+          return;
+        }
       } catch (e) {
         console.error('[QuizModal] save-quiz-result error:', e);
+        setSaveError('Could not save your quiz result. Please try again.');
+        return;
       }
 
       // Save to quiz_attempts + run RPCs
@@ -408,6 +418,30 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
             <div style={{ color: '#64748b', fontSize: '13px', marginBottom: '24px' }}>{genError}</div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               <button onClick={generateQuiz} style={btnPrimary}>Try Again</button>
+              <button onClick={onClose} style={btnSecondary}>Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Save-failure screen ────────────────────────────────────────────────────────
+  // Shown when save-quiz-result rejects (e.g. the too-short 422) so results
+  // are never displayed as if the save succeeded.
+
+  if (saveError) {
+    return (
+      <div style={overlayStyle} onClick={onClose}>
+        <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
+          <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
+            <div style={{ color: '#ef4444', fontSize: '15px', marginBottom: '8px' }}>Couldn&apos;t save your result</div>
+            <div style={{ color: '#64748b', fontSize: '13px', marginBottom: '24px' }}>{saveError}</div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button onClick={submit} disabled={submitting} style={{ ...btnPrimary, opacity: submitting ? 0.35 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }}>
+                {submitting ? 'Saving...' : 'Try Again'}
+              </button>
               <button onClick={onClose} style={btnSecondary}>Close</button>
             </div>
           </div>

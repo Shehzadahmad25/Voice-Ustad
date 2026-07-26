@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase'
+import { QUIZ_TARGET_COUNT, QUIZ_MIN_COUNT } from '@/lib/quizConfig'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -108,7 +109,9 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
       .map(t => t.term || t.topic_title || '')
       .filter(Boolean)
 
-    const count = Math.min(topicNames.length * 2, 30)
+    // Target a full-size quiz regardless of how many topics were passed —
+    // deriving count from topic count is what produced 1-2 question quizzes.
+    const count = QUIZ_TARGET_COUNT
 
     // ── DB-first: try quiz_questions table before calling OpenAI ─────────────
     if (body.chapterNumber) {
@@ -121,7 +124,7 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
           .eq('chapter_slug', body.chapterNumber)
           .limit(60)
 
-        if (dbRows && dbRows.length >= 10) {
+        if (dbRows && dbRows.length >= QUIZ_MIN_COUNT) {
           console.log('[generate-quiz legacy] serving from DB:', dbRows.length, 'questions')
           return NextResponse.json({ ok: true, questions: shuffle(dbRows).slice(0, count), count })
         }
@@ -162,7 +165,7 @@ Rules: cover all topics, plausible distractors, vary correct_answer across A B C
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             temperature: 0.7,
-            max_tokens: 2500,
+            max_tokens: 4000,
             messages: [{ role: 'user', content: prompt }],
           }),
         })
@@ -190,6 +193,15 @@ Rules: cover all topics, plausible distractors, vary correct_answer across A B C
         if (!jsonMatch) throw new Error('No JSON array in response')
         const parsed = JSON.parse(jsonMatch[0])
         if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty questions array')
+
+        // Reject short quizzes — retry for a fuller batch instead of
+        // launching a 1-2 question stub.
+        if (parsed.length < QUIZ_MIN_COUNT) {
+          console.warn('[generate-quiz legacy] only', parsed.length, 'questions (need', QUIZ_MIN_COUNT, ') — retrying')
+          lastLegacyError = `Only ${parsed.length} questions generated (need ${QUIZ_MIN_COUNT})`
+          continue
+        }
+
         questions = parsed
         break
       } catch (parseError: any) {
@@ -199,7 +211,10 @@ Rules: cover all topics, plausible distractors, vary correct_answer across A B C
     }
 
     if (!questions) {
-      return NextResponse.json({ questions: [], error: lastLegacyError || 'Failed after 3 attempts' })
+      return NextResponse.json({
+        questions: [],
+        error: lastLegacyError || `Failed to generate at least ${QUIZ_MIN_COUNT} questions`,
+      })
     }
 
     return NextResponse.json({ ok: true, questions, count })
