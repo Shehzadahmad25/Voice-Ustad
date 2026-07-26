@@ -9,3 +9,4 @@
 
 export const QUIZ_TARGET_COUNT = 30  // questions we ask the generator for
 export const QUIZ_MIN_COUNT = 15     // hard floor — below this we reject, never launch/save
+export const QUIZ_MIN_TOPIC_COVERAGE = 0.6  // ≥60% of a chapter's topics must appear in a batch, else retry

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase'
-import { QUIZ_TARGET_COUNT, QUIZ_MIN_COUNT } from '@/lib/quizConfig'
+import { QUIZ_TARGET_COUNT, QUIZ_MIN_COUNT, QUIZ_MIN_TOPIC_COVERAGE } from '@/lib/quizConfig'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -30,6 +30,26 @@ interface QuizBody {
 
 function shuffle<T>(arr: T[]): T[] {
   return arr.sort(() => Math.random() - 0.5)
+}
+
+// Normalise a topic string for fuzzy matching (case/punctuation-insensitive).
+function normTopic(s: unknown): string {
+  return String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+// Fraction of `topicNames` that appear as a question's `topic_name`.
+// Returns 1 (skip) when the batch carries no topic_name at all, so a missing
+// field never falsely fails a quiz — the prompt still requests it.
+function topicCoverage(questions: any[], topicNames: string[]): number {
+  const sent = topicNames.map(normTopic).filter(Boolean)
+  if (sent.length === 0) return 1
+  const returned = questions.map(q => normTopic(q?.topic_name)).filter(Boolean)
+  if (returned.length === 0) return 1
+  const covered = new Set<string>()
+  for (const s of sent) {
+    if (returned.some(r => r === s || r.includes(s) || s.includes(r))) covered.add(s)
+  }
+  return covered.size / sent.length
 }
 
 export async function POST(req: NextRequest) {
@@ -109,9 +129,13 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
       .map(t => t.term || t.topic_title || '')
       .filter(Boolean)
 
-    // Target a full-size quiz regardless of how many topics were passed —
-    // deriving count from topic count is what produced 1-2 question quizzes.
-    const count = QUIZ_TARGET_COUNT
+    // Aim for QUIZ_TARGET_COUNT, but never fewer than one question per topic.
+    // Chapters with more topics than the target (currently ch2=32, ch16=33)
+    // get a slightly longer quiz — one question per topic — rather than
+    // silently dropping the extras (the old `.slice(0, 15)` bug).
+    const topicCount = topicNames.length
+    const count = Math.max(QUIZ_TARGET_COUNT, topicCount || QUIZ_TARGET_COUNT)
+    const perTopicMax = Math.ceil(count / (topicCount || count))
 
     // ── DB-first: try quiz_questions table before calling OpenAI ─────────────
     if (body.chapterNumber) {
@@ -138,14 +162,28 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
 
     console.log('[generate-quiz legacy] chapter:', resolvedTitle, '| topics:', topicNames.length, '| count:', count)
 
-    const prompt = `Generate ${count} FSc Chemistry MCQs for Grade 11 KPK board Pakistan.
-Chapter: ${resolvedTitle || 'FSc Chemistry'} | Topics: ${topicNames.slice(0, 15).join(', ')}
+    const topicList = topicNames.map((t, i) => `${i + 1}. ${t}`).join('\n')
+
+    const prompt = `Generate exactly ${count} FSc Chemistry MCQs for Grade 11 KPK board Pakistan.
+Chapter: ${resolvedTitle || 'FSc Chemistry'}
 Seed: ${seed}
+
+Coverage is mandatory. There are ${topicCount} topics below and you MUST:
+- give EVERY topic at least 1 question (no topic may be skipped);
+- distribute the remaining questions as evenly as possible;
+- give no single topic more than ${perTopicMax} question(s);
+- set each question's "topic_name" to EXACTLY one of the topic names below, copied verbatim.
+
+Topics:
+${topicList}
+
 Return ONLY a JSON array, no markdown:
-[{"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correct_answer":"B","topic_name":"..."}]
-Rules: cover all topics, plausible distractors, vary correct_answer across A B C D equally.`
+[{"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correct_answer":"B","topic_name":"<one topic name from the list above>"}]
+Rules: plausible distractors, vary correct_answer across A B C D equally.`
 
     let questions: unknown[] | null = null
+    let bestBatch: any[] | null = null      // best-covered batch that still met QUIZ_MIN_COUNT
+    let bestCoverage = -1
     let lastLegacyError = ''
 
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -202,6 +240,17 @@ Rules: cover all topics, plausible distractors, vary correct_answer across A B C
           continue
         }
 
+        // Validate topic spread — retry if the batch clusters on a few topics
+        // instead of covering the chapter (the reported ch2 symptom).
+        const coverage = topicCoverage(parsed as any[], topicNames)
+        if (coverage > bestCoverage) { bestCoverage = coverage; bestBatch = parsed as any[] }
+        if (coverage < QUIZ_MIN_TOPIC_COVERAGE) {
+          console.warn('[generate-quiz legacy] thin topic coverage', Math.round(coverage * 100) + '% (need',
+            Math.round(QUIZ_MIN_TOPIC_COVERAGE * 100) + '%) — retrying')
+          lastLegacyError = `Topic coverage too thin (${Math.round(coverage * 100)}%)`
+          continue
+        }
+
         questions = parsed
         break
       } catch (parseError: any) {
@@ -211,10 +260,17 @@ Rules: cover all topics, plausible distractors, vary correct_answer across A B C
     }
 
     if (!questions) {
-      return NextResponse.json({
-        questions: [],
-        error: lastLegacyError || `Failed to generate at least ${QUIZ_MIN_COUNT} questions`,
-      })
+      // A full-length batch existed but none cleared the coverage bar — serve
+      // the best-covered one instead of failing the quiz outright.
+      if (bestBatch && bestBatch.length >= QUIZ_MIN_COUNT) {
+        console.warn('[generate-quiz legacy] serving best-coverage batch:', Math.round(bestCoverage * 100) + '%')
+        questions = bestBatch
+      } else {
+        return NextResponse.json({
+          questions: [],
+          error: lastLegacyError || `Failed to generate at least ${QUIZ_MIN_COUNT} questions`,
+        })
+      }
     }
 
     return NextResponse.json({ ok: true, questions, count })
