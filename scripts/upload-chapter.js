@@ -18,6 +18,22 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /**
+ * mcqs.correct_answer is stored lowercase a-d. Some chapter JSON files use
+ * uppercase, which left the column mixed-case (277 lower / 90 upper) and would
+ * mis-score any case-sensitive comparison. Force lowercase on write so the
+ * table cannot drift back after
+ * scripts/migrations/2026-07-normalize-mcq-answer-case.sql.
+ */
+function normAnswer(a) {
+  const v = String(a ?? '').trim().toLowerCase();
+  if (!['a', 'b', 'c', 'd'].includes(v)) {
+    console.warn(`  WARNING: mcq answer ${JSON.stringify(a)} is not a/b/c/d — storing as-is`);
+    return a;
+  }
+  return v;
+}
+
+/**
  * Safe per-row upsert: finds existing row by matchCols, updates it if found,
  * inserts if not found.  No bulk delete — existing rows not in the JSON are left
  * untouched.  Used by --update mode.
@@ -139,7 +155,7 @@ async function upload(jsonFile, updateMode = false) {
     // 7u. MCQs
     let mU=0, mI=0;
     for (const m of (data.exercise?.mcqs || [])) {
-      const r = await safeUpsertRow('mcqs', { chapter_id: cid, mcq_id: m.id, question: m.question, option_a: m.options[0], option_b: m.options[1], option_c: m.options[2], option_d: m.options[3], correct_answer: m.answer }, ['chapter_id', 'mcq_id']);
+      const r = await safeUpsertRow('mcqs', { chapter_id: cid, mcq_id: m.id, question: m.question, option_a: m.options[0], option_b: m.options[1], option_c: m.options[2], option_d: m.options[3], correct_answer: normAnswer(m.answer) }, ['chapter_id', 'mcq_id']);
       if (r === 'updated') mU++; else if (r === 'inserted') mI++;
     }
     if (mU + mI) console.log(`  mcqs: ${mU} updated, ${mI} inserted`);
@@ -237,7 +253,7 @@ async function upload(jsonFile, updateMode = false) {
     // 8. MCQs
     if (data.exercise?.mcqs?.length) {
       const { error } = await supabase.from('mcqs').insert(
-        data.exercise.mcqs.map(m => ({ chapter_id: cid, mcq_id: m.id, question: m.question, option_a: m.options[0], option_b: m.options[1], option_c: m.options[2], option_d: m.options[3], correct_answer: m.answer }))
+        data.exercise.mcqs.map(m => ({ chapter_id: cid, mcq_id: m.id, question: m.question, option_a: m.options[0], option_b: m.options[1], option_c: m.options[2], option_d: m.options[3], correct_answer: normAnswer(m.answer) }))
       );
       if (error) console.error('  mcqs error:', error.message);
       else console.log('  mcqs:', data.exercise.mcqs.length);
