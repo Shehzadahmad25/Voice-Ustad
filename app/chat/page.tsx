@@ -2110,34 +2110,35 @@ function buildSidebarHistory(data: any[]) {
 let _historyLoadedForUid: string | null = null;
 
 async function dbLoadHistory() {
-  // Resolve userId from the LOCAL session — auth.getUser() is a network round
-  // trip per call and this runs on every page load (twice, before the dedupe)
+  // Resolve the access token from the LOCAL session — auth.getUser() is a
+  // network round trip per call and this runs on every page load (twice,
+  // before the dedupe). The server identifies the caller from this token; it
+  // no longer accepts a userId param (that let anyone read another user's
+  // session titles).
+  let accessToken: string | null = null;
   let userId: string | null = null;
   try {
     if (_sbClient) {
       const { data: { session } } = await _sbClient.auth.getSession();
-      if (session?.user?.id) {
-        userId = session.user.id;
+      if (session?.access_token) {
+        accessToken = session.access_token;
+        userId = session.user?.id ?? null;
         console.log('[history] session user:', userId);
       }
     }
   } catch { /* non-fatal */ }
 
-  if (!userId && _currentUserId) {
-    userId = _currentUserId;
-    console.log('[history] using context user id:', userId);
-  }
-
-  console.log('[history] querying with user_id:', userId);
-
-  if (!userId) {
-    console.log('[history] no user id — skipping');
+  if (!accessToken) {
+    console.log('[history] no access token — skipping');
     return;
   }
 
   try {
-    // Use the server-side API route so service-role key bypasses RLS
-    const res = await fetch(`/api/chat-history?userId=${encodeURIComponent(userId)}`);
+    // Server-side API route: service-role key bypasses RLS, but the route
+    // scopes the query to whoever this bearer token belongs to.
+    const res = await fetch('/api/chat-history', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     const json = await res.json();
     console.log('[history] API response:', json.sessions?.length, 'error:', json.error);
     if (!json.ok) { console.log('[history] API error:', json.error); return; }

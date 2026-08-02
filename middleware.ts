@@ -29,8 +29,9 @@ export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
   // ── Demo API key guard ─────────────────────────────────────────────────────
-  // NOTE: /api/chat-history was previously covered by the old '/api/chat'
-  // prefix match; listed explicitly now that the dead /api/chat route is gone.
+  // NOTE: /api/chat-history must ALSO appear in `config.matcher` below or this
+  // guard never runs for it — '/api/chat' and '/api/chat/:path*' do not match
+  // '/api/chat-history'. That gap left the route unguarded.
   const protectedApiRoutes = ['/api/chat2', '/api/chat-history', '/api/topic-view']
   if (DEMO_KEY && protectedApiRoutes.some(r => path.startsWith(r))) {
     const paramKey  = req.nextUrl.searchParams.get('demo')
@@ -71,6 +72,8 @@ export const config = {
     '/api/chat/:path*',
     '/api/chat2',
     '/api/chat2/:path*',
+    '/api/chat-history',
+    '/api/chat-history/:path*',
     '/api/topic-view',
     '/api/topic-view/:path*',
     // Pages (auth routing)

@@ -12,6 +12,10 @@ interface Question {
   options: { A: string; B: string; C: string; D: string };
   correct_answer: string;
   topic_name: string;
+  /** Book section, e.g. "2.1.3". Stamped server-side from content_chunks. */
+  topic_section?: string | null;
+  /** Real chunk slug — used for the "Study this" deep-link. */
+  topic_slug?: string | null;
 }
 
 interface WrongItem {
@@ -109,10 +113,20 @@ const overlayStyle: React.CSSProperties = {
   background: 'rgba(0,0,0,0.88)',
   backdropFilter: 'blur(12px)',
   display: 'flex',
-  alignItems: 'center',
+  // flex-start, NOT center. On a phone with toolbars showing, `vh` resolves
+  // against the taller "large viewport" while this fixed overlay lays out
+  // against the visible area — so a centred card ends up taller than its
+  // container, overflows both edges, and its top becomes unreachable.
+  // The card's `margin: auto` still centres it whenever it does fit, because
+  // auto margins resolve to 0 when free space is negative.
+  alignItems: 'flex-start',
   justifyContent: 'center',
-  padding: '20px',
+  padding: '12px 12px calc(12px + env(safe-area-inset-bottom, 0px))',
   boxSizing: 'border-box',
+  // The overlay is the scroll container now — the card no longer clips itself.
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  WebkitOverflowScrolling: 'touch',
 };
 
 const cardStyle: React.CSSProperties = {
@@ -122,11 +136,27 @@ const cardStyle: React.CSSProperties = {
   padding: '28px 24px',
   maxWidth: '580px',
   width: '100%',
-  maxHeight: '88vh',
-  overflowY: 'auto',
+  margin: 'auto',   // centres when it fits; resolves to 0 when it does not
   boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
   position: 'relative',
 };
+
+// Long revise lists get their own bounded scroll region so they can never push
+// the action buttons below the fold.
+const reviseListStyle: React.CSSProperties = {
+  maxHeight: 'min(38dvh, 300px)',
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  WebkitOverflowScrolling: 'touch',
+  paddingRight: '4px',
+};
+
+// Book sections are numeric for units 1–21 ("2.1.3") but prose for 22–24
+// ("Adhesives"), where a "§" prefix would read wrong.
+function sectionLabel(section?: string | null): string | null {
+  const s = String(section ?? '').trim();
+  return /^\d/.test(s) ? `§${s}` : null;
+}
 
 // ── Loading messages ──────────────────────────────────────────────────────────
 
@@ -262,7 +292,11 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
             question: raw.length > 80 ? raw.slice(0, 80) + '…' : raw,
             yourAnswer: selectedText,
             correctAnswer: correctText,
-            topicSlug: (q.topic_name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+            // Prefer the real content_chunks slug — deriving one from prose
+            // turned "Rutherford's Model" into "rutherford-s-model", which
+            // matches no chunk and broke the "Study this" deep-link.
+            topicSlug: q.topic_slug
+              || (q.topic_name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
             chapterSlug: chapterNumber,
           });
         }
@@ -332,7 +366,8 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i];
           if (!q.topic_name) continue;
-          const topicSlug = String(q.topic_name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const topicSlug = q.topic_slug
+            || String(q.topic_name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
           const isCorrect = answersArr[i] === q.correct_answer;
           console.log('Saving topic attempt:', {
             topic_slug: topicSlug,
@@ -537,6 +572,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
               <div style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
                 ⚠️ Topics to Revise ({quizResults.wrongItems.length})
               </div>
+              <div style={reviseListStyle}>
               {quizResults.wrongItems.map((item, idx) => (
                 <div key={idx} style={{
                   background: 'rgba(239,68,68,0.06)',
@@ -581,6 +617,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )}
 
@@ -656,7 +693,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
   return (
     <div style={overlayStyle}>
       <div
-        style={cardStyle}
+        style={{ ...cardStyle, maxHeight: 'min(92dvh, 100%)', overflowY: 'auto' }}
         onContextMenu={(e) => e.preventDefault()}
         onCopy={(e) => e.preventDefault()}
       >
@@ -689,7 +726,10 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
             background: 'rgba(25,195,125,0.1)', borderRadius: '5px',
             padding: '3px 9px', marginBottom: '12px', letterSpacing: '0.04em',
           }}>
-            {q.topic_name}
+            {chapterTitle} — {q.topic_name}
+            {sectionLabel(q.topic_section) && (
+              <span style={{ opacity: 0.6, marginLeft: 6 }}>{sectionLabel(q.topic_section)}</span>
+            )}
           </div>
         )}
 

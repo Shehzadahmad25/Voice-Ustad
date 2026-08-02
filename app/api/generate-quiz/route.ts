@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase'
 import { QUIZ_TARGET_COUNT, QUIZ_MIN_COUNT, QUIZ_MIN_TOPIC_COVERAGE } from '@/lib/quizConfig'
+import {
+  validateQuestions,
+  buildSourceBlocks,
+  batchChunks,
+  shuffleOptions,
+  groundingRules,
+  type ContentChunk,
+  type RawQuestion,
+} from '@/lib/quizValidation'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -28,8 +37,98 @@ interface QuizBody {
   board?: string
 }
 
+// Fisher-Yates. `arr.sort(() => Math.random() - 0.5)` is not a uniform shuffle
+// (and mutates its input), which skewed which DB questions students saw.
 function shuffle<T>(arr: T[]): T[] {
-  return arr.sort(() => Math.random() - 0.5)
+  const out = [...arr]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
+/**
+ * Generates + validates questions for ONE batch of sources.
+ *
+ * Batches are run in parallel by the callers: a whole chapter in a single
+ * prompt measured ~160s against a 60s route budget, because the model emits
+ * "working" for every question serially.
+ */
+async function generateBatch(opts: {
+  chunks: ContentChunk[]
+  header: string
+  count: number
+  perSourceMax: number
+  timeoutMs: number
+  tag: string
+}): Promise<RawQuestion[]> {
+  const { chunks, header, count, perSourceMax, timeoutMs, tag } = opts
+  const chunkIndex = new Map<string, ContentChunk>(chunks.map((c) => [String(c.id), c]))
+
+  const prompt = `${header}
+
+${groundingRules(count, perSourceMax)}
+
+SOURCES
+${buildSourceBlocks(chunks)}
+
+Return ONLY this JSON object:
+{"questions":[{"source_id":"<id>","working":"<how you got the answer>","answer_text":"<the answer as plain text>","question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correct_answer":"B","explanation":"<one sentence, from the source>"}]}`
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.2,   // factual recall, not creative writing
+        max_tokens: 4000,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+
+    if (!res.ok) {
+      console.error(`[${tag}] OpenAI HTTP ${res.status}:`, (await res.text()).slice(0, 200))
+      return []
+    }
+
+    const data = await res.json()
+    const rawText: string = data.choices?.[0]?.message?.content ?? '{}'
+    const parsed = JSON.parse(rawText)
+    const candidates: RawQuestion[] = Array.isArray(parsed) ? parsed : (parsed.questions ?? [])
+    if (!Array.isArray(candidates)) return []
+
+    const { kept, rejected } = validateQuestions(candidates, chunkIndex)
+    console.log(`[${tag}] ${chunks.length} sources -> ${candidates.length} generated, ${kept.length} passed`,
+      Object.keys(rejected).length ? `| rejected: ${JSON.stringify(rejected)}` : '')
+    return kept.map(shuffleOptions)
+  } catch (err: any) {
+    console.error(`[${tag}] batch failed:`, err?.name === 'AbortError' ? 'timeout' : err?.message)
+    return []
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** De-duplicates by question text, so parallel batches cannot repeat a fact. */
+function dedupeQuestions(questions: RawQuestion[]): RawQuestion[] {
+  const seen = new Set<string>()
+  const out: RawQuestion[] = []
+  for (const q of questions) {
+    const key = String(q.question).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(q)
+  }
+  return out
 }
 
 // Normalise a topic string for fuzzy matching (case/punctuation-insensitive).
@@ -94,34 +193,62 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
     const resolvedChapterId = body.chapterId ?? body.chapter_id
     let resolvedTitle = body.chapter_title ?? ''
     let resolvedTopics: TopicItem[] = body.topics ?? []
+    let chunks: ContentChunk[] = []
+    let resolvedUnit = Number(body.chapterNumber) || 0
 
-    // If topics array is empty or missing, fetch from content_chunks by chapter_id
-    if (resolvedTopics.length === 0 && resolvedChapterId) {
-      try {
-        const sb = getServiceClient()
-        const { data: chunks } = await sb
-          .from('content_chunks')
-          .select('topic_slug, term, book_definition')
-          .eq('chapter_id', String(resolvedChapterId))
-          .limit(30)
+    // Always load the chapter's chunks — they are the only permitted source of
+    // fact for generation, and the only source of real subtopic labels.
+    //
+    // NOTE: content_chunks keys on `chapter` (integer unit number), NOT on a
+    // `chapter_id` uuid — that column does not exist. The old
+    // `.eq('chapter_id', <uuid>)` therefore threw on every single call and the
+    // catch below swallowed it, which is why generation was never grounded and
+    // every topic badge fell through to the "<Chapter> — General" label.
+    try {
+      const sb = getServiceClient()
 
-        if (chunks && chunks.length > 0) {
-          resolvedTopics = chunks.map((c: any) => ({
-            topic_title: c.term || c.topic_slug || 'General',
-            term: c.term || c.topic_slug || 'General',
-            topic_slug: c.topic_slug,
-          }))
-          console.log('[generate-quiz legacy] fetched', resolvedTopics.length, 'topics from chunks by chapter_id')
+      if (!resolvedUnit && resolvedChapterId) {
+        const { data: ch } = await sb
+          .from('chapters')
+          .select('unit_number, title')
+          .eq('id', String(resolvedChapterId))
+          .single()
+        if (ch) {
+          resolvedUnit = ch.unit_number
+          resolvedTitle = resolvedTitle || ch.title
         }
-      } catch (chunkErr: any) {
-        console.warn('[generate-quiz legacy] chunk fallback failed:', chunkErr?.message)
       }
+
+      if (resolvedUnit) {
+        const { data, error } = await sb
+          .from('content_chunks')
+          .select('id, section, term, topic_slug, book_definition, guide_explanation, formula, example_q, example_solution, example_answer')
+          .eq('chapter', resolvedUnit)
+          .order('section')
+        if (error) throw new Error(error.message)
+        chunks = data ?? []
+      }
+
+      if (chunks.length > 0 && resolvedTopics.length === 0) {
+        resolvedTopics = chunks.map((c) => ({
+          topic_title: c.term ?? undefined,
+          term: c.term ?? undefined,
+          topic_slug: c.topic_slug ?? undefined,
+        }))
+      }
+      console.log('[generate-quiz legacy] loaded', chunks.length, 'grounding chunks for unit', resolvedUnit)
+    } catch (chunkErr: any) {
+      console.error('[generate-quiz legacy] chunk load FAILED:', chunkErr?.message)
     }
 
-    // Last-resort: generic topic so quiz always generates
-    if (resolvedTopics.length === 0) {
-      resolvedTopics = [{ topic_title: `${resolvedTitle || 'Chemistry'} — General`, term: `${resolvedTitle || 'Chemistry'} — General` }]
-      console.warn('[generate-quiz legacy] no topics found, using generic fallback')
+    // No chunks means no grounded source of truth. Refusing is correct —
+    // the old generic-topic fallback just licensed the model to invent a quiz.
+    if (chunks.length === 0) {
+      console.error('[generate-quiz legacy] no content_chunks for unit', resolvedUnit, '— refusing to generate')
+      return NextResponse.json(
+        { questions: [], error: 'No chapter content available to build a quiz from.' },
+        { status: 503 },
+      )
     }
 
     // Normalise topic names — accept both `term` and `topic_title` shapes
@@ -162,116 +289,49 @@ async function handleLegacy(body: LegacyBody): Promise<NextResponse> {
 
     console.log('[generate-quiz legacy] chapter:', resolvedTitle, '| topics:', topicNames.length, '| count:', count)
 
-    const topicList = topicNames.map((t, i) => `${i + 1}. ${t}`).join('\n')
-
-    const prompt = `Generate exactly ${count} FSc Chemistry MCQs for Grade 11 KPK board Pakistan.
+    // Sources are split into batches generated IN PARALLEL. One prompt holding
+    // a whole chapter measured ~160s against this route's 60s budget.
+    const batches = batchChunks(chunks, 8)
+    const perBatchCount = Math.ceil(count / batches.length)
+    const header = `You are writing FSc Chemistry Grade 11 MCQs for the KPK board, Pakistan.
 Chapter: ${resolvedTitle || 'FSc Chemistry'}
-Seed: ${seed}
+Seed: ${seed}`
 
-Coverage is mandatory. There are ${topicCount} topics below and you MUST:
-- give EVERY topic at least 1 question (no topic may be skipped);
-- distribute the remaining questions as evenly as possible;
-- give no single topic more than ${perTopicMax} question(s);
-- set each question's "topic_name" to EXACTLY one of the topic names below, copied verbatim.
+    console.log('[generate-quiz legacy] chapter:', resolvedTitle,
+      '| chunks:', chunks.length, '| batches:', batches.length, '| target:', count)
 
-Topics:
-${topicList}
+    const settled = await Promise.allSettled(
+      batches.map((batch, i) => generateBatch({
+        chunks: batch,
+        header,
+        count: perBatchCount,
+        perSourceMax: perTopicMax,
+        timeoutMs: 45000,
+        tag: `generate-quiz legacy b${i + 1}/${batches.length}`,
+      })),
+    )
 
-Return ONLY a JSON array, no markdown:
-[{"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correct_answer":"B","topic_name":"<one topic name from the list above>"}]
-Rules: plausible distractors, vary correct_answer across A B C D equally.`
+    let questions = dedupeQuestions(
+      settled.flatMap(r => (r.status === 'fulfilled' ? r.value : [])),
+    )
 
-    let questions: unknown[] | null = null
-    let bestBatch: any[] | null = null      // best-covered batch that still met QUIZ_MIN_COUNT
-    let bestCoverage = -1
-    let lastLegacyError = ''
+    const coverage = topicCoverage(questions, topicNames)
+    console.log('[generate-quiz legacy] merged', questions.length, 'questions |',
+      Math.round(coverage * 100) + '% topic coverage')
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log('[generate-quiz legacy] attempt', attempt, 'of 3')
-
-      const legacyController = new AbortController()
-      const legacyTimer = setTimeout(() => legacyController.abort(), 55000)
-      let openaiRes: Response
-      try {
-        openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          signal: legacyController.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            temperature: 0.7,
-            max_tokens: 4000,
-            messages: [{ role: 'user', content: prompt }],
-          }),
-        })
-        clearTimeout(legacyTimer)
-      } catch (fetchErr: any) {
-        clearTimeout(legacyTimer)
-        console.error('[generate-quiz legacy] OpenAI fetch failed (attempt', attempt, '):', fetchErr?.message)
-        lastLegacyError = 'AI generation failed: ' + (fetchErr?.message ?? 'network error')
-        continue
-      }
-
-      if (!openaiRes.ok) {
-        const errText = await openaiRes.text()
-        console.error('[generate-quiz legacy] OpenAI HTTP error:', openaiRes.status, errText.slice(0, 200))
-        lastLegacyError = `OpenAI API error: ${openaiRes.status}`
-        break
-      }
-
-      const openaiData = await openaiRes.json()
-      const rawText: string = openaiData.choices?.[0]?.message?.content ?? ''
-      console.log('[generate-quiz legacy] raw response:', rawText.substring(0, 200))
-
-      try {
-        const jsonMatch = rawText.match(/\[[\s\S]*\]/)
-        if (!jsonMatch) throw new Error('No JSON array in response')
-        const parsed = JSON.parse(jsonMatch[0])
-        if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty questions array')
-
-        // Reject short quizzes — retry for a fuller batch instead of
-        // launching a 1-2 question stub.
-        if (parsed.length < QUIZ_MIN_COUNT) {
-          console.warn('[generate-quiz legacy] only', parsed.length, 'questions (need', QUIZ_MIN_COUNT, ') — retrying')
-          lastLegacyError = `Only ${parsed.length} questions generated (need ${QUIZ_MIN_COUNT})`
-          continue
-        }
-
-        // Validate topic spread — retry if the batch clusters on a few topics
-        // instead of covering the chapter (the reported ch2 symptom).
-        const coverage = topicCoverage(parsed as any[], topicNames)
-        if (coverage > bestCoverage) { bestCoverage = coverage; bestBatch = parsed as any[] }
-        if (coverage < QUIZ_MIN_TOPIC_COVERAGE) {
-          console.warn('[generate-quiz legacy] thin topic coverage', Math.round(coverage * 100) + '% (need',
-            Math.round(QUIZ_MIN_TOPIC_COVERAGE * 100) + '%) — retrying')
-          lastLegacyError = `Topic coverage too thin (${Math.round(coverage * 100)}%)`
-          continue
-        }
-
-        questions = parsed
-        break
-      } catch (parseError: any) {
-        console.error('[generate-quiz legacy] JSON parse error (attempt', attempt, '):', parseError?.message, '| raw:', rawText.slice(0, 500))
-        lastLegacyError = 'Failed to parse AI response'
-      }
+    if (questions.length < QUIZ_MIN_COUNT) {
+      return NextResponse.json({
+        questions: [],
+        error: `Only ${questions.length} questions passed validation (need ${QUIZ_MIN_COUNT})`,
+      })
     }
 
-    if (!questions) {
-      // A full-length batch existed but none cleared the coverage bar — serve
-      // the best-covered one instead of failing the quiz outright.
-      if (bestBatch && bestBatch.length >= QUIZ_MIN_COUNT) {
-        console.warn('[generate-quiz legacy] serving best-coverage batch:', Math.round(bestCoverage * 100) + '%')
-        questions = bestBatch
-      } else {
-        return NextResponse.json({
-          questions: [],
-          error: lastLegacyError || `Failed to generate at least ${QUIZ_MIN_COUNT} questions`,
-        })
-      }
+    if (coverage < QUIZ_MIN_TOPIC_COVERAGE) {
+      console.warn('[generate-quiz legacy] thin topic coverage',
+        Math.round(coverage * 100) + '% — serving anyway, batching already spreads across sources')
     }
+
+    questions = shuffle(questions).slice(0, count)
 
     return NextResponse.json({ ok: true, questions, count })
 
@@ -287,26 +347,27 @@ async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
     const { chapterSlugs = [], count = 10 } = body
     const safeCount = Math.min(count, 30)
 
-    let truncatedContext = ''
+    // Grounding sources. Previously each chunk was cut to 200 chars and the
+    // whole context to 4000 — which sliced definitions, formulas and worked
+    // examples mid-sentence, so the model was "grounded" on fragments and
+    // filled the gaps from memory. Full rows now, capped by row count.
+    let chunks: ContentChunk[] = []
     try {
       const sb = getServiceClient()
       const chunkQuery = sb
         .from('content_chunks')
-        .select('topic_slug, book_definition, term')
-        .limit(40)
+        .select('id, section, term, topic_slug, book_definition, guide_explanation, formula, example_q, example_solution, example_answer')
+        .order('section')
+        .limit(60)
 
-      const { data: chunks } = chapterSlugs.length > 0
+      const { data, error } = chapterSlugs.length > 0
         ? await chunkQuery.eq('board', 'KPK').in('chapter', chapterSlugs.map(Number))
         : await chunkQuery
-
-      if (chunks && chunks.length > 0) {
-        const raw = chunks
-          .map((c: any) => `[${c.topic_slug ?? c.term ?? 'general'}]: ${(c.book_definition || '').slice(0, 200)}`)
-          .join('\n')
-        truncatedContext = raw.slice(0, 4000)
-      }
+      if (error) throw new Error(error.message)
+      chunks = data ?? []
+      console.log('[generate-quiz page] loaded', chunks.length, 'grounding chunks for', chapterSlugs.join(',') || 'all chapters')
     } catch (chunkErr: any) {
-      console.warn('[generate-quiz page] content_chunks fetch failed:', chunkErr?.message)
+      console.error('[generate-quiz page] content_chunks fetch failed:', chunkErr?.message)
     }
 
     // ── DB-first: try quiz_questions table before calling OpenAI ─────────────
@@ -330,72 +391,58 @@ async function handleQuizPage(body: QuizBody): Promise<NextResponse> {
       }
     }
 
+    // Same refusal rule as the chapter path: no grounding, no quiz.
+    if (chunks.length === 0) {
+      console.error('[generate-quiz page] no content_chunks available — refusing to generate')
+      return NextResponse.json(
+        { questions: [], error: 'No chapter content available to build a quiz from.' },
+        { status: 503 },
+      )
+    }
+
     const seed = Math.random().toString(36).substring(7)
+    const perSourceMax = Math.max(1, Math.ceil(safeCount / chunks.length))
 
-    const prompt = `Generate ${safeCount} FSc Chemistry MCQs for KPK board Pakistan.${truncatedContext ? `\nContent:\n${truncatedContext}` : ''}
-Return ONLY valid JSON: {"questions":[{"question":"...","options":["opt1","opt2","opt3","opt4"],"correct_index":0,"explanation":"brief","topic_slug":"slug"}]}
-Rules: 4 options each, 1 correct answer, vary correct_index 0-3 equally. Seed: ${seed}`
+    // Same parallel batching as the chapter path — one prompt holding every
+    // chunk blows past the route budget.
+    const batches = batchChunks(chunks, 8)
+    const perBatchCount = Math.ceil(safeCount / batches.length)
+    const header = `You are writing FSc Chemistry MCQs for the KPK board, Pakistan.
+Seed: ${seed}`
 
-    let questions: unknown[] | null = null
-    let lastPageError = ''
+    console.log('[generate-quiz page] chunks:', chunks.length, '| batches:', batches.length, '| target:', safeCount)
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log('[generate-quiz page] attempt', attempt, 'of 3')
+    const settled = await Promise.allSettled(
+      batches.map((batch, i) => generateBatch({
+        chunks: batch,
+        header,
+        count: perBatchCount,
+        perSourceMax,
+        timeoutMs: 45000,
+        tag: `generate-quiz page b${i + 1}/${batches.length}`,
+      })),
+    )
 
-      const pageController = new AbortController()
-      const pageTimer = setTimeout(() => pageController.abort(), 55000)
-      let openaiRes: Response
-      try {
-        openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          signal: pageController.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            temperature: 0.7,
-            max_tokens: 3000,
-            response_format: { type: 'json_object' },
-            messages: [{ role: 'user', content: prompt }],
-          }),
-        })
-        clearTimeout(pageTimer)
-      } catch (fetchErr: any) {
-        clearTimeout(pageTimer)
-        console.error('[generate-quiz page] OpenAI fetch failed (attempt', attempt, '):', fetchErr?.message)
-        lastPageError = 'AI generation failed: ' + (fetchErr?.message ?? 'network error')
-        continue
-      }
+    const merged = dedupeQuestions(
+      settled.flatMap(r => (r.status === 'fulfilled' ? r.value : [])),
+    )
 
-      if (!openaiRes.ok) {
-        const errText = await openaiRes.text()
-        console.error('[generate-quiz page] OpenAI HTTP error:', openaiRes.status, errText.slice(0, 200))
-        lastPageError = `OpenAI API error: ${openaiRes.status}`
-        break
-      }
-
-      const openaiData = await openaiRes.json()
-      const rawText: string = openaiData.choices?.[0]?.message?.content ?? '{}'
-      console.log('[generate-quiz page] raw response:', rawText.substring(0, 200))
-
-      try {
-        const parsed = JSON.parse(rawText)
-        const qs: unknown[] = parsed.questions ?? []
-        if (!Array.isArray(qs)) throw new Error('questions is not array')
-        questions = qs
-        break
-      } catch (parseError: any) {
-        console.error('[generate-quiz page] JSON parse error (attempt', attempt, '):', parseError?.message, '| raw:', rawText.slice(0, 500))
-        lastPageError = 'Failed to parse AI response'
-      }
+    if (merged.length === 0) {
+      return NextResponse.json({ questions: [], error: 'No questions survived validation' })
     }
 
-    if (!questions) {
-      return NextResponse.json({ questions: [], error: lastPageError || 'Failed after 3 attempts' })
-    }
+    // /quiz reads options[] + correct_index (getOptions/getCorrectIndex accept
+    // both shapes, but emit the array form explicitly).
+    const questions = shuffle(merged).slice(0, safeCount).map((q) => {
+      const opts = ['A', 'B', 'C', 'D'].map(k => q.options![k])
+      return {
+        ...q,
+        options: opts,
+        correct_index: ['A', 'B', 'C', 'D'].indexOf(String(q.correct_answer)),
+      }
+    })
 
+    console.log('[generate-quiz page] merged', questions.length, 'questions')
     return NextResponse.json({ ok: true, questions })
 
   } catch (error: any) {

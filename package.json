@@ -27,6 +27,7 @@
     "eslint": "^9",
     "eslint-config-next": "^15.3.9",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   },
   "description": "VoiceUstad — Urdu-language educational platform for KPK board FSc/MDCAT students (Next.js + Supabase + OpenAI TTS).",
