@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { touchDailyStreak } from '@/lib/streak';
@@ -205,7 +205,28 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
   const [msgIndex, setMsgIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
+  // `topics` is read through a ref rather than being a dependency. The parent
+  // rebuilds this array every time /api/chapter-topics resolves
+  // (app/chat/page.tsx does [...data].sort(...)), so its identity always
+  // changes — which used to give generateQuiz a new identity and re-run the
+  // whole generation while the first request was still in flight. The two
+  // raced, last-write-wins, and the user watched question 1 and the total
+  // count visibly swap. The server derives its own grounding from chapter_id,
+  // so a late topics arrival does not need a regeneration.
+  const topicsRef = useRef(topics);
+  useEffect(() => { topicsRef.current = topics; }, [topics]);
+
+  // Only the newest run may write state or lift the loading screen.
+  const runIdRef = useRef(0);
+  const inFlightRef = useRef<AbortController | null>(null);
+
   const generateQuiz = useCallback(async () => {
+    const runId = ++runIdRef.current;
+    // Supersede anything still in flight (e.g. a double-tapped Retake).
+    inFlightRef.current?.abort();
+    const controller = new AbortController();
+    inFlightRef.current = controller;
+
     setLoading(true);
     setGenError(null);
     // Taking a chapter quiz is study activity — count it toward the streak
@@ -216,31 +237,40 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
     setShowResults(false);
     setQuizResults(null);
 
-    const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 58000)
     try {
       const res = await fetch('/api/generate-quiz', {
         method: 'POST',
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chapter_id: chapterId, chapter_title: chapterTitle, topics }),
+        body: JSON.stringify({ chapter_id: chapterId, chapter_title: chapterTitle, topics: topicsRef.current }),
       });
       clearTimeout(timeoutId)
       const data = await res.json();
+      // Superseded while awaiting — drop the result rather than overwriting a
+      // quiz the user is already reading.
+      if (runId !== runIdRef.current) return;
       if (!data.ok) throw new Error(data.error || 'Failed to generate quiz');
       setQuestions((data.questions as any[]).map(shuffleOptions) as Question[]);
     } catch (e: unknown) {
       clearTimeout(timeoutId)
+      // A superseded run's abort is expected — never surface it as an error.
+      if (runId !== runIdRef.current) return;
       const isAbort = e instanceof Error && e.name === 'AbortError'
       setGenError(isAbort
         ? 'Quiz generation taking longer than expected, please try again'
         : (e instanceof Error ? e.message : 'Failed to generate quiz'));
     } finally {
-      setLoading(false);
+      // Only the live run may lift the loading screen. A superseded run leaves
+      // it up, so no provisional quiz is ever rendered.
+      if (runId === runIdRef.current) setLoading(false);
     }
-  }, [chapterId, chapterTitle, topics, userId]);
+  }, [chapterId, chapterTitle, userId]);
 
-  useEffect(() => { generateQuiz(); }, [generateQuiz]);
+  useEffect(() => {
+    generateQuiz();
+    return () => { inFlightRef.current?.abort(); };
+  }, [generateQuiz]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -693,7 +723,14 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
   return (
     <div style={overlayStyle}>
       <div
-        style={{ ...cardStyle, maxHeight: 'min(92dvh, 100%)', overflowY: 'auto' }}
+        // No max-height / overflow here on purpose. Giving the card its own
+        // scroll made it a SECOND scroll container nested inside the overlay,
+        // and that is the only structural difference between this screen and
+        // the results screen — which is confirmed working on real hardware.
+        // With long options (4 lines each, e.g. Stoichiometry §1.1) option D
+        // was clipped and unreachable on a real phone while emulation showed
+        // it scrolling fine. Card grows, overlay scrolls, one scroller only.
+        style={cardStyle}
         onContextMenu={(e) => e.preventDefault()}
         onCopy={(e) => e.preventDefault()}
       >

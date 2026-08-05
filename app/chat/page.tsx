@@ -29,6 +29,11 @@ let _setShowQuiz: ((v: boolean) => void) | null = null;
 let _setPreparingQuiz: ((v: boolean) => void) | null = null;
 // Mirror of quizChapterInfo React state — readable from module-level async functions
 let _quizChapterInfo: QuizChapterInfo | null = null;
+// Resolves when selCh()'s /api/chapter-topics fetch has settled for the chapter
+// currently being selected. The deep-link handler awaits this instead of
+// sleeping for a fixed interval — the underlying query has a ~608ms median,
+// which straddled the old hard-coded 600ms wait.
+let _scopeTopicsReady: Promise<void> = Promise.resolve();
 let _selectedClass = 11;
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -507,7 +512,7 @@ function selCh(i: number){
   const chapterNum = parseInt(CHS[i]?.n ?? String(i + 1), 10);
   if (_setScopeTopics) {
     console.log('[scope] fetching topics for chapter:', chapterNum);
-    fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`)
+    _scopeTopicsReady = fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`)
       .then(r => r.json())
       .then((d) => {
         console.log('[scope] raw response — rows:', d?.topics?.length ?? 0, '| chapter:', chapterNum, '| error:', d?.error ?? 'none');
@@ -2422,8 +2427,16 @@ async function fetchChapters() {
               // Step 1: select the chapter (sets _quizChapterInfo synchronously)
               selCh(idx);
 
-              // Step 2: wait for scope topics to finish loading from /api/chapter-topics
-              await new Promise(r => setTimeout(r, 600));
+              // Step 2: wait for the ACTUAL /api/chapter-topics fetch that
+              // selCh just started, rather than sleeping for a fixed interval.
+              // The old `await setTimeout(600)` sat right on the query's ~608ms
+              // median, so it was a coin flip whether topics had landed — and a
+              // cold start (measured 2.2s) lost every time. The timeout below is
+              // a ceiling, not the expected path.
+              await Promise.race([
+                _scopeTopicsReady,
+                new Promise(r => setTimeout(r, 5000)),
+              ]);
 
               // Step 3: verify _quizChapterInfo is populated before opening modal
               let readyAttempts = 0;
