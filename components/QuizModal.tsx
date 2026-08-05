@@ -141,16 +141,19 @@ const cardStyle: React.CSSProperties = {
   position: 'relative',
 };
 
-// Long revise lists get their own bounded scroll region so they can never push
-// the action buttons below the fold.
-const reviseListStyle: React.CSSProperties = {
-  maxHeight: 'min(38dvh, 300px)',
-  overflowY: 'auto',
-  overscrollBehavior: 'contain',
-  WebkitOverflowScrolling: 'touch',
-  paddingRight: '4px',
-};
-
+// NOTE: the revise list deliberately has NO bounded scroll region.
+//
+// It previously used `max-height: min(38dvh,300px); overflow-y:auto;
+// overscroll-behavior:contain`, which made it a second scroll container nested
+// inside the overlay. `contain` does exactly what it is specified to do — stop
+// scroll chaining once the inner scroller hits its limit — but the list covered
+// most of the visible card, so almost every gesture started on it, scrolled the
+// list to its end, and then dead-ended. Measured at 390x659 with 15 topics:
+// a drag starting on the list left the overlay at scrollTop 0/188 and the
+// action buttons unreachable, while the identical drag started on the score
+// card scrolled the overlay to 188/188. Letting the list grow and having the
+// overlay be the sole scroller makes the gesture work from anywhere — the same
+// single-scroller model as the question screen, confirmed on real hardware.
 // Book sections are numeric for units 1–21 ("2.1.3") but prose for 22–24
 // ("Adhesives"), where a "§" prefix would read wrong.
 function sectionLabel(section?: string | null): string | null {
@@ -602,7 +605,6 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
               <div style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
                 ⚠️ Topics to Revise ({quizResults.wrongItems.length})
               </div>
-              <div style={reviseListStyle}>
               {quizResults.wrongItems.map((item, idx) => (
                 <div key={idx} style={{
                   background: 'rgba(239,68,68,0.06)',
@@ -647,7 +649,6 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
                   </div>
                 </div>
               ))}
-              </div>
             </div>
           )}
 
