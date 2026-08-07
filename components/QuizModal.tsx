@@ -154,6 +154,7 @@ const cardStyle: React.CSSProperties = {
 // card scrolled the overlay to 188/188. Letting the list grow and having the
 // overlay be the sole scroller makes the gesture work from anywhere — the same
 // single-scroller model as the question screen, confirmed on real hardware.
+
 // Book sections are numeric for units 1–21 ("2.1.3") but prose for 22–24
 // ("Adhesives"), where a "§" prefix would read wrong.
 function sectionLabel(section?: string | null): string | null {
@@ -431,7 +432,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
 
   if (loading) {
     return (
-      <div style={overlayStyle}>
+      <div data-scrollable style={overlayStyle}>
         <div style={{ ...cardStyle, maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
           <div style={{ padding: '36px 20px 32px', textAlign: 'center' }}>
             <div style={{ fontSize: '34px', marginBottom: '20px' }}>⚡</div>
@@ -478,7 +479,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
 
   if (genError) {
     return (
-      <div style={overlayStyle} onClick={onClose}>
+      <div data-scrollable style={overlayStyle} onClick={onClose}>
         <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
           <div style={{ textAlign: 'center', padding: '32px 20px' }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
@@ -500,7 +501,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
 
   if (saveError) {
     return (
-      <div style={overlayStyle} onClick={onClose}>
+      <div data-scrollable style={overlayStyle} onClick={onClose}>
         <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
           <div style={{ textAlign: 'center', padding: '32px 20px' }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
@@ -525,7 +526,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
     const uniqueTopics = [...new Set(quizResults.wrongItems.map(w => w.topic))];
 
     return (
-      <div style={overlayStyle}>
+      <div data-scrollable style={overlayStyle}>
         <div style={{ ...cardStyle, maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
 
           {/* Header */}
@@ -722,7 +723,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
   const selectedAnswer = answers[currentIndex];
 
   return (
-    <div style={overlayStyle}>
+    <div data-scrollable style={overlayStyle}>
       <div
         // No max-height / overflow here on purpose. Giving the card its own
         // scroll made it a SECOND scroll container nested inside the overlay,

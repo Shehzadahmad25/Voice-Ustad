@@ -2618,11 +2618,35 @@ function setupMobileEnhancements(){
   // Remove any previous mount's listeners before adding fresh ones
   if (_mobileEnhancementsCleanup) _mobileEnhancementsCleanup();
 
-  /* Prevent body scroll bounce on iOS (overscroll) */
+  /* Prevent body scroll bounce on iOS (overscroll).
+
+     This cancels touchmove for anything outside the allowlist below. The
+     allowlist is chat-specific, so it matched NOTHING inside the quiz modal —
+     its overlay, card, question, option buttons and Next button all returned
+     null from closest(), so every touchmove inside a quiz was preventDefault-ed
+     and touch scrolling was dead on mobile. Wheel scrolling was unaffected,
+     which is why desktop and DevTools emulation never showed it.
+
+     Fixed by never cancelling a gesture that a real scroll container can
+     consume. The decision is made once per gesture in onTouchStart (below) so
+     the per-move handler stays cheap. */
+  const canScroll = (el: Element | null): boolean => {
+    while (el && el !== document.body && el !== document.documentElement) {
+      const s = getComputedStyle(el);
+      if ((s.overflowY === 'auto' || s.overflowY === 'scroll')
+          && el.scrollHeight > el.clientHeight + 1) return true;
+      el = el.parentElement;
+    }
+    return false;
+  };
+
+  // Recomputed on every touchstart; read by onTouchMove.
+  let allowTouchScroll = false;
+
   const onTouchMove = (e: TouchEvent) => {
     // Belt & braces: never cancel scrolling when we're not on the chat page
     if (!window.location.pathname.startsWith('/chat')) return;
-    if((e.target as Element)?.closest('.msgs,.sb-list,.chips,.ai-followups,.scope-list,.scope-modal')) return;
+    if (allowTouchScroll) return;
     e.preventDefault();
   };
   document.body.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -2635,6 +2659,15 @@ function setupMobileEnhancements(){
   const onTouchStart = (e: TouchEvent) => {
     startX=e.touches[0].clientX;
     startY=e.touches[0].clientY;
+    const target = e.target as Element | null;
+    allowTouchScroll = Boolean(
+      // Existing chat-surface allowlist (fast path)
+      target?.closest('.msgs,.sb-list,.chips,.ai-followups,.scope-list,.scope-modal')
+      // Any modal/dialog that opts out of the body scroll lock
+      || target?.closest('[data-scrollable]')
+      // …and, generally, anything inside a real scroll container
+      || canScroll(target)
+    );
   };
   document.addEventListener('touchstart', onTouchStart, {passive:true});
 
