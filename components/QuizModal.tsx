@@ -298,6 +298,37 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
     setAnswers((prev) => ({ ...prev, [currentIndex]: opt }));
   };
 
+  /**
+   * Opens a weak topic in the chat, from the results screen.
+   *
+   * These controls used to call router.push('/chat?topic=…&chapter=…'). That
+   * silently did nothing: we are ALREADY on /chat, so it is a soft navigation
+   * that does not remount the page — and the ?topic= param is only ever read
+   * once, at mount, inside fetchChapters() -> waitForChapters()
+   * (app/chat/page.tsx). The URL changed, the handler never re-ran, and the
+   * modal stayed mounted at z-index 9999 covering the screen, so nothing was
+   * visible at all.
+   *
+   * Fast path calls viewTopic() directly — the chat page exposes it on window
+   * (app/chat/page.tsx: `w.viewTopic = viewTopic`) and the quiz is always for
+   * the currently selected chapter, so its scope is already correct. The
+   * fallback is a full page load, which is the pattern app/quiz/page.tsx
+   * already uses for this exact action and which guarantees the mount-time
+   * param handler runs.
+   */
+  const openTopicInChat = (topicName: string, topicSlug: string, chapterSlug: string) => {
+    onClose();
+    const w = window as unknown as {
+      viewTopic?: (title: string, chN: number, code?: string) => void;
+    };
+    if (typeof w.viewTopic === 'function') {
+      w.viewTopic(topicName, Number(chapterSlug), topicSlug);
+      return;
+    }
+    window.location.href =
+      `/chat?topic=${encodeURIComponent(topicSlug)}&chapter=${encodeURIComponent(chapterSlug)}&t=${Date.now()}`;
+  };
+
   const submit = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -523,7 +554,10 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
 
   if (showResults && quizResults) {
     const gc = gradeColor(quizResults.grade);
-    const uniqueTopics = [...new Set(quizResults.wrongItems.map(w => w.topic))];
+    // Keep the whole WrongItem, not just the topic name — the pills need the
+    // real topic_slug and chapter to navigate. Map keyed on topic name keeps
+    // the first occurrence of each.
+    const uniqueTopics = [...new Map(quizResults.wrongItems.map(w => [w.topic, w])).values()];
 
     return (
       <div data-scrollable style={overlayStyle}>
@@ -618,7 +652,8 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '5px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444' }}>{item.topic}</span>
                     <button
-                      onClick={() => router.push(`/chat?topic=${item.topicSlug}&chapter=${item.chapterSlug}`)}
+                      type="button"
+                      onClick={() => openTopicInChat(item.topic, item.topicSlug, item.chapterSlug)}
                       style={{
                         padding: '2px 8px', borderRadius: '4px',
                         background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.3)',
@@ -663,20 +698,37 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
                 📚 Suggested next session:
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-                {uniqueTopics.map((topic, i) => (
-                  <span key={i} style={{
-                    padding: '3px 10px', borderRadius: '999px',
-                    background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)',
-                    color: '#f97316', fontSize: '11px', fontWeight: 500,
-                  }}>
-                    {topic}
-                  </span>
+                {/* These were plain <span>s with no handler — rendered to look
+                    tappable but wired to nothing. Now they open the topic. */}
+                {uniqueTopics.map((item, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => openTopicInChat(item.topic, item.topicSlug, item.chapterSlug)}
+                    aria-label={`Study ${item.topic}`}
+                    style={{
+                      padding: '3px 10px', borderRadius: '999px',
+                      background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)',
+                      color: '#f97316', fontSize: '11px', fontWeight: 500,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    {item.topic}
+                  </button>
                 ))}
               </div>
               <button
+                type="button"
                 onClick={() => {
+                  // Same soft-navigation trap as "Study this" above, but this
+                  // one needs `mode=quiz`, which is ONLY honoured by the
+                  // mount-time handler in fetchChapters(). A full load is
+                  // required — there is no in-app entry point for it.
                   const first = quizResults.wrongItems[0];
-                  router.push(`/chat?chapter=${first.chapterSlug}&mode=quiz&topic=${first.topicSlug}`);
+                  onClose();
+                  window.location.href =
+                    `/chat?chapter=${encodeURIComponent(first.chapterSlug)}`
+                    + `&mode=quiz&topic=${encodeURIComponent(first.topicSlug)}&t=${Date.now()}`;
                 }}
                 style={{
                   width: '100%', padding: '9px', borderRadius: '8px',
