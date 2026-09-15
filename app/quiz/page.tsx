@@ -9,6 +9,7 @@ import SundayBanner from '@/components/SundayBanner'
 // Single source of truth — SundayBanner and all labels read the same values
 import { SUNDAY_COUNT, SUNDAY_SECS, SUNDAY_MINS } from '@/lib/sundayTest'
 import { touchDailyStreak } from '@/lib/streak'
+import { getAuthHeaders } from '@/lib/authHeaders'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -478,7 +479,7 @@ export default function QuizPage() {
           const res = await fetch('/api/generate-quiz', {
             method: 'POST',
             signal: ctrl.signal,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
             body: JSON.stringify({ count: n, board: 'KPK' }),
           })
           clearTimeout(t)
@@ -623,10 +624,8 @@ export default function QuizPage() {
     }
 
     try {
-      const { error: xpError } = await supabase.rpc('increment_xp', {
-        p_user_id: userId,
-        p_amount: xpEarned,
-      })
+      // increment_xp derives the user from auth.uid() server-side (capped 1..1000/call)
+      const { error: xpError } = await supabase.rpc('increment_xp', { p_amount: xpEarned })
       if (xpError) console.error('increment_xp error:', xpError)
       else console.log('XP added:', xpEarned)
     } catch (e) {

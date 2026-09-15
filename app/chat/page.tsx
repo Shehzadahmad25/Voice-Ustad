@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSubscriptionStatus } from '@/lib/subscription';
 import { getSupabaseClient } from '@/lib/supabase';
 import { touchDailyStreak } from '@/lib/streak';
+import { getAuthHeaders } from '@/lib/authHeaders';
 import TopNav from '@/components/TopNav';
 import QuizModal from '@/components/QuizModal';
 import SundayBanner from '@/components/SundayBanner';
@@ -450,7 +451,7 @@ async function toggleChapterPanel(idx, chId) {
     const panelTimeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Panel load timed out')), 12000));
     const [topicsRes, mcqRes, exRes, sqRes, nqRes, dqRes] = await Promise.race([panelTimeout, Promise.all([
-      fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`).then(r => r.json()).then(d => { console.log('[sidebar-panel] topics raw:', d?.topics?.length ?? 0, 'rows | error:', d?.error ?? 'none'); return { data: d?.topics ?? [], error: d?.error ?? null }; }),
+      getAuthHeaders().then(h => fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`, { headers: h })).then(r => r.json()).then(d => { console.log('[sidebar-panel] topics raw:', d?.topics?.length ?? 0, 'rows | error:', d?.error ?? 'none'); return { data: d?.topics ?? [], error: d?.error ?? null }; }),
       _sbClient.from('mcqs').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('examples').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
       _sbClient.from('short_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chId),
@@ -512,7 +513,8 @@ function selCh(i: number){
   const chapterNum = parseInt(CHS[i]?.n ?? String(i + 1), 10);
   if (_setScopeTopics) {
     console.log('[scope] fetching topics for chapter:', chapterNum);
-    _scopeTopicsReady = fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`)
+    _scopeTopicsReady = getAuthHeaders()
+      .then(h => fetch(`/api/chapter-topics?chapter=${chapterNum}&board=KPK`, { headers: h }))
       .then(r => r.json())
       .then((d) => {
         console.log('[scope] raw response — rows:', d?.topics?.length ?? 0, '| chapter:', chapterNum, '| error:', d?.error ?? 'none');
@@ -734,7 +736,7 @@ async function viewTopic(topicTitle: string, chN: number, topicCode?: string){
   try {
     const apiRes = await fetch('/api/topic-view', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
       signal: req.controller.signal,
       body: JSON.stringify({ topicTitle: title, topicCode: code || undefined, chapterNumber: chN }),
     });
@@ -945,7 +947,7 @@ async function fetchUrduForTopicCard(id: string, r: any) {
   try {
     const res = await fetch('/api/generate-urdu', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
       body: JSON.stringify({
         topicTitle:    String(r?.topic        || '').trim(),
         topicCode:     String(r?.topic_slug   || '').trim(),
@@ -1238,7 +1240,7 @@ async function send(){
   try {
     const apiRes = await fetch('/api/chat2', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
       signal: req.controller.signal,
       body: JSON.stringify({
         message: txt,
@@ -1950,7 +1952,7 @@ async function retryAudio(id, silent=false){
       try {
         const res = await fetch('/api/chat2', {
           method:'POST',
-          headers:{ 'Content-Type':'application/json' },
+          headers:{ 'Content-Type':'application/json', ...(await getAuthHeaders()) },
           body: JSON.stringify({
             mode: 'audio',
             urduSummary: summary,

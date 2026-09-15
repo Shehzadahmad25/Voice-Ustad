@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceClient } from '@/lib/supabase';
+import { requireUser, authError } from '@/lib/apiAuth';
 import { QUIZ_MIN_COUNT } from '@/lib/quizConfig';
 
 export const runtime = 'nodejs';
@@ -12,17 +12,42 @@ interface Question {
   topic_name: string;
 }
 
+/**
+ * POST /api/save-quiz-result
+ *
+ * Identity comes from the bearer token (lib/apiAuth.ts), never from the body.
+ * This route writes with the service-role client, so until 2026-09 anyone
+ * could POST a fake result into any user's history by picking a user_id.
+ *
+ * The body may still carry `user_id` (the current client sends it). It is
+ * compared against the token and a mismatch is REJECTED with 403 rather than
+ * silently overwritten, so any caller sending someone else's id shows up in
+ * the logs instead of being quietly corrected.
+ */
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req);
+  if ('error' in auth) return authError(auth);
+  const { db, userId } = auth;
+
   const body = await req.json();
-  const { user_id, chapter_id, chapter_title, answers, questions } = body as {
-    user_id: string;
+  const { user_id: bodyUserId, chapter_id, chapter_title, answers, questions } = body as {
+    user_id?: string;
     chapter_id: string | number;
     chapter_title: string;
     answers: string[];
     questions: Question[];
   };
 
-  if (!user_id || !chapter_id || !chapter_title || !answers || !questions?.length) {
+  if (bodyUserId && bodyUserId !== userId) {
+    console.warn(`[save-quiz-result] REJECTED user_id mismatch: body=${bodyUserId} token=${userId}`);
+    return NextResponse.json(
+      { ok: false, error: 'user_id does not match the signed-in user' },
+      { status: 403 },
+    );
+  }
+  const user_id = userId;
+
+  if (!chapter_id || !chapter_title || !answers || !questions?.length) {
     return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -58,8 +83,6 @@ export async function POST(req: NextRequest) {
     .map(([topic]) => topic);
 
   const suggested_review = weak_topics.slice(0, 5);
-
-  const db = getServiceClient();
 
   const { error: dbError } = await db.from('student_quiz_results').insert({
     user_id,

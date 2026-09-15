@@ -13,10 +13,17 @@
  *   - audioUrl: public tts-audio Storage URL — the ONLY value the client may
  *     persist to chat_messages.urdu_audio_url (base64 is never stored in DB)
  * If TTS fails: { ok: true, urduTtsText, audioBase64: null, audioUrl: null, duration }
+ *
+ * Auth: signed-in user with an active trial/subscription (lib/apiAuth.ts),
+ * plus a per-user rate limit. This is the most expensive route in the app
+ * (Claude + OpenAI TTS + a public Storage upload) and until 2026-09 it was
+ * reachable with no token at all.
  */
 
 import { createHash }                               from 'crypto';
 import { NextRequest, NextResponse }                from 'next/server';
+import { requireAccess, authError }                 from '@/lib/apiAuth';
+import { checkRateLimit }                           from '@/lib/rateLimit';
 import { generateDevUrduTts, sanitizeUrduTtsText } from '@/lib/agents/tools';
 import { saveToCache }                              from '@/lib/qaCache';
 import { getServiceClient }                         from '@/lib/supabase';
@@ -29,9 +36,22 @@ export const maxDuration = 60;
 
 const CACHE_ENABLED = process.env.CACHE_ENABLED === 'true';
 
+const URDU_PER_USER_PER_MIN = 10;
+
 export async function POST(request: NextRequest) {
   const t0 = Date.now();
   try {
+    const auth = await requireAccess(request);
+    if ('error' in auth) return authError(auth);
+
+    const rl = checkRateLimit(`urdu:${auth.userId}`, URDU_PER_USER_PER_MIN);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { ok: false, error: 'Too many requests', retryAfterMs: rl.retryAfterMs },
+        { status: 429 },
+      );
+    }
+
     const body         = await request.json();
     const topicCode    = String(body?.topicCode    ?? '').trim();
     const topicTitle   = String(body?.topicTitle   ?? '').trim();

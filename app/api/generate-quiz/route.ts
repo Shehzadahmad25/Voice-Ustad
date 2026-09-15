@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAccess, authError } from '@/lib/apiAuth'
+import { checkRateLimit } from '@/lib/rateLimit'
 import { getServiceClient } from '@/lib/supabase'
 import { QUIZ_TARGET_COUNT, QUIZ_MIN_COUNT, QUIZ_MIN_TOPIC_COVERAGE } from '@/lib/quizConfig'
 import {
@@ -151,7 +153,25 @@ function topicCoverage(questions: any[], topicNames: string[]): number {
   return covered.size / sent.length
 }
 
+// A chapter quiz is 3-5 parallel gpt-4o-mini calls; nobody legitimately
+// starts more than a couple a minute.
+const QUIZ_PER_USER_PER_MIN = 4
+
 export async function POST(req: NextRequest) {
+  // Signed-in + active plan. Every quiz is generated live by OpenAI (the
+  // quiz_questions DB path never has enough rows), so this route was pure
+  // unauthenticated API spend until 2026-09.
+  const auth = await requireAccess(req)
+  if ('error' in auth) return authError(auth)
+
+  const rl = checkRateLimit(`quiz:${auth.userId}`, QUIZ_PER_USER_PER_MIN)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { questions: [], error: 'Too many quiz requests, wait a minute', retryAfterMs: rl.retryAfterMs },
+      { status: 429 },
+    )
+  }
+
   // FIX 4 — API key guard at the very top
   if (!process.env.OPENAI_API_KEY) {
     console.error('[generate-quiz] OPENAI_API_KEY not set')

@@ -18,10 +18,16 @@
  *
  * This file is intentionally thin — it handles only HTTP concerns:
  *   auth, rate limiting, input validation, error formatting.
+ *
+ * Auth: every mode requires a signed-in user with an active trial or
+ * subscription (lib/apiAuth.ts requireAccess). Before 2026-09 this route was
+ * open to the internet — the only guard was DEMO_ACCESS_KEY, which is unset
+ * in production, so anyone could burn Claude/TTS spend without an account.
  * All answer logic lives in lib/agents/tutorAgent.ts.
  */
 
 import { NextRequest, NextResponse }          from 'next/server';
+import { requireAccess, authError }           from '@/lib/apiAuth';
 import { checkRateLimit }                     from '@/lib/rateLimit';
 import { saveAudioToCache, saveAudioToCacheById, logCacheEvent } from '@/lib/qaCache';
 import { generateSpeech, VOICE_MAP }          from '@/lib/tts';
@@ -122,11 +128,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Signed-in + active plan, or nothing below runs (no LLM, no TTS, no DB).
+    const auth = await requireAccess(request);
+    if ('error' in auth) return authError(auth);
+
     const body = await request.json();
     const mode = String(body?.mode ?? 'chat').trim().toLowerCase();
     const ip   = getIp(request);
 
-    const rlKey = mode === 'audio' ? `tts:${ip}` : `chat2:${ip}`;
+    // Rate-limit per USER now that we have one — an IP key was shared by every
+    // student behind the same mobile carrier NAT.
+    const rlKey = mode === 'audio' ? `tts:${auth.userId}` : `chat2:${auth.userId}`;
     const rl    = checkRateLimit(rlKey, mode === 'audio' ? 30 : 20);
     if (!rl.ok) {
       return NextResponse.json(
@@ -135,7 +147,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[chat2] ip=${ip} mode=${mode}`);
+    console.log(`[chat2] user=${auth.userId} ip=${ip} mode=${mode}`);
 
     // ── Audio mode ─────────────────────────────────────────────────────────────
     if (mode === 'audio') {

@@ -5,9 +5,13 @@
  * Uses the SERVICE ROLE KEY so RLS does not block the query.
  * The anon key (used by the browser client) would be silently blocked
  * by RLS if no public-read policy exists on content_chunks.
+ *
+ * Auth: any signed-in user (lib/apiAuth.ts requireUser). Titles/sections
+ * only, no teaching content, so an expired trial can still see the syllabus.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireUser, authError }    from '@/lib/apiAuth';
 import { getServiceClient }          from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -19,6 +23,9 @@ function getSupabase() {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req);
+  if ('error' in auth) return authError(auth);
+
   const chapterParam  = req.nextUrl.searchParams.get('chapter');
 
   const chapterNumber = parseInt(chapterParam ?? '', 10);

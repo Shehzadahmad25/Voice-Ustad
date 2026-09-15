@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { getAuthHeaders } from '@/lib/authHeaders'
 
 interface Topic {
   id: string
@@ -178,9 +179,19 @@ export default function ChapterPage() {
 
     const load = async () => {
       try {
-        const res  = await fetch(`/api/chapter-content?chapter=${encodeURIComponent(chapterId)}&board=KPK`)
+        // /api/chapter-content now requires a signed-in user with an active
+        // plan. This page is not in the middleware's protected list, so handle
+        // the two auth outcomes here instead of showing a generic error.
+        const headers = await getAuthHeaders()
+        if (!headers.Authorization) {
+          router.push(`/auth/signin?next=${encodeURIComponent(`/chapter/${chapterId}`)}`)
+          return
+        }
+        const res  = await fetch(`/api/chapter-content?chapter=${encodeURIComponent(chapterId)}&board=KPK`, { headers })
         const json = await res.json()
 
+        if (res.status === 401) { router.push('/auth/signin'); return }
+        if (res.status === 403 && json?.code === 'SUBSCRIPTION_REQUIRED') { router.push('/pricing?reason=expired'); return }
         if (!res.ok || !json.ok) {
           throw new Error(json.error || 'Failed to load chapter')
         }
@@ -196,7 +207,7 @@ export default function ChapterPage() {
     }
 
     load()
-  }, [chapterId])
+  }, [chapterId, router])
 
   const displayTitle = chapterTitle || 'Loading chapter…'
 

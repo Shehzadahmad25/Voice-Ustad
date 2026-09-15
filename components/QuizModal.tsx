@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { touchDailyStreak } from '@/lib/streak';
+import { getAuthHeaders } from '@/lib/authHeaders';
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -246,7 +247,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
       const res = await fetch('/api/generate-quiz', {
         method: 'POST',
         signal: controller.signal,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({ chapter_id: chapterId, chapter_title: chapterTitle, topics: topicsRef.current }),
       });
       clearTimeout(timeoutId)
@@ -376,7 +377,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
       try {
         const saveRes = await fetch('/api/save-quiz-result', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
           body: JSON.stringify({
             user_id: userId,
             chapter_id: chapterId,
@@ -423,7 +424,7 @@ export default function QuizModal({ chapterId, chapterTitle, chapterNumber, topi
         }
 
         try {
-          await supabase.rpc('increment_xp', { p_user_id: userId, p_amount: xpEarned });
+          await supabase.rpc('increment_xp', { p_amount: xpEarned }); // user = auth.uid() server-side
         } catch (e) {
           console.error('[QuizModal] increment_xp error:', e);
         }

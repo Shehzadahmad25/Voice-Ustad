@@ -3,9 +3,14 @@
  *
  * Returns chapter metadata + full topic content from content_chunks.
  * Uses SERVICE ROLE KEY — the anon key is blocked by RLS on both tables.
+ *
+ * Auth: signed-in user with an active trial/subscription (lib/apiAuth.ts).
+ * This is the paid teaching corpus; RLS on content_chunks was doing nothing
+ * for it because this route bypasses RLS and, until 2026-09, took no token.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAccess, authError }  from '@/lib/apiAuth';
 import { getServiceClient }          from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -17,6 +22,9 @@ function getSupabase() {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAccess(req);
+  if ('error' in auth) return authError(auth);
+
   const chapterParam = req.nextUrl.searchParams.get('chapter');
   const board        = req.nextUrl.searchParams.get('board') || 'KPK';
 

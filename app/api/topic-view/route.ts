@@ -6,9 +6,14 @@
  * Never calls any AI model.
  *
  * POST { topicTitle: string, chapterNumber: number }
+ *
+ * Auth: signed-in user with an active trial/subscription. Same corpus as
+ * /api/chapter-content, one topic at a time — gating one without the other
+ * would leave the content readable by iterating this route.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAccess, authError }  from '@/lib/apiAuth';
 import { retrieveTopicContent }      from '@/lib/retrieveTopicContent';
 import { sanitizeUrduTtsText, isEnglishResponse } from '@/lib/agents/tools';
 
@@ -18,8 +23,8 @@ export const maxDuration = 30; // DB retrieval only, but allow for cold starts +
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[topic-view] OPENAI_API_KEY present:', !!process.env.OPENAI_API_KEY,
-      process.env.OPENAI_API_KEY?.slice(0, 8));
+    const auth = await requireAccess(request);
+    if ('error' in auth) return authError(auth);
 
     const body          = await request.json();
     const topicTitle    = String(body?.topicTitle    ?? '').trim();
