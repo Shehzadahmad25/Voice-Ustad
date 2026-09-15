@@ -27,7 +27,9 @@ export function touchDailyStreak(
   const todayUtc = new Date().toISOString().slice(0, 10)
   if (localStorage.getItem(GUARD_KEY) === todayUtc) return // already recorded today
 
-  Promise.resolve(supabase.rpc('update_streak', { p_user_id: userId }))
+  // Target user is auth.uid() inside the function (2026-09-fix-xp-streak-rpcs.sql);
+  // userId is only used for the early-return guard above.
+  Promise.resolve(supabase.rpc('update_streak'))
     .then(({ error }: { error: { message: string } | null }) => {
       if (error) {
         console.error('[streak] update_streak failed:', error.message)
