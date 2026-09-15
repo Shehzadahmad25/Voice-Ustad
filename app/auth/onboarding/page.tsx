@@ -61,8 +61,10 @@ export default function OnboardingPage() {
         class: studentClass || null,
         goal: goal || null,
         exam_date: examDate || null,
-        subscription_status: 'trial',
-        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        // subscription_status / trial_ends_at are NOT sent: the auth-signup
+        // trigger already seeds 'trial' + now()+7d, and the profiles guard
+        // trigger (2026-09-lock-profile-privileged-columns.sql) rejects any
+        // end-user write to those columns with 42501.
       }, { onConflict: 'id' })
       if (profileError) console.error('Profile save error:', profileError)
       sessionStorage.removeItem('signup_email')

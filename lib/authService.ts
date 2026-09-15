@@ -108,6 +108,26 @@ async function syncAuthMarkerFromSession(session: Session | null) {
   setAuthMarkerCookie(Boolean(session))
 }
 
+/**
+ * Columns an end user may never write. The profiles guard trigger
+ * (scripts/migrations/2026-09-lock-profile-privileged-columns.sql) rejects an
+ * UPDATE that changes any of them with 42501 and forces defaults on INSERT.
+ * normalizeProfileRecord() fills display defaults for these (e.g. a 7-day
+ * trial_ends_at when the row has none) — those defaults must never reach an
+ * upsert, or a routine profile save fails for the user.
+ */
+const PRIVILEGED_PROFILE_KEYS = [
+  'subscription_status', 'is_subscribed', 'subscription_expires_at',
+  'trial_ends_at', 'role', 'xp', 'streak', 'best_streak',
+  'last_study_date', 'last_sunday_test_at',
+] as const
+
+function stripPrivileged<T extends Record<string, unknown>>(row: T): Omit<T, (typeof PRIVILEGED_PROFILE_KEYS)[number]> {
+  const out: Record<string, unknown> = { ...row }
+  for (const k of PRIVILEGED_PROFILE_KEYS) delete out[k]
+  return out as Omit<T, (typeof PRIVILEGED_PROFILE_KEYS)[number]>
+}
+
 export const authService = {
   async bootstrapSession() {
     const supabase = getClient()
@@ -234,7 +254,7 @@ export const authService = {
     // onboarding step fills them. normalizeProfileRecord's display defaults
     // ('11'/'KPK'/MDCAT) previously leaked into this INSERT, which made every
     // first Google login look already-onboarded and skip the onboarding flow.
-    const profile = { ...normalizeProfileRecord({}, user), class: null, board: null, goal: null }
+    const profile = stripPrivileged({ ...normalizeProfileRecord({}, user), class: null, board: null, goal: null })
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { email: _email, ...profileWithoutEmail } = profile
 
@@ -278,7 +298,7 @@ export const authService = {
     const baseProfile = await this.getOrCreateProfile()
     if (!baseProfile) return null
 
-    const nextProfile = { ...baseProfile, ...input, email: user.email || baseProfile.email }
+    const nextProfile = stripPrivileged({ ...baseProfile, ...input, email: user.email || baseProfile.email })
 
     const { data, error } = await supabase
       .from('profiles').upsert(nextProfile, { onConflict: 'id' }).select('*').single()
